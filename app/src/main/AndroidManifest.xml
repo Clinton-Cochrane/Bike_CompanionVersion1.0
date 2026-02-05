@@ -1,44 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android = "http://schemas.android.com/apk/res/android"
-          package = "cochrane.bike_companion">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-permission android:name = "android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name = "android.permission.INTERNET"/>
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
+
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-            android:allowBackup = "true"
-            android:icon = "@mipmap/ic_launcher"
-            android:label = "@string/app_name"
-            android:roundIcon = "@mipmap/ic_launcher_round"
-            android:supportsRtl = "true"
-            android:theme = "@style/AppTheme">
+        android:name="com.you.bikecompanion.BikeCompanionApplication"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.BikeCompanion"
+        tools:targetApi="34">
         <activity
-                android:name = ".MainActivity"
-                android:label = "@string/app_name"
-                android:theme = "@style/AppTheme.NoActionBar">
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.BikeCompanion">
             <intent-filter>
-                <action android:name = "android.intent.action.MAIN" />
-
-                <category android:name = "android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name = ".EditBikeActivity">
-        </activity>
-        <activity android:name = ".RideEditActivity">
-        </activity>
-
+        <activity
+            android:name=".ui.ride.ActiveRideActivity"
+            android:exported="false"
+            android:theme="@style/Theme.BikeCompanion" />
         <service
-                android:name = ".Utilities.RideTracker"
-                android:enabled = "true"
-                android:exported = "true">
-        </service>
-
-        <activity android:name = ".RideActivity">
-        </activity>
-        <activity android:name = ".EditGroupActivity">
-        </activity>
-        <activity android:name = ".EditRideActivity">
-        </activity>
+            android:name=".location.RideTrackingService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location" />
     </application>
-
 </manifest>

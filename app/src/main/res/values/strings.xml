@@ -1,11 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name = "app_name">Bike_Companion</string>
+    <string name="app_name">Bike Companion</string>
 
-    <string name = "navigation_drawer_open">Open navigation drawer</string>
-    <string name = "navigation_drawer_close">Close navigation drawer</string>
+    <!-- Bottom navigation -->
+    <string name="nav_trip">Trip</string>
+    <string name="nav_garage">Garage</string>
+    <string name="nav_stats">Stats</string>
+    <string name="nav_ai">AI</string>
 
-    <string name = "action_settings">Settings</string>
+    <!-- Trip screen -->
+    <string name="trip_start_button">Start new trip</string>
+    <string name="trip_start_button_content_description">Start a new bike trip</string>
+    <string name="trip_past_rides">Past rides</string>
+    <string name="trip_no_rides">No rides yet. Start a trip to record your first ride.</string>
+    <string name="trip_ride_date">Date: %1$s</string>
+    <string name="trip_ride_distance">%1$.1f km</string>
+    <string name="trip_ride_duration">Duration: %1$s</string>
+    <string name="trip_ride_bike">Bike: %1$s</string>
+    <string name="trip_select_bike">Select bike</string>
+    <string name="trip_no_bike_selected">No bike selected</string>
+    <string name="trip_add_bike_first">Add a bike in Garage first</string>
+    <string name="trip_import_health_connect">Import from Health Connect</string>
+    <string name="trip_import_health_connect_content_description">Import cycling sessions from Health Connect</string>
+    <string name="trip_import_success">Imported %1$d ride(s)</string>
+    <string name="trip_import_none">No cycling sessions found in Health Connect</string>
+    <string name="trip_import_error">Could not read Health Connect. Check that Health Connect is installed and permission is granted.</string>
 
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name = "hello_blank_fragment">Hello blank fragment</string>
+    <!-- Active ride screen -->
+    <string name="ride_active_title">Ride in progress</string>
+    <string name="ride_distance">Distance: %1$.2f km</string>
+    <string name="ride_duration">Duration: %1$s</string>
+    <string name="ride_speed_current">Speed: %1$.1f km/h</string>
+    <string name="ride_speed_avg">Avg: %1$.1f km/h</string>
+    <string name="ride_speed_max">Max: %1$.1f km/h</string>
+    <string name="ride_elevation_gain">Elev gain: %1$.0f m</string>
+    <string name="ride_elevation_loss">Elev loss: %1$.0f m</string>
+    <string name="ride_pause">Pause</string>
+    <string name="ride_resume">Resume</string>
+    <string name="ride_stop">Stop ride</string>
+    <string name="ride_stop_content_description">Stop the current ride and save</string>
+    <string name="ride_pause_content_description">Pause the current ride</string>
+    <string name="ride_resume_content_description">Resume the paused ride</string>
+    <string name="ride_gps_waiting">Waiting for GPS…</string>
+    <string name="ride_gps_ready">GPS ready</string>
+
+    <!-- Garage screen -->
+    <string name="garage_title">Bike garage</string>
+    <string name="garage_no_bikes">No bikes yet. Add your first bike.</string>
+    <string name="garage_add_bike">Add bike</string>
+    <string name="garage_add_bike_content_description">Add a new bike</string>
+    <string name="garage_bike_total_km">%1$.0f km total</string>
+    <string name="garage_bike_last_ride">Last ride: %1$s</string>
+    <string name="garage_components_attention">%1$d components need attention</string>
+    <string name="garage_components">Components</string>
+    <string name="garage_rides">Rides</string>
+    <string name="garage_edit_bike">Edit bike</string>
+    <string name="garage_start_ride">Start ride with this bike</string>
+    <string name="garage_bike_card_content_description">Bike %1$s, %2$.0f km total</string>
+
+    <!-- Bike detail / edit -->
+    <string name="bike_name">Name</string>
+    <string name="bike_make">Make</string>
+    <string name="bike_model">Model</string>
+    <string name="bike_year">Year</string>
+    <string name="bike_description">Description</string>
+    <string name="bike_save">Save</string>
+    <string name="bike_add_component">Add component</string>
+    <string name="bike_component_health">Health: %1$d%%</string>
+    <string name="bike_component_health_low">Low</string>
+    <string name="bike_component_health_medium">Medium</string>
+    <string name="bike_component_health_good">Good</string>
+    <string name="bike_component_used_km">%1$.0f / %2$.0f km</string>
+    <string name="bike_component_replaced">Mark replaced</string>
+    <string name="bike_component_snooze">Snooze alert</string>
+    <string name="bike_component_alerts_off">Alerts off</string>
+
+    <!-- Suggested components -->
+    <string name="component_suggested_title">Add components for this bike</string>
+    <string name="component_suggested_subtitle">Select the components you want to track. You can edit lifespans later.</string>
+    <string name="component_type_chain">Chain</string>
+    <string name="component_type_cassette">Cassette</string>
+    <string name="component_type_chainring">Chainring</string>
+    <string name="component_type_tires">Tires</string>
+    <string name="component_type_brake_pads">Brake pads</string>
+    <string name="component_type_bottom_bracket">Bottom bracket</string>
+    <string name="component_type_cables">Cables</string>
+    <string name="component_lifespan_km">%1$.0f km</string>
+    <string name="component_add_custom">Add custom component</string>
+    <string name="component_done">Done</string>
+
+    <!-- Stats screen -->
+    <string name="stats_title">Stats</string>
+    <string name="stats_select_bike">Select a bike</string>
+    <string name="stats_total_distance">Total distance: %1$.1f km</string>
+    <string name="stats_ride_count">Rides: %1$d</string>
+    <string name="stats_avg_distance">Avg distance: %1$.1f km</string>
+    <string name="stats_avg_speed">Avg speed: %1$.1f km/h</string>
+    <string name="stats_elevation_gain">Elevation gain: %1$.0f m</string>
+    <string name="stats_no_data">No ride data for this bike yet.</string>
+    <string name="stats_bike_select_content_description">Select bike %1$s</string>
+
+    <!-- AI screen -->
+    <string name="ai_title">Bike assistant</string>
+    <string name="ai_hint">Describe a problem, ask about a trip, or attach a photo…</string>
+    <string name="ai_send">Send</string>
+    <string name="ai_send_content_description">Send message</string>
+    <string name="ai_trip_readiness">Trip readiness</string>
+    <string name="ai_diagnose">Diagnose issue</string>
+    <string name="ai_placeholder">Ask me about bike maintenance, trip readiness, or describe a problem.</string>
+    <string name="ai_thinking">Assistant is thinking…</string>
+    <string name="ai_message_user">Your message: %1$s</string>
+    <string name="ai_message_assistant">Assistant: %1$s</string>
+
+    <!-- Common -->
+    <string name="common_loading">Loading…</string>
+    <string name="common_error">Something went wrong.</string>
+    <string name="common_ok">OK</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_edit">Edit</string>
+    <string name="common_back">Back</string>
+    <string name="common_back_content_description">Navigate back</string>
+
+    <!-- Plurals -->
+    <plurals name="ride_count">
+        <item quantity="one">%d ride</item>
+        <item quantity="other">%d rides</item>
+    </plurals>
+    <plurals name="component_count">
+        <item quantity="one">%d component</item>
+        <item quantity="other">%d components</item>
+    </plurals>
 </resources>
