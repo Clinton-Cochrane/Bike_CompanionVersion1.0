@@ -7,7 +7,6 @@ import com.you.bikecompanion.data.bike.BikeEntity
 import com.you.bikecompanion.data.bike.BikeRepository
 import com.you.bikecompanion.data.component.ComponentEntity
 import com.you.bikecompanion.data.component.ComponentRepository
-import com.you.bikecompanion.data.component.DefaultSeedComponents
 import com.you.bikecompanion.data.component.ServiceIntervalRepository
 import com.you.bikecompanion.data.preferences.AppPreferencesRepository
 import com.you.bikecompanion.data.ride.RideEntity
@@ -56,9 +55,6 @@ class BikeDetailViewModel @Inject constructor(
             }
             viewModelScope.launch {
                 componentRepository.getComponentsByBikeId(bikeId).collect { list ->
-                    if (list.isNotEmpty() && list.size < DefaultSeedComponents.LIST.size) {
-                        componentRepository.seedMissingDefaultComponents(bikeId)
-                    }
                     val order = _uiState.value.componentSortOrder
                     val intervalsByComponentId = if (order == ComponentSortOrder.NEXT_SERVICE && list.isNotEmpty()) {
                         val ids = list.map { it.id }

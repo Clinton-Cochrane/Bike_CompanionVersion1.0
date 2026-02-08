@@ -70,8 +70,12 @@ class RideRepository @Inject constructor(
             serviceIntervalDao.getIntervalsByComponentIdOnce(comp.id).forEach { interval ->
                 serviceIntervalDao.update(
                     interval.copy(
-                        trackedKm = compNewDistance,
-                        trackedTimeSeconds = if (interval.intervalTimeSeconds != null) compNewTime else interval.trackedTimeSeconds,
+                        trackedKm = interval.trackedKm + savedRide.distanceKm,
+                        trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
+                            (interval.trackedTimeSeconds ?: 0L) + durationSeconds
+                        } else {
+                            interval.trackedTimeSeconds
+                        },
                     ),
                 )
             }

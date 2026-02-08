@@ -135,6 +135,63 @@ fun BikeDetailScreen(
         )
     }
 
+    componentIdForInstallPicker?.let { component ->
+        val otherBikes = (uiState.bikes).filter { it.id != uiState.bike?.id }
+        AlertDialog(
+            onDismissRequest = { componentIdForInstallPicker = null },
+            title = { Text(stringResource(R.string.component_install_picker_title)) },
+            text = {
+                if (otherBikes.isEmpty()) {
+                    Text(stringResource(R.string.component_install_no_bikes))
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        otherBikes.forEach { bike ->
+                            TextButton(
+                                onClick = {
+                                    viewModel.installComponent(component, bike.id)
+                                    componentIdForInstallPicker = null
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(bike.name)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { componentIdForInstallPicker = null }) {
+                    Text(stringResource(R.string.component_done))
+                }
+            },
+        )
+    }
+
+    componentIdForDeleteConfirm?.let { component ->
+        AlertDialog(
+            onDismissRequest = { componentIdForDeleteConfirm = null },
+            title = { Text(stringResource(R.string.component_delete_confirm_title)) },
+            text = {
+                Text(stringResource(R.string.component_delete_confirm_message, DisplayFormatHelper.formatForDisplay(component.name)))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteComponent(component)
+                        componentIdForDeleteConfirm = null
+                    },
+                ) {
+                    Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { componentIdForDeleteConfirm = null }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(

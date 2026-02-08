@@ -65,14 +65,14 @@ class RideTrackingService : Service() {
 
     private fun startTracking(bikeId: Long) {
         createNotificationChannel()
-        rideActiveBikeId.value = bikeId
-        startForeground(NOTIFICATION_ID, createNotification(false))
         _rideState.value = _rideState.value.copy(
             bikeId = bikeId,
             isTracking = true,
             isPaused = false,
             startTimeMs = System.currentTimeMillis(),
         )
+        rideActiveBikeId.value = bikeId
+        startForeground(NOTIFICATION_ID, createNotification(false))
         requestLocationUpdates()
     }
 
