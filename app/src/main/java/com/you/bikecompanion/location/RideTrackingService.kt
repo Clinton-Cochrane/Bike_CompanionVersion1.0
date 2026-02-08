@@ -17,7 +17,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.you.bikecompanion.R
-import com.you.bikecompanion.ui.MainActivity
+import com.you.bikecompanion.ui.ride.ActiveRideActivity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -65,6 +65,7 @@ class RideTrackingService : Service() {
 
     private fun startTracking(bikeId: Long) {
         createNotificationChannel()
+        rideActiveBikeId.value = bikeId
         startForeground(NOTIFICATION_ID, createNotification(false))
         _rideState.value = _rideState.value.copy(
             bikeId = bikeId,
@@ -91,6 +92,7 @@ class RideTrackingService : Service() {
     private fun stopTracking() {
         locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
         locationCallback = null
+        rideActiveBikeId.value = -1L
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -151,24 +153,45 @@ class RideTrackingService : Service() {
     }
 
     private fun createNotification(isPaused: Boolean): Notification {
-        val openIntent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        val bikeId = _rideState.value.bikeId
+        val openIntent = Intent(this, ActiveRideActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+            putExtra(ActiveRideActivity.BIKE_ID_EXTRA, bikeId)
         }
         val contentIntent = PendingIntent.getActivity(
             this, 0, openIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        val pauseResumeAction = if (isPaused) {
+            createActionIntent(ACTION_RESUME, getString(R.string.ride_resume))
+        } else {
+            createActionIntent(ACTION_PAUSE, getString(R.string.ride_pause))
+        }
+        val stopAction = createActionIntent(ACTION_STOP, getString(R.string.ride_stop))
         val state = _rideState.value
         val distanceText = "%.2f km".format(state.distanceKm)
-        val statusText = if (isPaused) "Paused" else "Recording"
+        val statusText = if (isPaused) getString(R.string.ride_paused) else getString(R.string.ride_active_title)
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.app_name))
             .setContentText("$statusText • $distanceText")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setContentIntent(contentIntent)
+            .addAction(pauseResumeAction.first, pauseResumeAction.second, pauseResumeAction.third)
+            .addAction(stopAction.first, stopAction.second, stopAction.third)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
+    }
+
+    private fun createActionIntent(action: String, title: String): Triple<Int, CharSequence, PendingIntent> {
+        val intent = Intent(this, RideTrackingService::class.java).apply {
+            putExtra(ACTION_KEY, action)
+        }
+        val pendingIntent = PendingIntent.getService(
+            this, action.hashCode(), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        return Triple(android.R.drawable.ic_menu_mylocation, title, pendingIntent)
     }
 
     private fun updateNotification() {
@@ -188,6 +211,9 @@ class RideTrackingService : Service() {
     }
 
     companion object {
+        /** Exposed so UI can show "View current trip" when a ride is active. Updated by service. */
+        val rideActiveBikeId = MutableStateFlow(-1L)
+
         private const val CHANNEL_ID = "ride_tracking"
         private const val NOTIFICATION_ID = 4001
         private const val UPDATE_INTERVAL_MS = 5000L

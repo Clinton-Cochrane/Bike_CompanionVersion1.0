@@ -4,11 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.you.bikecompanion.data.bike.BikeEntity
 import com.you.bikecompanion.data.bike.BikeRepository
+import com.you.bikecompanion.data.ride.RideEntity
 import com.you.bikecompanion.data.ride.RideRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -21,10 +23,17 @@ data class BikeStats(
     val totalElevGainM: Double,
 )
 
+/**
+ * A bike with its computed ride stats. [stats] is null when the bike has no rides.
+ */
+data class BikeWithStats(
+    val bike: BikeEntity,
+    val stats: BikeStats?,
+)
+
 data class StatsUiState(
-    val bikes: List<BikeEntity> = emptyList(),
-    val selectedBike: BikeEntity? = null,
-    val stats: BikeStats? = null,
+    val bikesWithStats: List<BikeWithStats> = emptyList(),
+    val filterBikeId: Long? = null,
 )
 
 @HiltViewModel
@@ -38,33 +47,40 @@ class StatsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            bikeRepository.getAllBikes().collect { bikes ->
-                _uiState.update { it.copy(bikes = bikes) }
+            combine(
+                bikeRepository.getAllBikes(),
+                rideRepository.getAllRides(),
+            ) { bikes, rides ->
+                bikes.map { bike ->
+                    val bikeRides = rides.filter { it.bikeId == bike.id }
+                    val stats = computeStats(bikeRides)
+                    BikeWithStats(bike = bike, stats = stats)
+                }
+            }.collect { bikesWithStats ->
+                _uiState.update { it.copy(bikesWithStats = bikesWithStats) }
             }
         }
     }
 
-    fun selectBike(bike: BikeEntity?) {
-        _uiState.update { it.copy(selectedBike = bike, stats = null) }
-        bike ?: return
-        viewModelScope.launch {
-            rideRepository.getRidesByBikeId(bike.id).collect { rides ->
-                val totalKm = rides.sumOf { it.distanceKm }
-                val count = rides.size
-                val sumSpeed = rides.sumOf { it.avgSpeedKmh }
-                val totalElev = rides.sumOf { it.elevGainM }
-                _uiState.update {
-                    it.copy(
-                        stats = BikeStats(
-                            totalDistanceKm = totalKm,
-                            rideCount = count,
-                            avgDistanceKm = if (count > 0) totalKm / count else 0.0,
-                            avgSpeedKmh = if (count > 0) sumSpeed / count else 0.0,
-                            totalElevGainM = totalElev,
-                        ),
-                    )
-                }
-            }
-        }
+    /**
+     * Filters the stats list to a single bike when non-null, or shows all when null.
+     */
+    fun setFilterBikeId(bikeId: Long?) {
+        _uiState.update { it.copy(filterBikeId = bikeId) }
+    }
+
+    private fun computeStats(rides: List<RideEntity>): BikeStats? {
+        if (rides.isEmpty()) return null
+        val totalKm = rides.sumOf { it.distanceKm }
+        val count = rides.size
+        val sumSpeed = rides.sumOf { it.avgSpeedKmh }
+        val totalElev = rides.sumOf { it.elevGainM }
+        return BikeStats(
+            totalDistanceKm = totalKm,
+            rideCount = count,
+            avgDistanceKm = totalKm / count,
+            avgSpeedKmh = sumSpeed / count,
+            totalElevGainM = totalElev,
+        )
     }
 }

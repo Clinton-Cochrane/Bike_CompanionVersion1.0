@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.lazy.items
@@ -28,8 +29,9 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -58,8 +60,9 @@ fun TripScreen(
     navController: NavController,
 ) {
     val context = LocalContext.current
-    val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<TripViewModel>()
+    val viewModel = androidx.hilt.navigation.compose.hiltViewModel<TripViewModel>()
     val uiState by viewModel.uiState.collectAsState()
+    val rideActiveBikeId by RideTrackingService.rideActiveBikeId.collectAsState(initial = -1L)
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
@@ -91,7 +94,7 @@ fun TripScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.nav_trip)) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -111,8 +114,17 @@ fun TripScreen(
             StartTripSection(
                 selectedBike = uiState.selectedBike,
                 bikes = uiState.bikes,
+                rideActiveBikeId = rideActiveBikeId,
                 onStartTrip = { startTrip() },
+                onViewCurrentTrip = {
+                    if (rideActiveBikeId >= 0) ActiveRideActivity.start(context, rideActiveBikeId)
+                },
                 onSelectBike = viewModel::selectBike,
+                onImportFromHealthConnect = {
+                    viewModel.importFromHealthConnect { message ->
+                        scope.launch { snackbarHostState.showSnackbar(message) }
+                    }
+                },
             )
             PastRidesSection(
                 rides = uiState.rides,
@@ -126,28 +138,32 @@ fun TripScreen(
 private fun StartTripSection(
     selectedBike: com.you.bikecompanion.data.bike.BikeEntity?,
     bikes: List<com.you.bikecompanion.data.bike.BikeEntity>,
+    rideActiveBikeId: Long,
     onStartTrip: () -> Unit,
+    onViewCurrentTrip: () -> Unit,
     onSelectBike: (com.you.bikecompanion.data.bike.BikeEntity?) -> Unit,
+    onImportFromHealthConnect: () -> Unit,
 ) {
+    val startButtonDesc = stringResource(R.string.trip_start_button_content_description)
+    val importDesc = stringResource(R.string.trip_import_health_connect_content_description)
+    val isRideActive = rideActiveBikeId >= 0
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Button(
-            onClick = onStartTrip,
+            onClick = if (isRideActive) onViewCurrentTrip else onStartTrip,
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics {
-                    contentDescription = stringResource(R.string.trip_start_button_content_description)
-                }
+                .semantics { contentDescription = startButtonDesc }
                 .minimumInteractiveComponentSize(),
             contentPadding = PaddingValues(vertical = 20.dp),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
         ) {
             Icon(
-                imageVector = Icons.Default.DirectionsBike,
+                imageVector = Icons.Filled.DirectionsBike,
                 contentDescription = null,
                 modifier = Modifier.size(28.dp),
             )
             Text(
-                text = stringResource(R.string.trip_start_button),
+                text = if (isRideActive) stringResource(R.string.trip_view_current_trip) else stringResource(R.string.trip_start_button),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(start = 12.dp),
             )
@@ -166,14 +182,10 @@ private fun StartTripSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        if (uiState.bikes.isNotEmpty() && uiState.selectedBike != null) {
+        if (bikes.isNotEmpty() && selectedBike != null) {
             TextButton(
-                onClick = {
-                    viewModel.importFromHealthConnect { message ->
-                        scope.launch { snackbarHostState.showSnackbar(message) }
-                    }
-                },
-                modifier = Modifier.semantics { contentDescription = stringResource(R.string.trip_import_health_connect_content_description) },
+                onClick = onImportFromHealthConnect,
+                modifier = Modifier.semantics { contentDescription = importDesc },
             ) {
                 Text(stringResource(R.string.trip_import_health_connect))
             }
