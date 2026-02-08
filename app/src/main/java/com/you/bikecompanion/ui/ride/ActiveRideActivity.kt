@@ -20,11 +20,16 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -40,6 +45,7 @@ import com.you.bikecompanion.ui.theme.BikeCompanionTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -129,6 +135,7 @@ class ActiveRideActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ActiveRideScreen(
     bikeId: Long,
@@ -137,10 +144,19 @@ private fun ActiveRideScreen(
     rideStateFlow: kotlinx.coroutines.flow.StateFlow<RideState>,
 ) {
     val state by rideStateFlow.collectAsState()
+    val tick by produceState(initialValue = 0) {
+        while (true) {
+            delay(1000)
+            value += 1
+        }
+    }
+    val context = LocalContext.current
+    val pauseLabel = stringResource(R.string.ride_pause)
+    val resumeLabel = stringResource(R.string.ride_resume)
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.ride_active_title)) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -160,10 +176,13 @@ private fun ActiveRideScreen(
                 text = stringResource(R.string.ride_distance, state.distanceKm),
                 style = MaterialTheme.typography.headlineMedium,
             )
-            Text(
-                text = stringResource(R.string.ride_duration, formatDuration(state.startTimeMs)),
-                style = MaterialTheme.typography.bodyLarge,
-            )
+            // key(tick) forces recomposition every second so elapsed duration updates
+            key(tick) {
+                Text(
+                    text = stringResource(R.string.ride_duration, com.you.bikecompanion.util.DurationFormatHelper.formatElapsedFromStart(state.startTimeMs)),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
             Text(
                 text = stringResource(R.string.ride_speed_current, state.currentSpeedKmh),
                 style = MaterialTheme.typography.bodyLarge,
@@ -182,14 +201,14 @@ private fun ActiveRideScreen(
             ) {
                 Button(
                     onClick = {
-                        val intent = Intent(LocalContext.current, RideTrackingService::class.java).apply {
+                        val intent = Intent(context, RideTrackingService::class.java).apply {
                             putExtra(RideTrackingService.ACTION_KEY, if (state.isPaused) RideTrackingService.ACTION_RESUME else RideTrackingService.ACTION_PAUSE)
                         }
-                        LocalContext.current.startService(intent)
+                        context.startService(intent)
                     },
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text(if (state.isPaused) stringResource(R.string.ride_resume) else stringResource(R.string.ride_pause))
+                    Text(if (state.isPaused) resumeLabel else pauseLabel)
                 }
                 Button(
                     onClick = { onStopRide(state) },
@@ -200,16 +219,5 @@ private fun ActiveRideScreen(
                 }
             }
         }
-    }
-}
-
-private fun formatDuration(startTimeMs: Long): String {
-    val elapsed = (System.currentTimeMillis() - startTimeMs).coerceAtLeast(0L) / 1000
-    val hours = elapsed / 3600
-    val minutes = (elapsed % 3600) / 60
-    val seconds = elapsed % 60
-    return when {
-        hours > 0 -> "%d:%02d:%02d".format(hours, minutes, seconds)
-        else -> "%02d:%02d".format(minutes, seconds)
     }
 }

@@ -7,6 +7,7 @@ import androidx.core.app.NotificationCompat
 import com.you.bikecompanion.R
 import com.you.bikecompanion.data.component.ComponentDao
 import com.you.bikecompanion.data.component.ComponentEntity
+import com.you.bikecompanion.util.DisplayFormatHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -30,7 +31,7 @@ class ComponentAlertNotifier @Inject constructor(
         if (needAlert.isEmpty()) return@withContext
         ensureChannel()
         val title = context.getString(R.string.garage_components_attention, needAlert.size)
-        val text = needAlert.joinToString { it.name }
+        val text = needAlert.joinToString { DisplayFormatHelper.formatForDisplay(it.name) }
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle(title)

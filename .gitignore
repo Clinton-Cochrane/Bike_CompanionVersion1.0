@@ -7,3 +7,14 @@
 /build
 /captures
 .externalNativeBuild
+
+# Cursor / AI development (do not commit)
+.cursor/
+.cursorrules
+*.cursorrules
+
+# Local secrets / env (do not commit)
+*.env
+.env.*
+secrets.properties
+**/secrets*.xml

@@ -6,6 +6,8 @@ import com.you.bikecompanion.ai.AiApiClient
 import com.you.bikecompanion.data.bike.BikeRepository
 import com.you.bikecompanion.data.component.ComponentEntity
 import com.you.bikecompanion.data.component.ComponentRepository
+import com.you.bikecompanion.util.DisplayFormatHelper
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +32,7 @@ data class AiUiState(
     val errorOccurred: Boolean = false,
 )
 
+@HiltViewModel
 class AiViewModel @Inject constructor(
     private val bikeRepository: BikeRepository,
     private val componentRepository: ComponentRepository,
@@ -91,7 +94,7 @@ class AiViewModel @Inject constructor(
             if (comps.isEmpty()) bikeLine
             else bikeLine + "\n  " + comps.joinToString("; ") { c ->
                 val health = componentHealthPercent(c)
-                "${c.name}: ${health}%"
+                "${DisplayFormatHelper.formatForDisplay(c.name)}: ${health}%"
             }
         }
     }

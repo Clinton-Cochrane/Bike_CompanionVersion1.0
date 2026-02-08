@@ -16,7 +16,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,8 +27,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,7 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.you.bikecompanion.R
 
@@ -51,16 +52,17 @@ import com.you.bikecompanion.R
 fun AiScreen(
     navController: NavController,
 ) {
-    val viewModel: AiViewModel = viewModel()
+    val viewModel: AiViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val errorMessage = stringResource(R.string.common_error)
 
     LaunchedEffect(uiState.errorOccurred) {
         if (uiState.errorOccurred) {
             scope.launch {
-                snackbarHostState.showSnackbar(stringResource(R.string.common_error))
+                snackbarHostState.showSnackbar(errorMessage)
                 viewModel.consumeError()
             }
         }
@@ -74,7 +76,7 @@ fun AiScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.ai_title)) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -162,7 +164,7 @@ private fun ChatBubble(
     isUser: Boolean,
     contentDescription: String,
 ) {
-    val alignment = if (isUser) Alignment.End else Alignment.Start
+    val alignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
     val backgroundColor = if (isUser) {
         MaterialTheme.colorScheme.primaryContainer
     } else {
@@ -206,6 +208,7 @@ private fun ChatInputRow(
     onSend: () -> Unit,
     enabled: Boolean,
 ) {
+    val sendContentDesc = stringResource(R.string.ai_send_content_description)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -245,12 +248,12 @@ private fun ChatInputRow(
             onClick = onSend,
             enabled = enabled && value.trim().isNotEmpty(),
             modifier = Modifier.semantics {
-                contentDescription = stringResource(R.string.ai_send_content_description)
+                contentDescription = sendContentDesc
             },
         ) {
             Icon(
-                imageVector = Icons.Filled.Send,
-                contentDescription = stringResource(R.string.ai_send_content_description),
+                imageVector = Icons.AutoMirrored.Filled.Send,
+                contentDescription = sendContentDesc,
                 tint = if (enabled && value.trim().isNotEmpty()) {
                     MaterialTheme.colorScheme.primary
                 } else {

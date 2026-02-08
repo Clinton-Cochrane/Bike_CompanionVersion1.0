@@ -15,8 +15,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -24,6 +25,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.you.bikecompanion.ui.garage.SaveOutcome
+import com.you.bikecompanion.ui.navigation.Screen
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -34,13 +37,14 @@ import androidx.navigation.NavController
 import com.you.bikecompanion.R
 import com.you.bikecompanion.data.bike.BikeEntity
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditBikeScreen(
     navController: NavController,
     backStackEntry: NavBackStackEntry,
     bikeId: Long?,
 ) {
-    val viewModel: AddEditBikeViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+    val viewModel: AddEditBikeViewModel = androidx.hilt.navigation.compose.hiltViewModel(
         viewModelStoreOwner = backStackEntry,
     )
     val uiState by viewModel.uiState.collectAsState()
@@ -60,9 +64,10 @@ fun AddEditBikeScreen(
         }
     }
 
+    val backContentDesc = stringResource(R.string.common_back_content_description)
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
                         if (bikeId != null) stringResource(R.string.common_edit)
@@ -72,7 +77,7 @@ fun AddEditBikeScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = { navController.navigateUp() },
-                        modifier = Modifier.semantics { contentDescription = stringResource(R.string.common_back_content_description) },
+                        modifier = Modifier.semantics { contentDescription = backContentDesc },
                     ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
@@ -136,13 +141,28 @@ fun AddEditBikeScreen(
                         model = model,
                         year = year,
                         description = description,
+                        createdAt = System.currentTimeMillis(),
                     )
                     viewModel.saveBike(bike)
-                    navController.navigateUp()
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(stringResource(R.string.bike_save))
+            }
+            LaunchedEffect(uiState.saveOutcome) {
+                when (val outcome = uiState.saveOutcome) {
+                    is SaveOutcome.NewBike -> {
+                        navController.navigate(Screen.BikeDetail.withId(outcome.id)) {
+                            popUpTo(Screen.AddBike.route) { inclusive = true }
+                        }
+                        viewModel.clearSaveOutcome()
+                    }
+                    is SaveOutcome.Updated -> {
+                        navController.navigateUp()
+                        viewModel.clearSaveOutcome()
+                    }
+                    null -> { }
+                }
             }
         }
     }

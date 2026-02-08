@@ -5,7 +5,7 @@
         xmlns:tools = "http://schemas.android.com/tools"
         android:layout_width = "match_parent"
         android:layout_height = "match_parent"
-        tools:context = "cochrane.bike_companion.RideActivity">
+        tools:context = "com.you.bikecompanion.ui.ride.ActiveRideActivity">
 
     <Chronometer
             android:id = "@+id/duration_chronometer"
