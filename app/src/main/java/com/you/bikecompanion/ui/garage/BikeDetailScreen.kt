@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+<<<<<<< HEAD
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
@@ -36,6 +37,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+=======
+import androidx.compose.material.icons.filled.Edit
+>>>>>>> 269d1e4 (t)
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -63,6 +67,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import com.you.bikecompanion.R
@@ -92,12 +97,16 @@ fun BikeDetailScreen(
     backStackEntry: NavBackStackEntry,
 ) {
     var showAddComponentDialog by remember { mutableStateOf(false) }
+<<<<<<< HEAD
     var componentIdForInstallPicker by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentIdForDeleteConfirm by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentContextMenuExpanded by remember { mutableStateOf<Long?>(null) }
     val viewModel: BikeDetailViewModel = androidx.hilt.navigation.compose.hiltViewModel(
         viewModelStoreOwner = backStackEntry,
     )
+=======
+    val viewModel: BikeDetailViewModel = hiltViewModel(backStackEntry)
+>>>>>>> 269d1e4 (t)
     val uiState by viewModel.uiState.collectAsState()
     val backContentDesc = stringResource(R.string.common_back_content_description)
     val editContentDesc = stringResource(R.string.common_edit)
@@ -135,6 +144,7 @@ fun BikeDetailScreen(
         )
     }
 
+<<<<<<< HEAD
     componentIdForInstallPicker?.let { component ->
         val otherBikes = (uiState.bikes).filter { it.id != uiState.bike?.id }
         AlertDialog(
@@ -192,6 +202,10 @@ fun BikeDetailScreen(
         )
     }
 
+=======
+    val backContentDesc = stringResource(R.string.common_back_content_description)
+    val editContentDesc = stringResource(R.string.common_edit)
+>>>>>>> 269d1e4 (t)
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -473,6 +487,7 @@ fun BikeDetailScreen(
 }
 
 @Composable
+<<<<<<< HEAD
 private fun ComponentCategorySection(
     category: ComponentCategory,
     components: List<ComponentEntity>,
@@ -500,6 +515,19 @@ private fun ComponentCategorySection(
         ComponentCategory.POWER -> stringResource(R.string.component_category_power)
         ComponentCategory.OTHER -> stringResource(R.string.component_category_other)
     }
+=======
+private fun ComponentHealthCard(
+    component: ComponentEntity,
+    onMarkReplaced: () -> Unit,
+    onSnooze: () -> Unit,
+    onAlertsOff: () -> Unit,
+) {
+    val healthPercent = (100.0 - (component.distanceUsedKm / component.lifespanKm).coerceIn(0.0, 1.0) * 100).toInt().coerceIn(0, 100)
+    val healthContentDesc = stringResource(R.string.bike_component_health, healthPercent)
+    val replacedLabel = stringResource(R.string.bike_component_replaced)
+    val snoozeLabel = stringResource(R.string.bike_component_snooze)
+    val alertsOffLabel = stringResource(R.string.bike_component_alerts_off)
+>>>>>>> 269d1e4 (t)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -508,6 +536,7 @@ private fun ComponentCategorySection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+<<<<<<< HEAD
                     .clickable { onToggleExpanded() },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
@@ -567,6 +596,22 @@ private fun ComponentCategorySection(
                         )
                     }
                 }
+=======
+                    .padding(vertical = 8.dp)
+                    .semantics { contentDescription = healthContentDesc },
+            )
+            Text(
+                text = stringResource(R.string.bike_component_health, healthPercent),
+                style = MaterialTheme.typography.labelSmall,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                TextButton(onClick = onMarkReplaced) { Text(replacedLabel) }
+                TextButton(onClick = onSnooze) { Text(snoozeLabel) }
+                TextButton(onClick = onAlertsOff) { Text(alertsOffLabel) }
+>>>>>>> 269d1e4 (t)
             }
         }
     }

@@ -46,6 +46,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.you.bikecompanion.R
 import com.you.bikecompanion.data.ride.RideEntity
@@ -60,7 +61,11 @@ fun TripScreen(
     navController: NavController,
 ) {
     val context = LocalContext.current
+<<<<<<< HEAD
     val viewModel = androidx.hilt.navigation.compose.hiltViewModel<TripViewModel>()
+=======
+    val viewModel: TripViewModel = hiltViewModel()
+>>>>>>> 269d1e4 (t)
     val uiState by viewModel.uiState.collectAsState()
     val rideActiveBikeId by RideTrackingService.rideActiveBikeId.collectAsState(initial = -1L)
 
@@ -120,6 +125,10 @@ fun TripScreen(
                     if (rideActiveBikeId >= 0) ActiveRideActivity.start(context, rideActiveBikeId)
                 },
                 onSelectBike = viewModel::selectBike,
+<<<<<<< HEAD
+=======
+                showImportButton = uiState.bikes.isNotEmpty() && uiState.selectedBike != null,
+>>>>>>> 269d1e4 (t)
                 onImportFromHealthConnect = {
                     viewModel.importFromHealthConnect { message ->
                         scope.launch { snackbarHostState.showSnackbar(message) }
@@ -142,17 +151,29 @@ private fun StartTripSection(
     onStartTrip: () -> Unit,
     onViewCurrentTrip: () -> Unit,
     onSelectBike: (com.you.bikecompanion.data.bike.BikeEntity?) -> Unit,
+<<<<<<< HEAD
     onImportFromHealthConnect: () -> Unit,
 ) {
     val startButtonDesc = stringResource(R.string.trip_start_button_content_description)
     val importDesc = stringResource(R.string.trip_import_health_connect_content_description)
     val isRideActive = rideActiveBikeId >= 0
+=======
+    showImportButton: Boolean,
+    onImportFromHealthConnect: () -> Unit,
+) {
+    val startButtonContentDesc = stringResource(R.string.trip_start_button_content_description)
+    val importContentDesc = stringResource(R.string.trip_import_health_connect_content_description)
+>>>>>>> 269d1e4 (t)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Button(
             onClick = if (isRideActive) onViewCurrentTrip else onStartTrip,
             modifier = Modifier
                 .fillMaxWidth()
+<<<<<<< HEAD
                 .semantics { contentDescription = startButtonDesc }
+=======
+                .semantics { contentDescription = startButtonContentDesc }
+>>>>>>> 269d1e4 (t)
                 .minimumInteractiveComponentSize(),
             contentPadding = PaddingValues(vertical = 20.dp),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
@@ -182,10 +203,17 @@ private fun StartTripSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+<<<<<<< HEAD
         if (bikes.isNotEmpty() && selectedBike != null) {
             TextButton(
                 onClick = onImportFromHealthConnect,
                 modifier = Modifier.semantics { contentDescription = importDesc },
+=======
+        if (showImportButton) {
+            TextButton(
+                onClick = onImportFromHealthConnect,
+                modifier = Modifier.semantics { contentDescription = importContentDesc },
+>>>>>>> 269d1e4 (t)
             ) {
                 Text(stringResource(R.string.trip_import_health_connect))
             }

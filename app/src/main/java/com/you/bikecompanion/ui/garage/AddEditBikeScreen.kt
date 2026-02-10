@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import com.you.bikecompanion.R
@@ -44,9 +45,13 @@ fun AddEditBikeScreen(
     backStackEntry: NavBackStackEntry,
     bikeId: Long?,
 ) {
+<<<<<<< HEAD
     val viewModel: AddEditBikeViewModel = androidx.hilt.navigation.compose.hiltViewModel(
         viewModelStoreOwner = backStackEntry,
     )
+=======
+    val viewModel: AddEditBikeViewModel = hiltViewModel(backStackEntry)
+>>>>>>> 269d1e4 (t)
     val uiState by viewModel.uiState.collectAsState()
 
     var name by remember { mutableStateOf("") }

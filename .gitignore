@@ -1,8 +1,8 @@
 *.iml
 .gradle
 /local.properties
-/.idea/workspace.xml
-/.idea/libraries
+# IDE-generated, machine-specific settings (avoid merge conflicts and overrides)
+.idea/
 .DS_Store
 /build
 /captures

@@ -1,7 +1,7 @@
 package com.you.bikecompanion.di
 
 import com.you.bikecompanion.ai.AiApiClient
-import com.you.bikecompanion.ai.PlaceholderAiClient
+import com.you.bikecompanion.ai.GeminiApiClient
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -14,5 +14,5 @@ abstract class AiModule {
 
     @Binds
     @Singleton
-    abstract fun bindAiApiClient(impl: PlaceholderAiClient): AiApiClient
+    abstract fun bindAiApiClient(impl: GeminiApiClient): AiApiClient
 }

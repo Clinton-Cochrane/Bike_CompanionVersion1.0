@@ -144,6 +144,7 @@ private fun ActiveRideScreen(
     rideStateFlow: kotlinx.coroutines.flow.StateFlow<RideState>,
 ) {
     val state by rideStateFlow.collectAsState()
+<<<<<<< HEAD
     val tick by produceState(initialValue = 0) {
         while (true) {
             delay(1000)
@@ -153,6 +154,12 @@ private fun ActiveRideScreen(
     val context = LocalContext.current
     val pauseLabel = stringResource(R.string.ride_pause)
     val resumeLabel = stringResource(R.string.ride_resume)
+=======
+    val context = LocalContext.current
+    val pauseStr = stringResource(R.string.ride_pause)
+    val resumeStr = stringResource(R.string.ride_resume)
+    val stopStr = stringResource(R.string.ride_stop)
+>>>>>>> 269d1e4 (t)
 
     Scaffold(
         topBar = {
@@ -208,14 +215,18 @@ private fun ActiveRideScreen(
                     },
                     modifier = Modifier.weight(1f),
                 ) {
+<<<<<<< HEAD
                     Text(if (state.isPaused) resumeLabel else pauseLabel)
+=======
+                    Text(if (state.isPaused) resumeStr else pauseStr)
+>>>>>>> 269d1e4 (t)
                 }
                 Button(
                     onClick = { onStopRide(state) },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 ) {
-                    Text(stringResource(R.string.ride_stop))
+                    Text(stopStr)
                 }
             }
         }

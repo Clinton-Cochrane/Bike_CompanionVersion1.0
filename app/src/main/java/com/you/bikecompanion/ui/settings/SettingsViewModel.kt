@@ -2,7 +2,11 @@ package com.you.bikecompanion.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+<<<<<<< HEAD
 import com.you.bikecompanion.data.preferences.AppPreferencesRepository
+=======
+import com.you.bikecompanion.data.preferences.SecurePreferencesRepository
+>>>>>>> 269d1e4 (t)
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,12 +16,28 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsUiState(
+<<<<<<< HEAD
     val closeToServiceHealthThreshold: Int = AppPreferencesRepository.DEFAULT_CLOSE_TO_SERVICE_THRESHOLD,
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val appPreferencesRepository: AppPreferencesRepository,
+=======
+    val apiKeyFieldValue: String = "",
+    val hasStoredKey: Boolean = false,
+    val snackbarEvent: SnackbarEvent? = null,
+)
+
+sealed class SnackbarEvent {
+    data object KeySaved : SnackbarEvent()
+    data object KeyCleared : SnackbarEvent()
+}
+
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    private val securePreferences: SecurePreferencesRepository,
+>>>>>>> 269d1e4 (t)
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -25,12 +45,18 @@ class SettingsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+<<<<<<< HEAD
             appPreferencesRepository.closeToServiceHealthThreshold.collect { threshold ->
                 _uiState.update { it.copy(closeToServiceHealthThreshold = threshold) }
+=======
+            securePreferences.apiKey.collect { key ->
+                _uiState.update { it.copy(hasStoredKey = !key.isNullOrBlank()) }
+>>>>>>> 269d1e4 (t)
             }
         }
     }
 
+<<<<<<< HEAD
     fun setCloseToServiceHealthThreshold(value: Int) {
         val clamped = value.coerceIn(
             AppPreferencesRepository.MIN_THRESHOLD,
@@ -41,4 +67,26 @@ class SettingsViewModel @Inject constructor(
             appPreferencesRepository.setCloseToServiceHealthThreshold(clamped)
         }
     }
+=======
+    fun updateApiKeyField(value: String) {
+        _uiState.update { it.copy(apiKeyFieldValue = value) }
+    }
+
+    fun saveApiKey() {
+        val value = _uiState.value.apiKeyFieldValue.trim()
+        securePreferences.setApiKey(value)
+        _uiState.update { it.copy(snackbarEvent = SnackbarEvent.KeySaved) }
+    }
+
+    fun clearApiKey() {
+        securePreferences.clearApiKey()
+        _uiState.update {
+            it.copy(apiKeyFieldValue = "", snackbarEvent = SnackbarEvent.KeyCleared)
+        }
+    }
+
+    fun consumeSnackbar() {
+        _uiState.update { it.copy(snackbarEvent = null) }
+    }
+>>>>>>> 269d1e4 (t)
 }

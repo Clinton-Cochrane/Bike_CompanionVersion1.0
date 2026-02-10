@@ -31,7 +31,13 @@ object DatabaseModule {
         context,
         BikeCompanionDatabase::class.java,
         DATABASE_NAME,
+<<<<<<< HEAD
     ).addMigrations(*BikeCompanionMigrations.ALL).build()
+=======
+    )
+        .fallbackToDestructiveMigration()
+        .build()
+>>>>>>> 269d1e4 (t)
 
     @Provides
     @Singleton

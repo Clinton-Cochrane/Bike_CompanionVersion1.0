@@ -77,6 +77,7 @@ class BikeDetailViewModel @Inject constructor(
             }
         } else {
             _uiState.update { it.copy(loading = false) }
+<<<<<<< HEAD
         }
         viewModelScope.launch {
             appPreferencesRepository.closeToServiceHealthThreshold.collect { threshold ->
@@ -96,6 +97,22 @@ class BikeDetailViewModel @Inject constructor(
             val sorted = sortComponents(current, order, intervalsByComponentId)
             _uiState.update {
                 it.copy(componentSortOrder = order, components = sorted)
+=======
+        } else {
+            viewModelScope.launch {
+                val bike = bikeRepository.getBikeById(bikeId)
+                _uiState.update { it.copy(bike = bike, loading = false) }
+            }
+            viewModelScope.launch {
+                componentRepository.getComponentsByBikeId(bikeId).collect { list ->
+                    _uiState.update { it.copy(components = list) }
+                }
+            }
+            viewModelScope.launch {
+                rideRepository.getRidesByBikeId(bikeId).collect { list ->
+                    _uiState.update { it.copy(rides = list.sortedByDescending { r -> r.endedAt }) }
+                }
+>>>>>>> 269d1e4 (t)
             }
         }
     }
