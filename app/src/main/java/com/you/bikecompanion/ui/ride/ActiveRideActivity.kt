@@ -137,6 +137,10 @@ private fun ActiveRideScreen(
     rideStateFlow: kotlinx.coroutines.flow.StateFlow<RideState>,
 ) {
     val state by rideStateFlow.collectAsState()
+    val context = LocalContext.current
+    val pauseStr = stringResource(R.string.ride_pause)
+    val resumeStr = stringResource(R.string.ride_resume)
+    val stopStr = stringResource(R.string.ride_stop)
 
     Scaffold(
         topBar = {
@@ -182,21 +186,21 @@ private fun ActiveRideScreen(
             ) {
                 Button(
                     onClick = {
-                        val intent = Intent(LocalContext.current, RideTrackingService::class.java).apply {
+                        val intent = Intent(context, RideTrackingService::class.java).apply {
                             putExtra(RideTrackingService.ACTION_KEY, if (state.isPaused) RideTrackingService.ACTION_RESUME else RideTrackingService.ACTION_PAUSE)
                         }
-                        LocalContext.current.startService(intent)
+                        context.startService(intent)
                     },
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text(if (state.isPaused) stringResource(R.string.ride_resume) else stringResource(R.string.ride_pause))
+                    Text(if (state.isPaused) resumeStr else pauseStr)
                 }
                 Button(
                     onClick = { onStopRide(state) },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 ) {
-                    Text(stringResource(R.string.ride_stop))
+                    Text(stopStr)
                 }
             }
         }

@@ -25,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.you.bikecompanion.R
 
@@ -32,7 +33,7 @@ import com.you.bikecompanion.R
 fun StatsScreen(
     navController: NavController,
 ) {
-    val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<StatsViewModel>()
+    val viewModel: StatsViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
@@ -103,6 +104,8 @@ fun StatsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 16.dp),
                     )
+                } else {
+                    // No bike selected or no stats yet
                 }
             }
         }

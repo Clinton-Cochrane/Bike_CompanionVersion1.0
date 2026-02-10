@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.lazy.items
@@ -44,6 +45,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.you.bikecompanion.R
 import com.you.bikecompanion.data.ride.RideEntity
@@ -58,7 +60,7 @@ fun TripScreen(
     navController: NavController,
 ) {
     val context = LocalContext.current
-    val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<TripViewModel>()
+    val viewModel: TripViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -113,6 +115,12 @@ fun TripScreen(
                 bikes = uiState.bikes,
                 onStartTrip = { startTrip() },
                 onSelectBike = viewModel::selectBike,
+                showImportButton = uiState.bikes.isNotEmpty() && uiState.selectedBike != null,
+                onImportFromHealthConnect = {
+                    viewModel.importFromHealthConnect { message ->
+                        scope.launch { snackbarHostState.showSnackbar(message) }
+                    }
+                },
             )
             PastRidesSection(
                 rides = uiState.rides,
@@ -128,15 +136,17 @@ private fun StartTripSection(
     bikes: List<com.you.bikecompanion.data.bike.BikeEntity>,
     onStartTrip: () -> Unit,
     onSelectBike: (com.you.bikecompanion.data.bike.BikeEntity?) -> Unit,
+    showImportButton: Boolean,
+    onImportFromHealthConnect: () -> Unit,
 ) {
+    val startButtonContentDesc = stringResource(R.string.trip_start_button_content_description)
+    val importContentDesc = stringResource(R.string.trip_import_health_connect_content_description)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Button(
             onClick = onStartTrip,
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics {
-                    contentDescription = stringResource(R.string.trip_start_button_content_description)
-                }
+                .semantics { contentDescription = startButtonContentDesc }
                 .minimumInteractiveComponentSize(),
             contentPadding = PaddingValues(vertical = 20.dp),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
@@ -166,14 +176,10 @@ private fun StartTripSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        if (uiState.bikes.isNotEmpty() && uiState.selectedBike != null) {
+        if (showImportButton) {
             TextButton(
-                onClick = {
-                    viewModel.importFromHealthConnect { message ->
-                        scope.launch { snackbarHostState.showSnackbar(message) }
-                    }
-                },
-                modifier = Modifier.semantics { contentDescription = stringResource(R.string.trip_import_health_connect_content_description) },
+                onClick = onImportFromHealthConnect,
+                modifier = Modifier.semantics { contentDescription = importContentDesc },
             ) {
                 Text(stringResource(R.string.trip_import_health_connect))
             }

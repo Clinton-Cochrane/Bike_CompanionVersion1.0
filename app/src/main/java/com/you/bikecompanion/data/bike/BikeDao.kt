@@ -15,7 +15,7 @@ interface BikeDao {
     @Query("SELECT * FROM bikes WHERE id = :id")
     suspend fun getBikeById(id: Long): BikeEntity?
 
-    @Query("SELECT * FROM bikes ORDER BY lastRideAt DESC NULLS LAST LIMIT 1")
+    @Query("SELECT * FROM bikes ORDER BY lastRideAt IS NULL ASC, lastRideAt DESC LIMIT 1")
     suspend fun getMostRecentlyRiddenBike(): BikeEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

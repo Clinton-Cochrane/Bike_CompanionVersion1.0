@@ -10,8 +10,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.Icon
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
@@ -34,6 +34,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import com.you.bikecompanion.R
@@ -51,9 +52,7 @@ fun BikeDetailScreen(
     backStackEntry: NavBackStackEntry,
 ) {
     var showAddComponentDialog by remember { mutableStateOf(false) }
-    val viewModel: BikeDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        viewModelStoreOwner = backStackEntry,
-    )
+    val viewModel: BikeDetailViewModel = hiltViewModel(backStackEntry)
     val uiState by viewModel.uiState.collectAsState()
 
     if (showAddComponentDialog) {
@@ -86,6 +85,8 @@ fun BikeDetailScreen(
         )
     }
 
+    val backContentDesc = stringResource(R.string.common_back_content_description)
+    val editContentDesc = stringResource(R.string.common_edit)
     Scaffold(
         topBar = {
             TopAppBar(
@@ -93,7 +94,7 @@ fun BikeDetailScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = { navController.navigateUp() },
-                        modifier = Modifier.semantics { contentDescription = stringResource(R.string.common_back_content_description) },
+                        modifier = Modifier.semantics { contentDescription = backContentDesc },
                     ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
@@ -102,7 +103,7 @@ fun BikeDetailScreen(
                     if (uiState.bike != null) {
                         IconButton(
                             onClick = { navController.navigate(Screen.EditBike.withId(uiState.bike!!.id)) },
-                            modifier = Modifier.semantics { contentDescription = stringResource(R.string.common_edit) },
+                            modifier = Modifier.semantics { contentDescription = editContentDesc },
                         ) {
                             Icon(Icons.Filled.Edit, contentDescription = null)
                         }
@@ -185,8 +186,17 @@ fun BikeDetailScreen(
 }
 
 @Composable
-private fun ComponentHealthCard(component: ComponentEntity) {
+private fun ComponentHealthCard(
+    component: ComponentEntity,
+    onMarkReplaced: () -> Unit,
+    onSnooze: () -> Unit,
+    onAlertsOff: () -> Unit,
+) {
     val healthPercent = (100.0 - (component.distanceUsedKm / component.lifespanKm).coerceIn(0.0, 1.0) * 100).toInt().coerceIn(0, 100)
+    val healthContentDesc = stringResource(R.string.bike_component_health, healthPercent)
+    val replacedLabel = stringResource(R.string.bike_component_replaced)
+    val snoozeLabel = stringResource(R.string.bike_component_snooze)
+    val alertsOffLabel = stringResource(R.string.bike_component_alerts_off)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -205,12 +215,20 @@ private fun ComponentHealthCard(component: ComponentEntity) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
-                    .semantics { contentDescription = stringResource(R.string.bike_component_health, healthPercent) },
+                    .semantics { contentDescription = healthContentDesc },
             )
             Text(
                 text = stringResource(R.string.bike_component_health, healthPercent),
                 style = MaterialTheme.typography.labelSmall,
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                TextButton(onClick = onMarkReplaced) { Text(replacedLabel) }
+                TextButton(onClick = onSnooze) { Text(snoozeLabel) }
+                TextButton(onClick = onAlertsOff) { Text(alertsOffLabel) }
+            }
         }
     }
 }

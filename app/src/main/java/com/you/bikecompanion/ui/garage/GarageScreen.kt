@@ -29,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.you.bikecompanion.R
 import com.you.bikecompanion.ui.navigation.Screen
@@ -38,8 +39,9 @@ import com.you.bikecompanion.data.bike.BikeEntity
 fun GarageScreen(
     navController: NavController,
 ) {
-    val viewModel = androidx.lifecycle.viewmodel.compose.viewModel<GarageViewModel>()
+    val viewModel: GarageViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
+    val addBikeContentDesc = stringResource(R.string.garage_add_bike_content_description)
 
     Scaffold(
         topBar = {
@@ -54,9 +56,7 @@ fun GarageScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { navController.navigate(Screen.AddBike.route) },
-                modifier = Modifier.semantics {
-                    contentDescription = stringResource(R.string.garage_add_bike_content_description)
-                },
+                modifier = Modifier.semantics { contentDescription = addBikeContentDesc },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ) {

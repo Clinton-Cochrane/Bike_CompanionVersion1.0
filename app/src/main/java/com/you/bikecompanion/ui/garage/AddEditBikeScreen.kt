@@ -29,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import com.you.bikecompanion.R
@@ -40,9 +41,7 @@ fun AddEditBikeScreen(
     backStackEntry: NavBackStackEntry,
     bikeId: Long?,
 ) {
-    val viewModel: AddEditBikeViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        viewModelStoreOwner = backStackEntry,
-    )
+    val viewModel: AddEditBikeViewModel = hiltViewModel(backStackEntry)
     val uiState by viewModel.uiState.collectAsState()
 
     var name by remember { mutableStateOf("") }
@@ -60,6 +59,7 @@ fun AddEditBikeScreen(
         }
     }
 
+    val backContentDesc = stringResource(R.string.common_back_content_description)
     Scaffold(
         topBar = {
             TopAppBar(
@@ -72,7 +72,7 @@ fun AddEditBikeScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = { navController.navigateUp() },
-                        modifier = Modifier.semantics { contentDescription = stringResource(R.string.common_back_content_description) },
+                        modifier = Modifier.semantics { contentDescription = backContentDesc },
                     ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }

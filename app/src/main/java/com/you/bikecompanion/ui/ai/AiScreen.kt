@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,24 +45,26 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.you.bikecompanion.R
+import com.you.bikecompanion.ui.navigation.Screen
 
 @Composable
 fun AiScreen(
     navController: NavController,
 ) {
-    val viewModel: AiViewModel = viewModel()
+    val viewModel: AiViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val errorMessage = stringResource(R.string.common_error)
 
     LaunchedEffect(uiState.errorOccurred) {
         if (uiState.errorOccurred) {
             scope.launch {
-                snackbarHostState.showSnackbar(stringResource(R.string.common_error))
+                snackbarHostState.showSnackbar(errorMessage)
                 viewModel.consumeError()
             }
         }
@@ -76,6 +80,14 @@ fun AiScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.ai_title)) },
+                actions = {
+                    IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = stringResource(R.string.settings_title),
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -99,6 +111,15 @@ fun AiScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             ) {
+                if (!uiState.hasApiKey) {
+                    item(key = "no_key_banner") {
+                        AssistChip(
+                            onClick = { navController.navigate(Screen.Settings.route) },
+                            label = { Text(stringResource(R.string.ai_set_api_key_in_settings)) },
+                            modifier = Modifier.padding(vertical = 8.dp),
+                        )
+                    }
+                }
                 if (uiState.messages.isEmpty()) {
                     item(key = "placeholder") {
                         Text(
@@ -151,6 +172,7 @@ fun AiScreen(
                 onValueChange = viewModel::updateInput,
                 onSend = viewModel::sendMessage,
                 enabled = !uiState.isLoading,
+                sendContentDescription = stringResource(R.string.ai_send_content_description),
             )
         }
     }
@@ -162,7 +184,7 @@ private fun ChatBubble(
     isUser: Boolean,
     contentDescription: String,
 ) {
-    val alignment = if (isUser) Alignment.End else Alignment.Start
+    val alignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
     val backgroundColor = if (isUser) {
         MaterialTheme.colorScheme.primaryContainer
     } else {
@@ -205,6 +227,7 @@ private fun ChatInputRow(
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
     enabled: Boolean,
+    sendContentDescription: String,
 ) {
     Row(
         modifier = Modifier
@@ -244,13 +267,11 @@ private fun ChatInputRow(
         IconButton(
             onClick = onSend,
             enabled = enabled && value.trim().isNotEmpty(),
-            modifier = Modifier.semantics {
-                contentDescription = stringResource(R.string.ai_send_content_description)
-            },
+            modifier = Modifier.semantics { contentDescription = sendContentDescription },
         ) {
             Icon(
                 imageVector = Icons.Filled.Send,
-                contentDescription = stringResource(R.string.ai_send_content_description),
+                contentDescription = sendContentDescription,
                 tint = if (enabled && value.trim().isNotEmpty()) {
                     MaterialTheme.colorScheme.primary
                 } else {

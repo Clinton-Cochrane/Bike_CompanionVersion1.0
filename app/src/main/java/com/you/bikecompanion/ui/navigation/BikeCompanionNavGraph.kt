@@ -12,6 +12,7 @@ import com.you.bikecompanion.ui.ai.AiScreen
 import com.you.bikecompanion.ui.garage.AddEditBikeScreen
 import com.you.bikecompanion.ui.garage.BikeDetailScreen
 import com.you.bikecompanion.ui.garage.GarageScreen
+import com.you.bikecompanion.ui.settings.SettingsScreen
 import com.you.bikecompanion.ui.stats.StatsScreen
 import com.you.bikecompanion.ui.trip.TripScreen
 
@@ -20,6 +21,7 @@ sealed class Screen(val route: String) {
     data object Garage : Screen("garage")
     data object Stats : Screen("stats")
     data object Ai : Screen("ai")
+    data object Settings : Screen("settings")
     data object BikeDetail : Screen("bike_detail/{bikeId}") {
         fun withId(id: Long) = "bike_detail/$id"
     }
@@ -44,6 +46,7 @@ fun BikeCompanionNavGraph(
         composable(Screen.Garage.route) { GarageScreen(navController = navController) }
         composable(Screen.Stats.route) { StatsScreen(navController = navController) }
         composable(Screen.Ai.route) { AiScreen(navController = navController) }
+        composable(Screen.Settings.route) { SettingsScreen(navController = navController) }
         composable(Screen.BikeDetail.route) { backStackEntry ->
             BikeDetailScreen(navController = navController, backStackEntry = backStackEntry)
         }

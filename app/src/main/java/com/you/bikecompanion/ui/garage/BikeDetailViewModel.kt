@@ -41,20 +41,20 @@ class BikeDetailViewModel @Inject constructor(
     init {
         if (bikeId <= 0) {
             _uiState.update { it.copy(loading = false) }
-            return
-        }
-        viewModelScope.launch {
-            val bike = bikeRepository.getBikeById(bikeId)
-            _uiState.update { it.copy(bike = bike, loading = false) }
-        }
-        viewModelScope.launch {
-            componentRepository.getComponentsByBikeId(bikeId).collect { list ->
-                _uiState.update { it.copy(components = list) }
+        } else {
+            viewModelScope.launch {
+                val bike = bikeRepository.getBikeById(bikeId)
+                _uiState.update { it.copy(bike = bike, loading = false) }
             }
-        }
-        viewModelScope.launch {
-            rideRepository.getRidesByBikeId(bikeId).collect { list ->
-                _uiState.update { it.copy(rides = list.sortedByDescending { r -> r.endedAt }) }
+            viewModelScope.launch {
+                componentRepository.getComponentsByBikeId(bikeId).collect { list ->
+                    _uiState.update { it.copy(components = list) }
+                }
+            }
+            viewModelScope.launch {
+                rideRepository.getRidesByBikeId(bikeId).collect { list ->
+                    _uiState.update { it.copy(rides = list.sortedByDescending { r -> r.endedAt }) }
+                }
             }
         }
     }

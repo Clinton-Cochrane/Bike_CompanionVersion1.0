@@ -6,7 +6,10 @@ import com.you.bikecompanion.ai.AiApiClient
 import com.you.bikecompanion.data.bike.BikeRepository
 import com.you.bikecompanion.data.component.ComponentEntity
 import com.you.bikecompanion.data.component.ComponentRepository
-import kotlinx.coroutines.Dispatchers
+import com.you.bikecompanion.data.preferences.SecurePreferencesRepository
+import com.you.bikecompanion.di.IoDispatcher
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,16 +31,29 @@ data class AiUiState(
     val isLoading: Boolean = false,
     /** When true, UI should show error Snackbar (e.g. common_error) then call consumeError(). */
     val errorOccurred: Boolean = false,
+    /** False when user has not set a Gemini API key in Settings; show "Set API key" prompt. */
+    val hasApiKey: Boolean = false,
 )
 
+@HiltViewModel
 class AiViewModel @Inject constructor(
     private val bikeRepository: BikeRepository,
     private val componentRepository: ComponentRepository,
     private val aiApiClient: AiApiClient,
+    private val securePreferences: SecurePreferencesRepository,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AiUiState())
     val uiState: StateFlow<AiUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            securePreferences.apiKey.collect { key ->
+                _uiState.update { it.copy(hasApiKey = !key.isNullOrBlank()) }
+            }
+        }
+    }
 
     private var nextId = 0L
 
@@ -56,7 +72,7 @@ class AiViewModel @Inject constructor(
             )
         }
         viewModelScope.launch {
-            val summary = withContext(Dispatchers.IO) { buildComponentHealthSummary() }
+            val summary = withContext(ioDispatcher) { buildComponentHealthSummary() }
             val result = aiApiClient.send(userMessage = text, componentHealthSummary = summary)
             result.fold(
                 onSuccess = { reply ->
@@ -85,7 +101,9 @@ class AiViewModel @Inject constructor(
         val components = componentRepository.getAllComponents()
         if (bikes.isEmpty()) return "No bikes in garage."
         val byBike = components.groupBy { it.bikeId }
-        return bikes.joinToString("\n") { bike ->
+        val bikeNamesById = bikes.associate { it.id to it.name }
+
+        val bikesSection = "Bikes:\n" + bikes.joinToString("\n") { bike ->
             val comps = byBike[bike.id].orEmpty()
             val bikeLine = "${bike.name}: ${bike.totalDistanceKm.toInt()} km total"
             if (comps.isEmpty()) bikeLine
@@ -94,6 +112,20 @@ class AiViewModel @Inject constructor(
                 "${c.name}: ${health}%"
             }
         }
+
+        val drivetrainTypes = setOf("chain", "cassette", "freewheel", "chainring")
+        val drivetrainParts = components
+            .filter { it.type.lowercase() in drivetrainTypes }
+            .map { c ->
+                val bikeName = bikeNamesById[c.bikeId] ?: "Unknown bike"
+                val health = componentHealthPercent(c)
+                val makeModel = c.makeModel.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: ""
+                "$bikeName: ${c.type} ${c.name}$makeModel ${health}%"
+            }
+        val drivetrainSection = if (drivetrainParts.isEmpty()) ""
+        else "\n\nDrivetrain:\n" + drivetrainParts.joinToString("\n")
+
+        return bikesSection + drivetrainSection
     }
 
     private fun componentHealthPercent(c: ComponentEntity): Int {
