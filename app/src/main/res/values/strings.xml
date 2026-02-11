@@ -218,6 +218,20 @@
     <string name="ai_thinking">Assistant is thinking…</string>
     <string name="ai_message_user">Your message: %1$s</string>
     <string name="ai_message_assistant">Assistant: %1$s</string>
+    <string name="ai_set_api_key_in_settings">Set API key in Settings to use the bike assistant.</string>
+    <string name="ai_open_settings">Open Settings</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_bike_assistant_section">Bike assistant</string>
+    <string name="settings_api_key_label">Gemini API key</string>
+    <string name="settings_api_key_hint">Enter your API key</string>
+    <string name="settings_api_key_save">Save key</string>
+    <string name="settings_api_key_clear">Clear key</string>
+    <string name="settings_api_key_help">Get a free API key from Google AI Studio. The key is stored securely on this device only.</string>
+    <string name="settings_get_api_key">Get API key</string>
+    <string name="settings_api_key_saved">API key saved</string>
+    <string name="settings_api_key_cleared">API key cleared</string>
 
     <!-- Common -->
     <string name="common_loading">Loading…</string>
