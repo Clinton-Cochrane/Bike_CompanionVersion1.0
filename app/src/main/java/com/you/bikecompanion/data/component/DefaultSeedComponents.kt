@@ -87,4 +87,27 @@ object DefaultSeedComponents {
 
     /** Returns all default seed components for a given type, or empty list if none. */
     fun byType(type: String): List<DefaultSeedComponent> = listByType[type] ?: emptyList()
+
+    /**
+     * Returns the default seed list filtered for the given bike type.
+     * Used by Simple Add flow: 1x/single-speed drop front derailleur (and cassette for single-speed);
+     * hydraulic drops brake cables; coaster drops brake parts and cables.
+     */
+    fun seedListFor(drivetrainType: String, brakeType: String): List<DefaultSeedComponent> {
+        val drivetrainExclude = when (drivetrainType) {
+            "single_speed" -> setOf("front_derailleur", "rear_derailleur", "cassette")
+            "1x" -> setOf("front_derailleur")
+            else -> emptySet() // multi_speed or empty
+        }
+        val brakeExclude = when (brakeType) {
+            "disc_hydraulic" -> setOf("cable_front_brake", "cable_rear_brake")
+            "coaster" -> setOf(
+                "brake_caliper", "brake_pads", "brake_rotor",
+                "cable_front_brake", "cable_rear_brake",
+            )
+            else -> emptySet() // rim, disc_mechanical, other, empty
+        }
+        val exclude = drivetrainExclude + brakeExclude
+        return LIST.filter { it.type !in exclude }
+    }
 }

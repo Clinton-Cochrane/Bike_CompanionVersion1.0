@@ -167,4 +167,75 @@ class AiViewModelTest {
 
         assertEquals(false, viewModel.uiState.value.hasApiKey)
     }
+
+    @Test
+    fun sendMessage_sets_errorOccurred_when_client_fails() = runTest(testDispatcher) {
+        every { bikeRepository.getAllBikes() } returns flowOf(emptyList())
+        coEvery { componentRepository.getAllComponents() } returns emptyList()
+        coEvery { aiApiClient.send(any(), any()) } returns Result.failure(RuntimeException("Network error"))
+
+        viewModel = AiViewModel(
+            bikeRepository = bikeRepository,
+            componentRepository = componentRepository,
+            aiApiClient = aiApiClient,
+            securePreferences = securePreferences,
+            ioDispatcher = testDispatcher,
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.updateInput("Hello")
+        viewModel.sendMessage()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.errorOccurred)
+        assertTrue(viewModel.uiState.value.messages.size == 1)
+        assertTrue(viewModel.uiState.value.messages.single().isUser)
+    }
+
+    @Test
+    fun consumeError_clears_errorOccurred() = runTest(testDispatcher) {
+        every { bikeRepository.getAllBikes() } returns flowOf(emptyList())
+        coEvery { componentRepository.getAllComponents() } returns emptyList()
+        coEvery { aiApiClient.send(any(), any()) } returns Result.failure(RuntimeException("Error"))
+
+        viewModel = AiViewModel(
+            bikeRepository = bikeRepository,
+            componentRepository = componentRepository,
+            aiApiClient = aiApiClient,
+            securePreferences = securePreferences,
+            ioDispatcher = testDispatcher,
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.updateInput("Hi")
+        viewModel.sendMessage()
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.errorOccurred)
+
+        viewModel.consumeError()
+
+        assertTrue(!viewModel.uiState.value.errorOccurred)
+    }
+
+    @Test
+    fun sendMessage_passes_no_bikes_in_garage_when_no_bikes() = runTest(testDispatcher) {
+        every { bikeRepository.getAllBikes() } returns flowOf(emptyList())
+        coEvery { componentRepository.getAllComponents() } returns emptyList()
+        val summarySlot = slot<String>()
+        coEvery { aiApiClient.send(any(), capture(summarySlot)) } returns Result.success("No bikes.")
+
+        viewModel = AiViewModel(
+            bikeRepository = bikeRepository,
+            componentRepository = componentRepository,
+            aiApiClient = aiApiClient,
+            securePreferences = securePreferences,
+            ioDispatcher = testDispatcher,
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.updateInput("What bikes do I have?")
+        viewModel.sendMessage()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("No bikes in garage.", summarySlot.captured)
+    }
 }

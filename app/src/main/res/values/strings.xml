@@ -74,6 +74,24 @@
     <string name="garage_add_component_content_description">Add a component to garage</string>
     <string name="garage_add_bike">Add bike</string>
     <string name="garage_add_bike_content_description">Add a new bike</string>
+    <string name="add_bike_choose_mode">How do you want to add your bike?</string>
+    <string name="add_bike_quick_add">Quick add</string>
+    <string name="add_bike_quick_add_subtitle">Name, drivetrain, and brakes. We’ll add suggested components.</string>
+    <string name="add_bike_quick_add_content_description">Quick add: name, drivetrain, brakes</string>
+    <string name="add_bike_quick_add_hint">We’ll add suggested components (chain, cassette, tires, etc.) with general service intervals.</string>
+    <string name="add_bike_full_setup">Full setup</string>
+    <string name="add_bike_full_setup_subtitle">Customize everything: details, component names, and service intervals.</string>
+    <string name="add_bike_full_setup_content_description">Full setup: customize all details</string>
+    <string name="add_bike_drivetrain_label">Drivetrain</string>
+    <string name="add_bike_drivetrain_1x">1x</string>
+    <string name="add_bike_drivetrain_single_speed">Single speed</string>
+    <string name="add_bike_drivetrain_multi_speed">Multi-speed</string>
+    <string name="add_bike_brake_label">Brake type</string>
+    <string name="add_bike_brake_rim">Rim</string>
+    <string name="add_bike_brake_disc_mechanical">Disc (mechanical)</string>
+    <string name="add_bike_brake_disc_hydraulic">Disc (hydraulic)</string>
+    <string name="add_bike_brake_coaster">Coaster</string>
+    <string name="add_bike_brake_other">Other</string>
     <string name="garage_bike_health_score">%1$d/100</string>
     <string name="garage_bike_alert_content_description">Bike needs attention</string>
     <string name="garage_bike_total_km">%1$.0f km total</string>
@@ -110,6 +128,7 @@
     <string name="bike_model">Model</string>
     <string name="bike_year">Year</string>
     <string name="bike_description">Description</string>
+    <string name="bike_notes">Notes</string>
     <string name="bike_save">Save</string>
     <string name="bike_add_component">Add component</string>
     <string name="bike_component_health">Health: %1$d%%</string>
@@ -259,8 +278,7 @@
     <string name="service_list_selected_count">%1$d selected</string>
     <string name="garage_settings">Garage settings</string>
 
-    <!-- Settings -->
-    <string name="settings_title">Settings</string>
+    <!-- Settings (general) -->
     <string name="settings_content_description">Open settings</string>
     <string name="settings_health_alert_threshold_title">Mild alert threshold</string>
     <string name="settings_health_alert_threshold_subtitle">Show a mild (warning) alert when bike health is at or below this percentage. Below 1%% always shows a danger alert. Default: 20%%.</string>

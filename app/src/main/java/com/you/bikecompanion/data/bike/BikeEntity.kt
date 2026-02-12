@@ -32,4 +32,10 @@ data class BikeEntity(
      * inspection/replacement of cassette, freewheel, and chainrings.
      */
     val chainReplacementCount: Int = 0,
+    /** Drivetrain: "1x", "single_speed", "multi_speed", or "". */
+    val drivetrainType: String = "",
+    /** Brakes: "rim", "disc_mechanical", "disc_hydraulic", "coaster", "other", or "". */
+    val brakeType: String = "",
+    /** Free-form notes for the bike. */
+    val notes: String = "",
 )

@@ -49,4 +49,42 @@ class DefaultSeedComponentsTest {
             assertTrue("lifespan should be positive: $entry", entry.defaultLifespanKm > 0)
         }
     }
+
+    @Test
+    fun seedListFor_singleSpeed_excludesFrontDerailleurCassetteAndRearDerailleur() {
+        val list = DefaultSeedComponents.seedListFor("single_speed", "rim")
+        val types = list.map { it.type }.toSet()
+        assertTrue("single_speed should not seed front_derailleur", "front_derailleur" !in types)
+        assertTrue("single_speed should not seed rear_derailleur", "rear_derailleur" !in types)
+        assertTrue("single_speed should not seed cassette", "cassette" !in types)
+        assertTrue("single_speed should still seed chain", "chain" in types)
+    }
+
+    @Test
+    fun seedListFor_1x_excludesOnlyFrontDerailleur() {
+        val list = DefaultSeedComponents.seedListFor("1x", "disc_mechanical")
+        val types = list.map { it.type }.toSet()
+        assertTrue("1x should not seed front_derailleur", "front_derailleur" !in types)
+        assertTrue("1x should seed cassette", "cassette" in types)
+        assertTrue("1x should seed rear_derailleur", "rear_derailleur" in types)
+    }
+
+    @Test
+    fun seedListFor_discHydraulic_excludesBrakeCables() {
+        val list = DefaultSeedComponents.seedListFor("multi_speed", "disc_hydraulic")
+        val types = list.map { it.type }.toSet()
+        assertTrue("disc_hydraulic should not seed cable_front_brake", "cable_front_brake" !in types)
+        assertTrue("disc_hydraulic should not seed cable_rear_brake", "cable_rear_brake" !in types)
+    }
+
+    @Test
+    fun seedListFor_coaster_excludesBrakePartsAndCables() {
+        val list = DefaultSeedComponents.seedListFor("single_speed", "coaster")
+        val types = list.map { it.type }.toSet()
+        assertTrue("coaster should not seed brake_caliper", "brake_caliper" !in types)
+        assertTrue("coaster should not seed brake_pads", "brake_pads" !in types)
+        assertTrue("coaster should not seed brake_rotor", "brake_rotor" !in types)
+        assertTrue("coaster should not seed cable_front_brake", "cable_front_brake" !in types)
+        assertTrue("coaster should not seed cable_rear_brake", "cable_rear_brake" !in types)
+    }
 }

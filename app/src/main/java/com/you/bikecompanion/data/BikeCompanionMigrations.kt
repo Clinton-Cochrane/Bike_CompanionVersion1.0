@@ -6,8 +6,33 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 /**
  * Central place for all Room migrations so they can be reused in tests
  * (e.g. to run migration 3→4 and validate the resulting schema).
+ *
+ * Migrations that add columns use [addColumnIfNotExists] so they are idempotent
+ * (e.g. after a partial run or reinstall with restored DB).
  */
 object BikeCompanionMigrations {
+
+    /**
+     * Adds a column to a table only if it does not already exist.
+     * Prevents "duplicate column name" when a migration is re-run.
+     */
+    private fun addColumnIfNotExists(
+        db: SupportSQLiteDatabase,
+        table: String,
+        column: String,
+        type: String,
+    ) {
+        val cursor = db.query("PRAGMA table_info($table)")
+        try {
+            val nameIndex = cursor.getColumnIndex("name")
+            while (cursor.moveToNext()) {
+                if (cursor.getString(nameIndex) == column) return
+            }
+            db.execSQL("ALTER TABLE $table ADD COLUMN $column $type")
+        } finally {
+            cursor.close()
+        }
+    }
 
     val MIGRATION_1_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -49,14 +74,14 @@ object BikeCompanionMigrations {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("PRAGMA foreign_keys=OFF")
 
-            db.execSQL("ALTER TABLE bikes ADD COLUMN thumbnailUri TEXT")
-            db.execSQL("ALTER TABLE bikes ADD COLUMN avgSpeedKmh REAL NOT NULL DEFAULT 0")
-            db.execSQL("ALTER TABLE bikes ADD COLUMN maxSpeedKmh REAL NOT NULL DEFAULT 0")
-            db.execSQL("ALTER TABLE bikes ADD COLUMN totalElevGainM REAL NOT NULL DEFAULT 0")
-            db.execSQL("ALTER TABLE bikes ADD COLUMN totalElevLossM REAL NOT NULL DEFAULT 0")
+            addColumnIfNotExists(db, "bikes", "thumbnailUri", "TEXT")
+            addColumnIfNotExists(db, "bikes", "avgSpeedKmh", "REAL NOT NULL DEFAULT 0")
+            addColumnIfNotExists(db, "bikes", "maxSpeedKmh", "REAL NOT NULL DEFAULT 0")
+            addColumnIfNotExists(db, "bikes", "totalElevGainM", "REAL NOT NULL DEFAULT 0")
+            addColumnIfNotExists(db, "bikes", "totalElevLossM", "REAL NOT NULL DEFAULT 0")
 
-            db.execSQL("ALTER TABLE component_context ADD COLUMN purchasePrice TEXT")
-            db.execSQL("ALTER TABLE component_context ADD COLUMN purchaseDateMs INTEGER")
+            addColumnIfNotExists(db, "component_context", "purchasePrice", "TEXT")
+            addColumnIfNotExists(db, "component_context", "purchaseDateMs", "INTEGER")
 
             db.execSQL(
                 """
@@ -151,16 +176,27 @@ object BikeCompanionMigrations {
 
     val MIGRATION_6_7 = object : Migration(6, 7) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            db.execSQL("ALTER TABLE service_intervals ADD COLUMN intervalTimeSeconds INTEGER")
-            db.execSQL("ALTER TABLE service_intervals ADD COLUMN trackedTimeSeconds INTEGER")
+            addColumnIfNotExists(db, "service_intervals", "intervalTimeSeconds", "INTEGER")
+            addColumnIfNotExists(db, "service_intervals", "trackedTimeSeconds", "INTEGER")
         }
     }
 
     val MIGRATION_7_8 = object : Migration(7, 8) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            db.execSQL("ALTER TABLE bikes ADD COLUMN chainReplacementCount INTEGER NOT NULL DEFAULT 0")
+            addColumnIfNotExists(db, "bikes", "chainReplacementCount", "INTEGER NOT NULL DEFAULT 0")
         }
     }
 
-    val ALL = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+    val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            addColumnIfNotExists(db, "bikes", "drivetrainType", "TEXT NOT NULL DEFAULT ''")
+            addColumnIfNotExists(db, "bikes", "brakeType", "TEXT NOT NULL DEFAULT ''")
+            addColumnIfNotExists(db, "bikes", "notes", "TEXT NOT NULL DEFAULT ''")
+        }
+    }
+
+    val ALL = arrayOf(
+        MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
+        MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
+    )
 }

@@ -75,6 +75,30 @@ class ComponentRepository @Inject constructor(
     fun getAllComponentsFlow(): Flow<List<ComponentEntity>> = componentDao.getAllComponentsFlow()
 
     /**
+     * Seeds the bike with components filtered by drivetrain and brake type (Simple Add flow).
+     * Call only for a newly created bike with no components.
+     */
+    suspend fun seedComponentsForBikeType(bikeId: Long, drivetrainType: String, brakeType: String) {
+        val list = DefaultSeedComponents.seedListFor(drivetrainType, brakeType)
+        val now = System.currentTimeMillis()
+        list.forEach { template ->
+            val entity = ComponentEntity(
+                bikeId = bikeId,
+                type = template.type,
+                name = template.name,
+                lifespanKm = template.defaultLifespanKm,
+                distanceUsedKm = 0.0,
+                position = template.position,
+                baselineKm = 0.0,
+                baselineTimeSeconds = 0L,
+                installedAt = now,
+            )
+            val id = componentDao.insert(entity)
+            insertServiceIntervalsForComponent(id, entity.type, entity.lifespanKm, 0.0, 0L)
+        }
+    }
+
+    /**
      * Seeds the bike with default components if it has none.
      * Idempotent: calling again for the same bike does not duplicate components.
      */
