@@ -18,3 +18,5 @@
 .env.*
 secrets.properties
 **/secrets*.xml
+.kotlin/errors/errors-1771041050381.log
+.kotlin/errors/errors-1771189109783.log

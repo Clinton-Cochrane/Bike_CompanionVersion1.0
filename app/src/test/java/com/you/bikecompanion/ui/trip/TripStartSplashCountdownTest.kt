@@ -28,13 +28,13 @@ class TripStartSplashCountdownTest {
         }
         val countdownJob = launch {
             runCountdownLogic(
-                initialCountdown = 5,
+                initialCountdown = 10,
                 isCancelled = false,
                 onEmitStart = { events.tryEmit(StartTripEvent) },
                 tickMs = 1000,
             )
         }
-        advanceTimeBy(6000)
+        advanceTimeBy(11000)
         countdownJob.cancel()
         collectJob.cancel()
         assertTrue(
@@ -66,6 +66,13 @@ class TripStartSplashCountdownTest {
             0,
             emitCount,
         )
+    }
+
+    /**
+     * Simulates [TripStartSplashViewModel.goNow]: emit start immediately without countdown.
+     */
+    private fun runGoNowLogic(onEmitStart: () -> Unit) {
+        onEmitStart()
     }
 
     /**

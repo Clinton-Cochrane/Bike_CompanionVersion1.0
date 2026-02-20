@@ -19,6 +19,7 @@ import com.you.bikecompanion.ui.settings.SettingsScreen
 import com.you.bikecompanion.ui.stats.StatsScreen
 import com.you.bikecompanion.ui.trip.TripScreen
 import com.you.bikecompanion.ui.trip.TripStartSplashScreen
+import com.you.bikecompanion.ui.trip.TripSettingsPlaceholderScreen
 
 sealed class Screen(val route: String) {
     data object Trip : Screen("trip")
@@ -79,6 +80,9 @@ fun BikeCompanionNavGraph(
         composable(Screen.TripStartSplash.route) { backStackEntry ->
             val bikeId = backStackEntry.arguments?.getString("bikeId")?.toLongOrNull() ?: -1L
             TripStartSplashScreen(navController = navController, bikeId = bikeId)
+        }
+        composable(Screen.TripSettings.route) {
+            TripSettingsPlaceholderScreen(navController = navController)
         }
         composable(Screen.ComponentDetail.route) { backStackEntry ->
             ComponentDetailScreen(navController = navController, backStackEntry = backStackEntry)

@@ -1,6 +1,7 @@
 package com.you.bikecompanion.data.component
 
 import com.you.bikecompanion.data.bike.BikeDao
+import com.you.bikecompanion.data.bike.BikeEntity
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -152,6 +153,15 @@ class ComponentRepository @Inject constructor(
         }
     }
 
+    /**
+     * Returns true if the target bike already has a component with the same type and position.
+     * Used to prevent duplicate parts when swapping or installing.
+     */
+    suspend fun wouldBeDuplicatePart(component: ComponentEntity, targetBikeId: Long): Boolean {
+        val existing = componentDao.getComponentsByBikeIdOnce(targetBikeId)
+        return existing.any { it.type == component.type && it.position == component.position }
+    }
+
     suspend fun installComponent(component: ComponentEntity, bikeId: Long) {
         val currentSwap = componentSwapDao.getCurrentSwap(component.id)
         currentSwap?.let {
@@ -174,6 +184,25 @@ class ComponentRepository @Inject constructor(
             componentSwapDao.update(it.copy(uninstalledAt = System.currentTimeMillis()))
         }
         componentDao.update(component.copy(bikeId = null))
+    }
+
+    /**
+     * Returns expected component slots (type, position) that the bike does not have.
+     * Uses [DefaultSeedComponents.seedListFor] based on bike drivetrain and brake type.
+     */
+    suspend fun getMissingComponentsForBike(bike: BikeEntity): List<DefaultSeedComponent> {
+        val expected = DefaultSeedComponents.seedListFor(bike.drivetrainType, bike.brakeType)
+        val existing = componentDao.getComponentsByBikeIdOnce(bike.id)
+        val existingKeys = existing.map { it.type to it.position }.toSet()
+        return expected.filter { (it.type to it.position) !in existingKeys }
+    }
+
+    /**
+     * Returns components in the garage (bikeId = null) that match the given type and position.
+     */
+    suspend fun getComponentsInGarageMatching(type: String, position: String): List<ComponentEntity> {
+        return componentDao.getComponentsInGarageOnce()
+            .filter { it.type == type && it.position == position }
     }
 
     /**

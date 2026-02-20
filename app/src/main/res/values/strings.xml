@@ -26,14 +26,26 @@
     <string name="trip_import_success">Imported %1$d ride(s)</string>
     <string name="trip_import_none">No cycling sessions found in Health Connect</string>
     <string name="trip_import_error">Could not read Health Connect. Check that Health Connect is installed and permission is granted.</string>
+    <string name="trip_missing_parts_title">Missing parts</string>
+    <string name="trip_missing_parts_message">This bike is missing some expected components. You can add placeholders to track them, install parts from your garage, or start the ride anyway and fix later.</string>
+    <string name="trip_add_placeholder">Add placeholder</string>
+    <string name="trip_add_all_placeholders">Add all as placeholders</string>
+    <string name="trip_install_from_garage">Use %1$s from garage</string>
+    <string name="trip_start_anyway">Start ride anyway</string>
 
     <!-- Trip start splash (countdown) -->
     <string name="trip_splash_title">Starting trip</string>
     <string name="trip_splash_cancel">Cancel</string>
     <string name="trip_splash_cancel_content_description">Cancel and return without starting the trip</string>
     <string name="trip_splash_countdown_content_description">Countdown: %1$d seconds</string>
+    <string name="trip_splash_go_now">GO now</string>
+    <string name="trip_splash_go_now_content_description">Start trip immediately</string>
     <string name="trip_splash_action_bike_mode">Bike mode</string>
     <string name="trip_splash_action_auto_pause">Auto-pause</string>
+
+    <!-- Trip settings (placeholder) -->
+    <string name="trip_settings_title">Trip settings</string>
+    <string name="trip_settings_coming_soon">Trip settings coming soon</string>
 
     <!-- Active ride screen -->
     <string name="ride_active_title">Ride in progress</string>
@@ -180,9 +192,23 @@
     <string name="component_install">Install</string>
     <string name="component_uninstall">Uninstall</string>
     <string name="component_install_picker_title">Install on bike</string>
+    <string name="component_install_picker_message">Select a bike to install this component on. It will be moved from the garage to the chosen bike.</string>
+    <string name="component_swap_picker_message">Select a bike to move this component to. It will be uninstalled from its current bike and installed on the chosen bike. Bikes that already have this part type are shown but cannot be selected.</string>
+    <string name="component_swap_duplicate_hint">%1$s already on this bike</string>
+    <string name="component_install_duplicate_bike">%1$s already has this part type</string>
     <string name="component_install_no_bikes">No other bikes available</string>
     <string name="component_delete_confirm_title">Delete component</string>
     <string name="component_delete_confirm_message">Delete %1$s? This cannot be undone.</string>
+    <string name="component_edit">Edit component</string>
+    <string name="component_delete">Delete component</string>
+    <string name="component_remove_dialog_title">How do you want to remove this?</string>
+    <string name="component_remove_forever">Forever / Delete</string>
+    <string name="component_remove_move_to_garage">Move to garage / Uninstall from bike</string>
+    <string name="component_moved_to_garage">Moved to garage</string>
+    <string name="component_uninstall_confirm_title">Uninstall from bike?</string>
+    <string name="component_uninstall_confirm_message">This will move the component to the garage. You can reinstall it on any bike later.</string>
+    <string name="component_swap">Swap</string>
+    <string name="component_swap_picker_title">Move to bike</string>
     <string name="component_menu_view_details">View details</string>
     <string name="component_detail_title">Component</string>
     <string name="component_in_garage">In garage</string>
@@ -193,6 +219,7 @@
     <string name="component_interval_km_label">Interval (km)</string>
     <string name="component_interval_time_label">Interval time (optional)</string>
     <string name="component_interval_time_hint">e.g. 2 weeks, 50 hours</string>
+    <string name="component_interval_edit_title">Edit service interval</string>
     <string name="component_interval_km">%1$.0fkm of %2$.0fkm left</string>
     <string name="bike_chain_recommendation_title">Chain replacement reminder</string>
     <string name="bike_chain_recommendation_message">After %1$d chain replacements, consider inspecting or replacing cassette, freewheel, and chainrings.</string>
@@ -203,6 +230,7 @@
     <string name="component_swap_until">Until %1$s</string>
     <string name="component_swap_currently_installed">Currently installed</string>
     <string name="component_edit_title">Edit component</string>
+    <string name="component_edit_title_format">Edit %1$s</string>
     <string name="component_edit_display_name">Display name</string>
     <string name="component_edit_display_name_hint">e.g. Chain 1</string>
     <string name="component_edit_mileage">Mileage (km)</string>
@@ -261,6 +289,7 @@
     <string name="common_edit">Edit</string>
     <string name="common_back">Back</string>
     <string name="common_more_options">More options</string>
+    <string name="common_undo">Undo</string>
     <string name="common_back_content_description">Navigate back</string>
 
     <!-- Service list -->

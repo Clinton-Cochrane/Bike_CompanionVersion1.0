@@ -29,6 +29,8 @@ data class ComponentDetailUiState(
     val serviceIntervals: List<ServiceIntervalEntity> = emptyList(),
     val bikes: List<BikeEntity> = emptyList(),
     val loading: Boolean = true,
+    /** For swap picker: bikeId -> true if install would succeed, false if duplicate. */
+    val swapBikeCanInstall: Map<Long, Boolean> = emptyMap(),
 )
 
 @HiltViewModel
@@ -77,10 +79,28 @@ class ComponentDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Loads which target bikes can receive this component (no duplicate type+position).
+     * Call when opening the swap/install picker.
+     */
+    fun loadSwapBikeStatus() {
+        val component = _uiState.value.component ?: return
+        viewModelScope.launch {
+            val bikes = _uiState.value.bikes.filter { it.id != component.bikeId }
+            val status = bikes.associate { bike ->
+                bike.id to !componentRepository.wouldBeDuplicatePart(component, bike.id)
+            }
+            _uiState.update { it.copy(swapBikeCanInstall = status) }
+        }
+    }
+
     fun installComponent(targetBikeId: Long) {
         val component = _uiState.value.component ?: return
         viewModelScope.launch {
+            if (componentRepository.wouldBeDuplicatePart(component, targetBikeId)) return@launch
             componentRepository.installComponent(component, targetBikeId)
+            val refreshed = componentRepository.getComponentById(component.id)
+            _uiState.update { it.copy(component = refreshed, swapBikeCanInstall = emptyMap()) }
         }
     }
 
@@ -88,6 +108,8 @@ class ComponentDetailViewModel @Inject constructor(
         val component = _uiState.value.component ?: return
         viewModelScope.launch {
             componentRepository.uninstallComponent(component)
+            val refreshed = componentRepository.getComponentById(component.id)
+            _uiState.update { it.copy(component = refreshed) }
         }
     }
 

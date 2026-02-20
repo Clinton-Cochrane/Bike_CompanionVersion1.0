@@ -32,6 +32,23 @@ object IntervalTimeConstants {
     }
 
     /**
+     * Formats seconds into an editable interval string (e.g. "2 weeks", "50 hours").
+     * Used to pre-fill the edit field when editing a service interval.
+     */
+    fun formatSecondsToIntervalStr(seconds: Long): String {
+        if (seconds <= 0) return ""
+        val hours = seconds / 3600
+        val days = hours / 24
+        return when {
+            hours < 24 -> "$hours hours"
+            days < 7 -> "$days days"
+            days < 30 -> "${days / 7} weeks"
+            days < 365 -> "${days / 30} months"
+            else -> "${days / 365} years"
+        }
+    }
+
+    /**
      * Parses a time interval string (e.g. "2 weeks", "50 hours", "1 month") into seconds.
      * @return Parsed seconds, or null if invalid.
      */
