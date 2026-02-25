@@ -7,8 +7,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -31,6 +35,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.you.bikecompanion.R
 import com.you.bikecompanion.location.RideTrackingService
+import com.you.bikecompanion.ui.navigation.Screen
 import com.you.bikecompanion.ui.ride.ActiveRideActivity
 import kotlinx.coroutines.flow.collectLatest
 
@@ -64,11 +69,24 @@ fun TripStartSplashScreen(
 
     val cancelContentDesc = stringResource(R.string.trip_splash_cancel_content_description)
     val countdownDesc = stringResource(R.string.trip_splash_countdown_content_description, state.countdown)
+    val goNowDesc = stringResource(R.string.trip_splash_go_now_content_description)
+    val tripSettingsDesc = stringResource(R.string.trip_settings_title)
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.trip_splash_title)) },
+                actions = {
+                    IconButton(
+                        onClick = { navController.navigate(Screen.TripSettings.route) },
+                        modifier = Modifier.semantics { contentDescription = tripSettingsDesc },
+                    ) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = null,
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -99,6 +117,16 @@ fun TripStartSplashScreen(
                         contentDescription = countdownDesc
                     },
                 )
+                if (state.countdown > 0 && !state.isCancelled) {
+                    Button(
+                        onClick = { viewModel.goNow() },
+                        modifier = Modifier
+                            .padding(top = 24.dp)
+                            .semantics { contentDescription = goNowDesc },
+                    ) {
+                        Text(stringResource(R.string.trip_splash_go_now))
+                    }
+                }
             }
 
             val bikeModeDesc = stringResource(R.string.trip_splash_action_bike_mode)

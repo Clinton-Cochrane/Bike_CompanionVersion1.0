@@ -1,7 +1,6 @@
 package com.you.bikecompanion.ui.trip
 
 import android.Manifest
-import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -11,12 +10,16 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsBike
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -48,7 +51,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.you.bikecompanion.R
+import com.you.bikecompanion.data.component.ComponentEntity
 import com.you.bikecompanion.data.ride.RideEntity
+import com.you.bikecompanion.ui.navigation.Screen
+import com.you.bikecompanion.util.DisplayFormatHelper
 import com.you.bikecompanion.location.RideTrackingService
 import com.you.bikecompanion.ui.ride.ActiveRideActivity
 import java.text.SimpleDateFormat
@@ -69,17 +75,35 @@ fun TripScreen(
     ) { grants ->
         if (grants.values.any { it }) {
             val bikeId = uiState.selectedBike?.id ?: -1L
-            context.startService(Intent(context, RideTrackingService::class.java).apply {
-                putExtra(RideTrackingService.ACTION_KEY, RideTrackingService.ACTION_START)
-                putExtra(RideTrackingService.BIKE_ID_KEY, bikeId)
-            })
-            ActiveRideActivity.start(context, bikeId)
+            if (bikeId >= 0) {
+                navController.navigate(Screen.TripStartSplash.withId(bikeId))
+            }
         }
     }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     fun startTrip() {
         val bikeId = uiState.selectedBike?.id
         if (uiState.bikes.isEmpty()) return
+        scope.launch {
+            val okToProceed = viewModel.checkMissingPartsBeforeStart()
+            if (!okToProceed) return@launch
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                permissionLauncher.launch(
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.POST_NOTIFICATIONS)
+                )
+            } else {
+                permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
+            }
+        }
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    fun requestPermissionsAndStart() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissionLauncher.launch(
                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.POST_NOTIFICATIONS)
@@ -89,8 +113,20 @@ fun TripScreen(
         }
     }
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    val missingParts = uiState.missingParts
+    if (missingParts != null) {
+        MissingPartsDialog(
+            missingParts = missingParts,
+            onAddPlaceholder = { viewModel.addPlaceholderFor(it) },
+            onAddAllPlaceholders = { viewModel.addAllPlaceholders() },
+            onInstallFromGarage = { viewModel.installFromGarage(it) },
+            onStartAnyway = {
+                viewModel.clearMissingParts()
+                requestPermissionsAndStart()
+            },
+            onDismiss = { viewModel.clearMissingParts() },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -259,6 +295,76 @@ private fun RideCard(
             )
         }
     }
+}
+
+@Composable
+private fun MissingPartsDialog(
+    missingParts: List<MissingPartInfo>,
+    onAddPlaceholder: (MissingPartInfo) -> Unit,
+    onAddAllPlaceholders: () -> Unit,
+    onInstallFromGarage: (ComponentEntity) -> Unit,
+    onStartAnyway: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.trip_missing_parts_title)) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    stringResource(R.string.trip_missing_parts_message),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                missingParts.forEach { info ->
+                    val displayName = DisplayFormatHelper.formatComponentTypeForDisplay(info.expected.type) +
+                        if (info.expected.position != "none") " (${info.expected.position})" else ""
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            displayName,
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            TextButton(onClick = { onAddPlaceholder(info) }) {
+                                Text(stringResource(R.string.trip_add_placeholder))
+                            }
+                            info.garageMatches.forEach { comp ->
+                                TextButton(onClick = { onInstallFromGarage(comp) }) {
+                                    Text(
+                                        stringResource(R.string.trip_install_from_garage, DisplayFormatHelper.formatForDisplay(comp.name)),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = onAddAllPlaceholders) {
+                    Text(stringResource(R.string.trip_add_all_placeholders))
+                }
+                TextButton(onClick = onStartAnyway) {
+                    Text(stringResource(R.string.trip_start_anyway))
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
+    )
 }
 
 private fun formatDuration(ms: Long): String {

@@ -43,6 +43,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.AlertDialog
@@ -56,7 +59,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -82,6 +87,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 private enum class BikeAlertLevel { NONE, MILD, DANGER }
 
@@ -93,12 +99,16 @@ fun BikeDetailScreen(
 ) {
     var showAddComponentDialog by remember { mutableStateOf(false) }
     var componentIdForInstallPicker by remember { mutableStateOf<ComponentEntity?>(null) }
-    var componentIdForDeleteConfirm by remember { mutableStateOf<ComponentEntity?>(null) }
+    var componentForRemoveDialog by remember { mutableStateOf<ComponentEntity?>(null) }
+    var componentForDeleteConfirm by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentContextMenuExpanded by remember { mutableStateOf<Long?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     val viewModel: BikeDetailViewModel = androidx.hilt.navigation.compose.hiltViewModel(
         viewModelStoreOwner = backStackEntry,
     )
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     val backContentDesc = stringResource(R.string.common_back_content_description)
     val editContentDesc = stringResource(R.string.common_edit)
 
@@ -137,25 +147,44 @@ fun BikeDetailScreen(
 
     componentIdForInstallPicker?.let { component ->
         val otherBikes = (uiState.bikes).filter { it.id != uiState.bike?.id }
+        LaunchedEffect(uiState.installOutcome) {
+            when (val o = uiState.installOutcome) {
+                is BikeDetailViewModel.InstallOutcome.Success -> {
+                    componentIdForInstallPicker = null
+                    viewModel.clearInstallOutcome()
+                }
+                is BikeDetailViewModel.InstallOutcome.Duplicate -> {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            context.getString(R.string.component_install_duplicate_bike, o.bikeName),
+                        )
+                    }
+                    viewModel.clearInstallOutcome()
+                }
+                null -> { }
+            }
+        }
         AlertDialog(
             onDismissRequest = { componentIdForInstallPicker = null },
             title = { Text(stringResource(R.string.component_install_picker_title)) },
             text = {
-                if (otherBikes.isEmpty()) {
-                    Text(stringResource(R.string.component_install_no_bikes))
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (otherBikes.isNotEmpty()) {
+                        Text(
+                            stringResource(R.string.component_swap_picker_message),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                         otherBikes.forEach { bike ->
                             TextButton(
-                                onClick = {
-                                    viewModel.installComponent(component, bike.id)
-                                    componentIdForInstallPicker = null
-                                },
+                                onClick = { viewModel.installComponent(component, bike.id) },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(bike.name)
                             }
                         }
+                    } else {
+                        Text(stringResource(R.string.component_install_no_bikes))
                     }
                 }
             },
@@ -167,25 +196,72 @@ fun BikeDetailScreen(
         )
     }
 
-    componentIdForDeleteConfirm?.let { component ->
+    val componentToRemove = componentForRemoveDialog
+    if (componentToRemove != null) {
+        val bikeId = componentToRemove.bikeId ?: uiState.bike?.id ?: 0L
         AlertDialog(
-            onDismissRequest = { componentIdForDeleteConfirm = null },
+            onDismissRequest = { componentForRemoveDialog = null },
+            title = { Text(stringResource(R.string.component_remove_dialog_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(DisplayFormatHelper.formatForDisplay(componentToRemove.name))
+                    TextButton(
+                        onClick = {
+                            componentForDeleteConfirm = componentToRemove
+                            componentForRemoveDialog = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.component_remove_forever), color = MaterialTheme.colorScheme.error)
+                    }
+                    TextButton(
+                        onClick = {
+                            viewModel.uninstallComponent(componentToRemove)
+                            componentForRemoveDialog = null
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = context.getString(R.string.component_moved_to_garage),
+                                    actionLabel = context.getString(R.string.common_undo),
+                                )
+                                if (result == SnackbarResult.ActionPerformed && bikeId > 0) {
+                                    viewModel.installComponent(componentToRemove, bikeId)
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.component_remove_move_to_garage))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { componentForRemoveDialog = null }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
+
+    val componentToDeleteConfirm = componentForDeleteConfirm
+    if (componentToDeleteConfirm != null) {
+        AlertDialog(
+            onDismissRequest = { componentForDeleteConfirm = null },
             title = { Text(stringResource(R.string.component_delete_confirm_title)) },
             text = {
-                Text(stringResource(R.string.component_delete_confirm_message, DisplayFormatHelper.formatForDisplay(component.name)))
+                Text(stringResource(R.string.component_delete_confirm_message, DisplayFormatHelper.formatForDisplay(componentToDeleteConfirm.name)))
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteComponent(component)
-                        componentIdForDeleteConfirm = null
+                        viewModel.deleteComponent(componentToDeleteConfirm)
+                        componentForDeleteConfirm = null
                     },
                 ) {
                     Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { componentIdForDeleteConfirm = null }) {
+                TextButton(onClick = { componentForDeleteConfirm = null }) {
                     Text(stringResource(android.R.string.cancel))
                 }
             },
@@ -220,6 +296,7 @@ fun BikeDetailScreen(
                 ),
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { paddingValues ->
         if (uiState.bike == null && !uiState.loading) {
             Text(
@@ -453,7 +530,7 @@ fun BikeDetailScreen(
                                 onInstall = { componentIdForInstallPicker = it },
                                 onUninstall = viewModel::uninstallComponent,
                                 onViewDetails = { navController.navigate(Screen.ComponentDetail.withId(it.id)) },
-                                onDelete = { componentIdForDeleteConfirm = it },
+                                onDelete = { componentForRemoveDialog = it },
                             )
                         }
                     }
@@ -659,6 +736,20 @@ private fun ComponentHealthCard(
                                 text = { Text(stringResource(R.string.bike_component_alerts_off)) },
                                 onClick = {
                                     onAlertsOff()
+                                    onContextMenuClick()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.component_edit)) },
+                                onClick = {
+                                    onViewDetails()
+                                    onContextMenuClick()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.component_delete)) },
+                                onClick = {
+                                    onDelete()
                                     onContextMenuClick()
                                 },
                             )

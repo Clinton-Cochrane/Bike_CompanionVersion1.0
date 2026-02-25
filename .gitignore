@@ -1,8 +1,8 @@
 *.iml
 .gradle
 /local.properties
-/.idea/workspace.xml
-/.idea/libraries
+# IDE-generated, machine-specific settings (avoid merge conflicts and overrides)
+.idea/
 .DS_Store
 /build
 /captures
@@ -18,3 +18,5 @@
 .env.*
 secrets.properties
 **/secrets*.xml
+.kotlin/errors/errors-1771041050381.log
+.kotlin/errors/errors-1771189109783.log

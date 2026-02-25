@@ -8,8 +8,10 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.you.bikecompanion.ui.ai.AiScreen
+import com.you.bikecompanion.ui.garage.AddBikeEntryScreen
 import com.you.bikecompanion.ui.garage.AddEditBikeScreen
 import com.you.bikecompanion.ui.garage.BikeDetailScreen
+import com.you.bikecompanion.ui.garage.SimpleAddBikeScreen
 import com.you.bikecompanion.ui.garage.ComponentDetailScreen
 import com.you.bikecompanion.ui.garage.GarageScreen
 import com.you.bikecompanion.ui.garage.ServiceListScreen
@@ -17,6 +19,7 @@ import com.you.bikecompanion.ui.settings.SettingsScreen
 import com.you.bikecompanion.ui.stats.StatsScreen
 import com.you.bikecompanion.ui.trip.TripScreen
 import com.you.bikecompanion.ui.trip.TripStartSplashScreen
+import com.you.bikecompanion.ui.trip.TripSettingsPlaceholderScreen
 
 sealed class Screen(val route: String) {
     data object Trip : Screen("trip")
@@ -27,6 +30,8 @@ sealed class Screen(val route: String) {
         fun withId(id: Long) = "bike_detail/$id"
     }
     data object AddBike : Screen("add_bike")
+    data object AddBikeSimple : Screen("add_bike_simple")
+    data object AddBikeAdvanced : Screen("add_bike_advanced")
     data object EditBike : Screen("edit_bike/{bikeId}") {
         fun withId(id: Long) = "edit_bike/$id"
     }
@@ -59,7 +64,13 @@ fun BikeCompanionNavGraph(
         composable(Screen.BikeDetail.route) { backStackEntry ->
             BikeDetailScreen(navController = navController, backStackEntry = backStackEntry)
         }
-        composable(Screen.AddBike.route) { backStackEntry ->
+        composable(Screen.AddBike.route) {
+            AddBikeEntryScreen(navController = navController)
+        }
+        composable(Screen.AddBikeSimple.route) { backStackEntry ->
+            SimpleAddBikeScreen(navController = navController, backStackEntry = backStackEntry)
+        }
+        composable(Screen.AddBikeAdvanced.route) { backStackEntry ->
             AddEditBikeScreen(navController = navController, backStackEntry = backStackEntry, bikeId = null)
         }
         composable(Screen.EditBike.route) { backStackEntry ->
@@ -69,6 +80,9 @@ fun BikeCompanionNavGraph(
         composable(Screen.TripStartSplash.route) { backStackEntry ->
             val bikeId = backStackEntry.arguments?.getString("bikeId")?.toLongOrNull() ?: -1L
             TripStartSplashScreen(navController = navController, bikeId = bikeId)
+        }
+        composable(Screen.TripSettings.route) {
+            TripSettingsPlaceholderScreen(navController = navController)
         }
         composable(Screen.ComponentDetail.route) { backStackEntry ->
             ComponentDetailScreen(navController = navController, backStackEntry = backStackEntry)

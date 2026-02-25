@@ -23,7 +23,7 @@ import javax.inject.Inject
 /**
  * State for the trip-start splash countdown screen.
  *
- * If the app is backgrounded during the countdown, on resume the countdown resets to 5.
+ * If the app is backgrounded during the countdown, on resume the countdown resets to 10.
  */
 data class SplashState(
     val countdown: Int = INITIAL_COUNTDOWN,
@@ -33,7 +33,7 @@ data class SplashState(
 /** One-shot event: trip should start (countdown reached 0 and not cancelled). */
 object StartTripEvent
 
-private const val INITIAL_COUNTDOWN = 5
+private const val INITIAL_COUNTDOWN = 10
 
 @HiltViewModel
 class TripStartSplashViewModel @Inject constructor(
@@ -83,5 +83,20 @@ class TripStartSplashViewModel @Inject constructor(
 
     fun cancel() {
         _state.update { it.copy(isCancelled = true) }
+    }
+
+    /**
+     * Skips the countdown and starts the trip immediately, if not already cancelled.
+     */
+    fun goNow() {
+        if (_state.value.isCancelled) return
+        countdownJob?.cancel()
+        countdownJob = null
+        _state.update { it.copy(countdown = 0) }
+        if (bikeId >= 0) {
+            viewModelScope.launch {
+                _startTripEvents.emit(StartTripEvent)
+            }
+        }
     }
 }

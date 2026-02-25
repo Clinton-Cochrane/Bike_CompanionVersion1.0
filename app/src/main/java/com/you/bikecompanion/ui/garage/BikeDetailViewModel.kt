@@ -30,6 +30,7 @@ data class BikeDetailUiState(
     /** User-configured threshold below which mild alert is shown (default from [AppPreferencesRepository]). */
     val closeToServiceHealthThreshold: Int = AppPreferencesRepository.DEFAULT_CLOSE_TO_SERVICE_THRESHOLD,
     val loading: Boolean = true,
+    val installOutcome: BikeDetailViewModel.InstallOutcome? = null,
 )
 
 @HiltViewModel
@@ -146,10 +147,26 @@ class BikeDetailViewModel @Inject constructor(
         }
     }
 
+    /** Outcome of an install attempt; UI shows snackbar for Duplicate and closes picker on Success. */
+    sealed class InstallOutcome {
+        data object Success : InstallOutcome()
+        data class Duplicate(val bikeName: String) : InstallOutcome()
+    }
+
     fun installComponent(component: ComponentEntity, targetBikeId: Long) {
         viewModelScope.launch {
+            if (componentRepository.wouldBeDuplicatePart(component, targetBikeId)) {
+                val bikeName = _uiState.value.bikes.find { it.id == targetBikeId }?.name ?: ""
+                _uiState.update { it.copy(installOutcome = InstallOutcome.Duplicate(bikeName)) }
+                return@launch
+            }
             componentRepository.installComponent(component, targetBikeId)
+            _uiState.update { it.copy(installOutcome = InstallOutcome.Success) }
         }
+    }
+
+    fun clearInstallOutcome() {
+        _uiState.update { it.copy(installOutcome = null) }
     }
 
     fun uninstallComponent(component: ComponentEntity) {

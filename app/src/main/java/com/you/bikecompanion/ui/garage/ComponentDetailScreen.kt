@@ -39,6 +39,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,6 +52,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,6 +82,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,6 +103,12 @@ fun ComponentDetailScreen(
     var showInstallPicker by remember { mutableStateOf(false) }
     var showAddIntervalDialog by remember { mutableStateOf(false) }
     var intervalMenuExpanded by remember { mutableStateOf<Long?>(null) }
+    var showUninstallConfirm by remember { mutableStateOf(false) }
+    var showSwapPicker by remember { mutableStateOf(false) }
+    var intervalToEdit by remember { mutableStateOf<ServiceIntervalEntity?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     val nameEmptyMsg = stringResource(R.string.component_edit_validation_name_empty)
     val mileageInvalidMsg = stringResource(R.string.component_edit_validation_mileage_invalid)
@@ -157,23 +168,97 @@ fun ComponentDetailScreen(
         )
     }
 
+    val componentForUninstall = uiState.component
+    if (showUninstallConfirm && componentForUninstall != null) {
+        val bikeIdForUndo = componentForUninstall.bikeId ?: 0L
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showUninstallConfirm = false },
+            title = { Text(stringResource(R.string.component_uninstall_confirm_title)) },
+            text = { Text(stringResource(R.string.component_uninstall_confirm_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.uninstallComponent()
+                        showUninstallConfirm = false
+                        scope.launch {
+                            val result = snackbarHostState.showSnackbar(
+                                message = context.getString(R.string.component_moved_to_garage),
+                                actionLabel = context.getString(R.string.common_undo),
+                            )
+                            if (result == SnackbarResult.ActionPerformed && bikeIdForUndo > 0) {
+                                viewModel.installComponent(bikeIdForUndo)
+                            }
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.component_uninstall))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUninstallConfirm = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
+    }
+
     uiState.component?.let { component ->
-        if (showInstallPicker) {
-            val bikesForPicker = uiState.bikes
+        val isSwapFlow = component.bikeId != null && uiState.bikes.size > 1
+        val bikesForPicker = if (isSwapFlow) {
+            uiState.bikes.filter { it.id != component.bikeId }
+        } else {
+            uiState.bikes
+        }
+        if (showInstallPicker || showSwapPicker) {
+            androidx.compose.runtime.LaunchedEffect(showInstallPicker, showSwapPicker) {
+                if (showInstallPicker || showSwapPicker) viewModel.loadSwapBikeStatus()
+            }
             androidx.compose.material3.AlertDialog(
-                onDismissRequest = { showInstallPicker = false },
-                title = { Text(stringResource(R.string.component_install_picker_title)) },
+                onDismissRequest = {
+                    showInstallPicker = false
+                    showSwapPicker = false
+                },
+                title = {
+                    Text(
+                        if (isSwapFlow) stringResource(R.string.component_swap_picker_title)
+                        else stringResource(R.string.component_install_picker_title),
+                    )
+                },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            if (isSwapFlow) stringResource(R.string.component_swap_picker_message)
+                            else stringResource(R.string.component_install_picker_message),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                         bikesForPicker.forEach { bike ->
+                            val canInstall = uiState.swapBikeCanInstall.isEmpty() || uiState.swapBikeCanInstall[bike.id] == true
                             TextButton(
                                 onClick = {
-                                    viewModel.installComponent(bike.id)
-                                    showInstallPicker = false
+                                    if (canInstall) {
+                                        viewModel.installComponent(bike.id)
+                                        showInstallPicker = false
+                                        showSwapPicker = false
+                                    }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
+                                enabled = canInstall,
                             ) {
-                                Text(bike.name)
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                                    horizontalAlignment = Alignment.Start,
+                                ) {
+                                    Text(bike.name)
+                                    if (!canInstall) {
+                                        Text(
+                                            stringResource(R.string.component_swap_duplicate_hint, DisplayFormatHelper.formatComponentTypeForDisplay(component.type)),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    }
+                                }
                             }
                         }
                         if (bikesForPicker.isEmpty()) {
@@ -182,7 +267,10 @@ fun ComponentDetailScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { showInstallPicker = false }) {
+                    TextButton(onClick = {
+                        showInstallPicker = false
+                        showSwapPicker = false
+                    }) {
                         Text(stringResource(R.string.common_cancel))
                     }
                 },
@@ -191,10 +279,13 @@ fun ComponentDetailScreen(
     }
 
     val editContentDesc = stringResource(R.string.common_edit)
+    val screenTitle = uiState.component?.bikeId?.let { bid ->
+        uiState.bikes.find { it.id == bid }?.name
+    } ?: stringResource(R.string.component_in_garage)
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.component_detail_title)) },
+                title = { Text(screenTitle) },
                 navigationIcon = {
                     IconButton(
                         onClick = { navController.navigateUp() },
@@ -219,6 +310,7 @@ fun ComponentDetailScreen(
                 ),
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { paddingValues ->
         if (uiState.component == null && !uiState.loading) {
             Text(
@@ -259,25 +351,27 @@ fun ComponentDetailScreen(
                                 )
                             }
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    DisplayFormatHelper.formatComponentTypeForDisplay(component.type),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Text(
-                                    DisplayFormatHelper.formatForDisplay(component.name),
-                                    style = MaterialTheme.typography.titleLarge,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
                                 val bikeName = component.bikeId?.let { bid ->
                                     uiState.bikes.find { it.id == bid }?.name
                                 }
                                 Text(
                                     bikeName ?: stringResource(R.string.component_in_garage),
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                Text(
+                                    DisplayFormatHelper.formatComponentTypeForDisplay(component.type),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                if (component.makeModel.isNotBlank()) {
+                                    Text(
+                                        component.makeModel,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                             }
                         }
                         Row(
@@ -300,7 +394,12 @@ fun ComponentDetailScreen(
                                     Text(stringResource(R.string.component_install))
                                 }
                             } else {
-                                OutlinedButton(onClick = { viewModel.uninstallComponent() }) {
+                                if (uiState.bikes.size > 1) {
+                                    OutlinedButton(onClick = { showSwapPicker = true }) {
+                                        Text(stringResource(R.string.component_swap))
+                                    }
+                                }
+                                OutlinedButton(onClick = { showUninstallConfirm = true }) {
                                     Text(stringResource(R.string.component_uninstall))
                                 }
                             }
@@ -399,6 +498,13 @@ fun ComponentDetailScreen(
                                 onDismissRequest = { intervalMenuExpanded = null },
                             ) {
                                 DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.common_edit)) },
+                                    onClick = {
+                                        intervalToEdit = interval
+                                        intervalMenuExpanded = null
+                                    },
+                                )
+                                DropdownMenuItem(
                                     text = { Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error) },
                                     onClick = {
                                         viewModel.deleteServiceInterval(interval.id)
@@ -438,6 +544,23 @@ fun ComponentDetailScreen(
                 }
             }
         }
+    }
+
+    intervalToEdit?.let { interval ->
+        ServiceIntervalEditDialog(
+            interval = interval,
+            onDismiss = { intervalToEdit = null },
+            onSave = { name, intervalKm, intervalTimeSeconds ->
+                viewModel.updateServiceInterval(
+                    interval.copy(
+                        name = name.trim(),
+                        intervalKm = intervalKm,
+                        intervalTimeSeconds = intervalTimeSeconds,
+                    ),
+                )
+                intervalToEdit = null
+            },
+        )
     }
 
     if (showAddIntervalDialog) {
@@ -496,6 +619,67 @@ fun ComponentDetailScreen(
 }
 
 @Composable
+private fun ServiceIntervalEditDialog(
+    interval: ServiceIntervalEntity,
+    onDismiss: () -> Unit,
+    onSave: (name: String, intervalKm: Double, intervalTimeSeconds: Long?) -> Unit,
+) {
+    var name by remember(interval.id) { mutableStateOf(interval.name) }
+    var intervalKmStr by remember(interval.id) { mutableStateOf(interval.intervalKm.toString()) }
+    var intervalTimeStr by remember(interval.id) {
+        mutableStateOf(
+            interval.intervalTimeSeconds?.let { IntervalTimeConstants.formatSecondsToIntervalStr(it) } ?: "",
+        )
+    }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.component_interval_edit_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.component_interval_name)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = intervalKmStr,
+                    onValueChange = { intervalKmStr = it },
+                    label = { Text(stringResource(R.string.component_interval_km_label)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                )
+                OutlinedTextField(
+                    value = intervalTimeStr,
+                    onValueChange = { intervalTimeStr = it },
+                    label = { Text(stringResource(R.string.component_interval_time_label)) },
+                    placeholder = { Text(stringResource(R.string.component_interval_time_hint)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val km = intervalKmStr.toDoubleOrNull() ?: 0.0
+                val timeSeconds = intervalTimeStr.trim().takeIf { it.isNotEmpty() }?.let {
+                    IntervalTimeConstants.parseIntervalTime(it)
+                }
+                if (name.isNotBlank() && (km > 0 || timeSeconds != null)) {
+                    onSave(name.trim(), km.coerceAtLeast(0.0), timeSeconds)
+                }
+            }) {
+                Text(stringResource(R.string.component_context_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
+    )
+}
+
+@Composable
 private fun ComponentEditDialog(
     component: ComponentEntity,
     validationError: String?,
@@ -511,7 +695,11 @@ private fun ComponentEditDialog(
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.component_edit_title)) },
+        title = {
+            Text(
+                stringResource(R.string.component_edit_title_format, DisplayFormatHelper.formatComponentTypeForDisplay(component.type)),
+            )
+        },
         text = {
             Column(
                 modifier = Modifier
