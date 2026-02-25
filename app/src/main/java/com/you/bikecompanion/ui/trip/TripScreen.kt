@@ -26,7 +26,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -36,6 +35,7 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.Composable
@@ -54,6 +54,7 @@ import com.you.bikecompanion.R
 import com.you.bikecompanion.data.component.ComponentEntity
 import com.you.bikecompanion.data.ride.RideEntity
 import com.you.bikecompanion.ui.navigation.Screen
+import com.you.bikecompanion.ui.trip.HealthConnectImportResult
 import com.you.bikecompanion.util.DisplayFormatHelper
 import com.you.bikecompanion.location.RideTrackingService
 import com.you.bikecompanion.ui.ride.ActiveRideActivity
@@ -84,6 +85,22 @@ fun TripScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    LaunchedEffect(Unit) {
+        viewModel.healthConnectImportResult.collect { result ->
+            val message = when (result) {
+                is HealthConnectImportResult.Success ->
+                    context.getString(R.string.trip_import_success, result.count)
+                HealthConnectImportResult.None ->
+                    context.getString(R.string.trip_import_none)
+                HealthConnectImportResult.NoBikeSelected ->
+                    context.getString(R.string.trip_no_bike_selected)
+                HealthConnectImportResult.Error ->
+                    context.getString(R.string.trip_import_error)
+            }
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
     fun startTrip() {
         val bikeId = uiState.selectedBike?.id
         if (uiState.bikes.isEmpty()) return
@@ -100,10 +117,7 @@ fun TripScreen(
         }
     }
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-
-    fun requestPermissionsAndStart() {
+    fun continueWithPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissionLauncher.launch(
                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.POST_NOTIFICATIONS)
@@ -122,7 +136,7 @@ fun TripScreen(
             onInstallFromGarage = { viewModel.installFromGarage(it) },
             onStartAnyway = {
                 viewModel.clearMissingParts()
-                requestPermissionsAndStart()
+                continueWithPermissions()
             },
             onDismiss = { viewModel.clearMissingParts() },
         )
@@ -156,11 +170,7 @@ fun TripScreen(
                     if (rideActiveBikeId >= 0) ActiveRideActivity.start(context, rideActiveBikeId)
                 },
                 onSelectBike = viewModel::selectBike,
-                onImportFromHealthConnect = {
-                    viewModel.importFromHealthConnect { message ->
-                        scope.launch { snackbarHostState.showSnackbar(message) }
-                    }
-                },
+                onImportFromHealthConnect = { viewModel.importFromHealthConnect() },
             )
             PastRidesSection(
                 rides = uiState.rides,
