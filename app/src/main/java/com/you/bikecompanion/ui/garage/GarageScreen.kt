@@ -629,7 +629,7 @@ private fun GarageComponentCard(
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = DurationFormatHelper.formatDurationSeconds(component.totalTimeSeconds),
+                    text = DurationFormatHelper.formatDurationBreakdownSeconds(component.totalTimeSeconds),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -698,7 +698,7 @@ private fun BikeCard(
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = DurationFormatHelper.formatDurationSeconds(bike.totalTimeSeconds),
+                    text = DurationFormatHelper.formatDurationBreakdownSeconds(bike.totalTimeSeconds),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

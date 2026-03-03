@@ -56,6 +56,7 @@ import com.you.bikecompanion.data.ride.RideEntity
 import com.you.bikecompanion.ui.navigation.Screen
 import com.you.bikecompanion.ui.trip.HealthConnectImportResult
 import com.you.bikecompanion.util.DisplayFormatHelper
+import com.you.bikecompanion.util.DurationFormatHelper
 import com.you.bikecompanion.location.RideTrackingService
 import com.you.bikecompanion.ui.ride.ActiveRideActivity
 import java.text.SimpleDateFormat
@@ -132,7 +133,10 @@ fun TripScreen(
         MissingPartsDialog(
             missingParts = missingParts,
             onAddPlaceholder = { viewModel.addPlaceholderFor(it) },
-            onAddAllPlaceholders = { viewModel.addAllPlaceholders() },
+            onAddAllPlaceholders = {
+                viewModel.addAllPlaceholders()
+                continueWithPermissions()
+            },
             onInstallFromGarage = { viewModel.installFromGarage(it) },
             onStartAnyway = {
                 viewModel.clearMissingParts()
@@ -299,7 +303,7 @@ private fun RideCard(
                 )
             }
             Text(
-                text = stringResource(R.string.trip_ride_duration, formatDuration(ride.durationMs)),
+                text = stringResource(R.string.trip_ride_duration, DurationFormatHelper.formatDurationBreakdownMs(ride.durationMs)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -377,12 +381,3 @@ private fun MissingPartsDialog(
     )
 }
 
-private fun formatDuration(ms: Long): String {
-    val totalSeconds = ms / 1000
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    return when {
-        hours > 0 -> "${hours}h ${minutes}m"
-        else -> "${minutes}m"
-    }
-}

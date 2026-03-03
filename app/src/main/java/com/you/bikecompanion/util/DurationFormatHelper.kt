@@ -30,14 +30,46 @@ object DurationFormatHelper {
     }
 
     /**
+     * Formats duration as a breakdown of days, hours, minutes, and seconds.
+     * Only non-zero units are shown (e.g. "1d 2h 30m 45s" or "45m 12s").
+     *
+     * @param totalSeconds Duration in seconds.
+     * @return Human-readable breakdown like "1d 2h 30m 45s" or "0s".
+     */
+    fun formatDurationBreakdownSeconds(totalSeconds: Long): String {
+        val seconds = totalSeconds.coerceAtLeast(0L)
+        val days = seconds / 86400
+        val hours = (seconds % 86400) / 3600
+        val minutes = (seconds % 3600) / 60
+        val secs = seconds % 60
+        val parts = mutableListOf<String>()
+        if (days > 0) parts.add("${days}d")
+        if (hours > 0) parts.add("${hours}h")
+        if (minutes > 0) parts.add("${minutes}m")
+        parts.add("${secs}s")
+        return parts.joinToString(" ")
+    }
+
+    /**
+     * Formats duration in milliseconds as a breakdown of days, hours, minutes, and seconds.
+     *
+     * @param durationMs Duration in milliseconds.
+     * @return Human-readable breakdown like "1d 2h 30m 45s".
+     */
+    fun formatDurationBreakdownMs(durationMs: Long): String {
+        val totalSeconds = (durationMs / 1000).coerceAtLeast(0L)
+        return formatDurationBreakdownSeconds(totalSeconds)
+    }
+
+    /**
      * Computes elapsed duration from start time (epoch ms) to now.
      * Used for live ticker on active ride screen.
      * @param startTimeMs Start timestamp in epoch milliseconds.
-     * @return Formatted string HH:MM:SS.
+     * @return Formatted string as days/hours/min/sec breakdown.
      */
     fun formatElapsedFromStart(startTimeMs: Long): String {
         val elapsedMs = (System.currentTimeMillis() - startTimeMs).coerceAtLeast(0L)
-        return formatDurationMs(elapsedMs)
+        return formatDurationBreakdownMs(elapsedMs)
     }
 
     /**

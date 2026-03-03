@@ -19,9 +19,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Alignment
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -151,10 +155,26 @@ private fun ActiveRideScreen(
         }
     }
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
     val pauseLabel = stringResource(R.string.ride_pause)
     val resumeLabel = stringResource(R.string.ride_resume)
 
+    LaunchedEffect(state.isPaused, state.wasAutoPausedDueToNoMovement) {
+        if (state.isPaused && state.wasAutoPausedDueToNoMovement) {
+            snackbarHostState.showSnackbar(
+                message = context.getString(R.string.ride_auto_paused_no_movement),
+                withDismissAction = true,
+            )
+            context.startService(
+                Intent(context, RideTrackingService::class.java).apply {
+                    putExtra(RideTrackingService.ACTION_KEY, RideTrackingService.ACTION_CLEAR_AUTO_PAUSE_FLAG)
+                },
+            )
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.ride_active_title)) },

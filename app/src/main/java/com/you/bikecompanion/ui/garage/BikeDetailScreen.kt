@@ -395,7 +395,7 @@ fun BikeDetailScreen(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             BikeStatChip(label = stringResource(R.string.bike_stat_distance), value = stringResource(R.string.bike_stat_km, bike.totalDistanceKm))
-                            BikeStatChip(label = stringResource(R.string.bike_stat_moving_time), value = DurationFormatHelper.formatDurationSeconds(bike.totalTimeSeconds))
+                            BikeStatChip(label = stringResource(R.string.bike_stat_moving_time), value = DurationFormatHelper.formatDurationBreakdownSeconds(bike.totalTimeSeconds))
                             BikeStatChip(label = stringResource(R.string.bike_stat_avg_speed), value = stringResource(R.string.bike_stat_kmh, bike.avgSpeedKmh))
                             BikeStatChip(label = stringResource(R.string.bike_stat_max_speed), value = stringResource(R.string.bike_stat_kmh, bike.maxSpeedKmh))
                         }

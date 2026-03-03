@@ -57,6 +57,7 @@
     <string name="ride_elevation_loss">Elev loss: %1$.0f m</string>
     <string name="ride_pause">Pause</string>
     <string name="ride_paused">Paused</string>
+    <string name="ride_auto_paused_no_movement">Your ride was automatically paused because there was no movement for 30 minutes.</string>
     <string name="ride_resume">Resume</string>
     <string name="ride_stop">Stop ride</string>
 
