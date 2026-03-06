@@ -381,7 +381,7 @@ fun ComponentDetailScreen(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             Text(stringResource(R.string.bike_stat_km, component.distanceUsedKm), style = MaterialTheme.typography.labelMedium)
-                            Text(DurationFormatHelper.formatDurationSeconds(component.totalTimeSeconds), style = MaterialTheme.typography.labelMedium)
+                            Text(DurationFormatHelper.formatDurationBreakdownSeconds(component.totalTimeSeconds), style = MaterialTheme.typography.labelMedium)
                             Text(stringResource(R.string.bike_stat_kmh, component.avgSpeedKmh), style = MaterialTheme.typography.labelMedium)
                             Text(stringResource(R.string.bike_stat_kmh, component.maxSpeedKmh), style = MaterialTheme.typography.labelMedium)
                         }

@@ -43,4 +43,35 @@ class DurationFormatHelperTest {
     fun formatDurationSeconds_largeValue_formatsCorrectly() {
         assertEquals("12:34:56", DurationFormatHelper.formatDurationSeconds(45_296))
     }
+
+    @Test
+    fun formatDurationBreakdownSeconds_zero_returnsZeroSeconds() {
+        assertEquals("0s", DurationFormatHelper.formatDurationBreakdownSeconds(0))
+    }
+
+    @Test
+    fun formatDurationBreakdownSeconds_secondsOnly_formatsCorrectly() {
+        assertEquals("45s", DurationFormatHelper.formatDurationBreakdownSeconds(45))
+    }
+
+    @Test
+    fun formatDurationBreakdownSeconds_minutesAndSeconds_formatsCorrectly() {
+        assertEquals("12m 34s", DurationFormatHelper.formatDurationBreakdownSeconds(754))
+    }
+
+    @Test
+    fun formatDurationBreakdownSeconds_hoursMinutesSeconds_formatsCorrectly() {
+        assertEquals("1h 5m 0s", DurationFormatHelper.formatDurationBreakdownSeconds(3900))
+    }
+
+    @Test
+    fun formatDurationBreakdownSeconds_days_formatsCorrectly() {
+        // 1d 2h 30m 45s = 86400 + 7200 + 1800 + 45 = 95445 seconds
+        assertEquals("1d 2h 30m 45s", DurationFormatHelper.formatDurationBreakdownSeconds(95_445))
+    }
+
+    @Test
+    fun formatDurationBreakdownMs_formatsCorrectly() {
+        assertEquals("1h 30m 0s", DurationFormatHelper.formatDurationBreakdownMs(5_400_000))
+    }
 }

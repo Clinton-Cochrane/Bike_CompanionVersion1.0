@@ -23,11 +23,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.DirectionsBike
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Warning
@@ -633,7 +629,7 @@ private fun GarageComponentCard(
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = DurationFormatHelper.formatDurationSeconds(component.totalTimeSeconds),
+                    text = DurationFormatHelper.formatDurationBreakdownSeconds(component.totalTimeSeconds),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -702,7 +698,7 @@ private fun BikeCard(
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = DurationFormatHelper.formatDurationSeconds(bike.totalTimeSeconds),
+                    text = DurationFormatHelper.formatDurationBreakdownSeconds(bike.totalTimeSeconds),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

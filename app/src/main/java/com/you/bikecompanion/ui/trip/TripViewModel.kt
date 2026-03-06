@@ -12,13 +12,24 @@ import com.you.bikecompanion.data.ride.RideRepository
 import com.you.bikecompanion.data.ride.RideSource
 import com.you.bikecompanion.healthconnect.HealthConnectImporter
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/** Result of Health Connect import for UI to display via string resources. */
+sealed class HealthConnectImportResult {
+    data class Success(val count: Int) : HealthConnectImportResult()
+    data object None : HealthConnectImportResult()
+    data object NoBikeSelected : HealthConnectImportResult()
+    data object Error : HealthConnectImportResult()
+}
 
 /** Info for one missing part slot: expected component and optional garage matches. */
 data class MissingPartInfo(
@@ -45,6 +56,9 @@ class TripViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(TripUiState())
     val uiState: StateFlow<TripUiState> = _uiState.asStateFlow()
+
+    private val _healthConnectImportResult = MutableSharedFlow<HealthConnectImportResult>(replay = 0, extraBufferCapacity = 1)
+    val healthConnectImportResult: SharedFlow<HealthConnectImportResult> = _healthConnectImportResult.asSharedFlow()
 
     init {
         viewModelScope.launch {
@@ -130,32 +144,36 @@ class TripViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(missingParts = if (updated.isEmpty()) null else updated)
     }
 
-    fun importFromHealthConnect(onResult: (message: String) -> Unit) {
+    fun importFromHealthConnect() {
         val bikeId = _uiState.value.selectedBike?.id ?: -1L
         if (bikeId < 0) {
-            onResult("Select a bike first")
+            viewModelScope.launch { _healthConnectImportResult.emit(HealthConnectImportResult.NoBikeSelected) }
             return
         }
         viewModelScope.launch {
-            val sessions = healthConnectImporter.readCyclingSessions()
-            if (sessions.isEmpty()) {
-                onResult("No cycling sessions found in Health Connect")
-                return@launch
+            try {
+                val sessions = healthConnectImporter.readCyclingSessions()
+                if (sessions.isEmpty()) {
+                    _healthConnectImportResult.emit(HealthConnectImportResult.None)
+                    return@launch
+                }
+                var count = 0
+                sessions.forEach { session ->
+                    val ride = RideEntity(
+                        bikeId = bikeId,
+                        distanceKm = session.distanceKm,
+                        durationMs = session.durationMs,
+                        startedAt = session.startTimeMs,
+                        endedAt = session.endTimeMs,
+                        source = RideSource.HEALTH_CONNECT,
+                    )
+                    rideRepository.saveRideAndUpdateBikeAndComponents(ride)
+                    count++
+                }
+                _healthConnectImportResult.emit(HealthConnectImportResult.Success(count))
+            } catch (_: Exception) {
+                _healthConnectImportResult.emit(HealthConnectImportResult.Error)
             }
-            var count = 0
-            sessions.forEach { session ->
-                val ride = RideEntity(
-                    bikeId = bikeId,
-                    distanceKm = session.distanceKm,
-                    durationMs = session.durationMs,
-                    startedAt = session.startTimeMs,
-                    endedAt = session.endTimeMs,
-                    source = RideSource.HEALTH_CONNECT,
-                )
-                rideRepository.saveRideAndUpdateBikeAndComponents(ride)
-                count++
-            }
-            onResult("Imported $count ride(s)")
         }
     }
 }

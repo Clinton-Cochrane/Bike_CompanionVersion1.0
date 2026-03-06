@@ -38,6 +38,7 @@ sealed class Screen(val route: String) {
     data object TripStartSplash : Screen("trip_start_splash/{bikeId}") {
         fun withId(id: Long) = "trip_start_splash/$id"
     }
+    data object TripSettings : Screen("trip_settings")
     data object ComponentDetail : Screen("component_detail/{componentId}") {
         fun withId(id: Long) = "component_detail/$id"
     }

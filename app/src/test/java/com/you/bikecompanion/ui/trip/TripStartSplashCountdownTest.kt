@@ -69,13 +69,6 @@ class TripStartSplashCountdownTest {
     }
 
     /**
-     * Simulates [TripStartSplashViewModel.goNow]: emit start immediately without countdown.
-     */
-    private fun runGoNowLogic(onEmitStart: () -> Unit) {
-        onEmitStart()
-    }
-
-    /**
      * Minimal state machine that mirrors the ViewModel's countdown + event logic:
      * count down from initialCountdown to 0; at 0, if not cancelled, emit once.
      */

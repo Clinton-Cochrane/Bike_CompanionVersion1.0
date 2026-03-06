@@ -14,7 +14,6 @@
     <string name="trip_start_button_content_description">Start a new bike trip</string>
     <string name="trip_past_rides">Past rides</string>
     <string name="trip_no_rides">No rides yet. Start a trip to record your first ride.</string>
-    <string name="trip_ride_date">Date: %1$s</string>
     <string name="trip_ride_distance">%1$.1f km</string>
     <string name="trip_ride_duration">Duration: %1$s</string>
     <string name="trip_ride_bike">Bike: %1$s</string>
@@ -58,13 +57,9 @@
     <string name="ride_elevation_loss">Elev loss: %1$.0f m</string>
     <string name="ride_pause">Pause</string>
     <string name="ride_paused">Paused</string>
+    <string name="ride_auto_paused_no_movement">Your ride was automatically paused because there was no movement for 30 minutes.</string>
     <string name="ride_resume">Resume</string>
     <string name="ride_stop">Stop ride</string>
-    <string name="ride_stop_content_description">Stop the current ride and save</string>
-    <string name="ride_pause_content_description">Pause the current ride</string>
-    <string name="ride_resume_content_description">Resume the paused ride</string>
-    <string name="ride_gps_waiting">Waiting for GPS…</string>
-    <string name="ride_gps_ready">GPS ready</string>
 
     <!-- Garage screen -->
     <string name="garage_title">Bike garage</string>
@@ -106,7 +101,6 @@
     <string name="add_bike_brake_other">Other</string>
     <string name="garage_bike_health_score">%1$d/100</string>
     <string name="garage_bike_alert_content_description">Bike needs attention</string>
-    <string name="garage_bike_total_km">%1$.0f km total</string>
     <string name="bike_stat_distance">DISTANCE</string>
     <string name="bike_stat_moving_time">MOVING TIME</string>
     <string name="bike_stat_avg_speed">AVG. SPEED</string>
@@ -132,7 +126,6 @@
     <string name="garage_rides">Rides</string>
     <string name="garage_edit_bike">Edit bike</string>
     <string name="garage_start_ride">Start ride with this bike</string>
-    <string name="garage_bike_card_content_description">Bike %1$s, %2$.0f km total</string>
 
     <!-- Bike detail / edit -->
     <string name="bike_name">Name</string>
@@ -144,9 +137,6 @@
     <string name="bike_save">Save</string>
     <string name="bike_add_component">Add component</string>
     <string name="bike_component_health">Health: %1$d%%</string>
-    <string name="bike_component_health_low">Low</string>
-    <string name="bike_component_health_medium">Medium</string>
-    <string name="bike_component_health_good">Good</string>
     <string name="bike_component_used_km">%1$.0f / %2$.0f km</string>
     <string name="bike_component_total_time">Total ride time: %1$s</string>
     <string name="bike_component_replaced">Mark replaced</string>
@@ -166,9 +156,6 @@
     <string name="component_context_install_date">Install date</string>
     <string name="component_context_purchase_link">Purchase link</string>
     <string name="component_context_purchase_link_hint">https://…</string>
-    <string name="component_context_purchase_price">Price</string>
-    <string name="component_context_purchase_price_hint">e.g. $125</string>
-    <string name="component_context_purchase_date">Purchase date</string>
     <string name="component_context_serial_number">Serial number</string>
     <string name="component_context_last_service_notes">Last service notes</string>
     <string name="component_context_last_service_notes_hint">Optional</string>
@@ -209,8 +196,6 @@
     <string name="component_uninstall_confirm_message">This will move the component to the garage. You can reinstall it on any bike later.</string>
     <string name="component_swap">Swap</string>
     <string name="component_swap_picker_title">Move to bike</string>
-    <string name="component_menu_view_details">View details</string>
-    <string name="component_detail_title">Component</string>
     <string name="component_in_garage">In garage</string>
     <string name="component_purchase_section">Last purchased</string>
     <string name="component_service_intervals">Service intervals</string>
@@ -252,15 +237,11 @@
     <string name="stats_avg_speed">Avg speed: %1$.1f km/h</string>
     <string name="stats_elevation_gain">Elevation gain: %1$.0f m</string>
     <string name="stats_no_data">No ride data for this bike yet.</string>
-    <string name="stats_bike_select_content_description">Select bike %1$s</string>
 
     <!-- AI screen -->
     <string name="ai_title">Bike assistant</string>
     <string name="ai_hint">Describe a problem, ask about a trip, or attach a photo…</string>
-    <string name="ai_send">Send</string>
     <string name="ai_send_content_description">Send message</string>
-    <string name="ai_trip_readiness">Trip readiness</string>
-    <string name="ai_diagnose">Diagnose issue</string>
     <string name="ai_placeholder">Ask me about bike maintenance, trip readiness, or describe a problem.</string>
     <string name="ai_thinking">Assistant is thinking…</string>
     <string name="ai_message_user">Your message: %1$s</string>
@@ -283,7 +264,6 @@
     <!-- Common -->
     <string name="common_loading">Loading…</string>
     <string name="common_error">Something went wrong.</string>
-    <string name="common_ok">OK</string>
     <string name="common_cancel">Cancel</string>
     <string name="common_delete">Delete</string>
     <string name="common_edit">Edit</string>
@@ -313,14 +293,4 @@
     <string name="settings_health_alert_threshold_subtitle">Show a mild (warning) alert when bike health is at or below this percentage. Below 1%% always shows a danger alert. Default: 20%%.</string>
     <string name="settings_health_alert_threshold_value">%1$d%%</string>
     <string name="settings_health_alert_slider_content_description">Mild alert threshold, percentage</string>
-
-    <!-- Plurals -->
-    <plurals name="ride_count">
-        <item quantity="one">%d ride</item>
-        <item quantity="other">%d rides</item>
-    </plurals>
-    <plurals name="component_count">
-        <item quantity="one">%d component</item>
-        <item quantity="other">%d components</item>
-    </plurals>
 </resources>

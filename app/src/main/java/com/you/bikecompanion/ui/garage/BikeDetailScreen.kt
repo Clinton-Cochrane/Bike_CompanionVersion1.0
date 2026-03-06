@@ -19,8 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.ExpandLess
@@ -397,7 +395,7 @@ fun BikeDetailScreen(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             BikeStatChip(label = stringResource(R.string.bike_stat_distance), value = stringResource(R.string.bike_stat_km, bike.totalDistanceKm))
-                            BikeStatChip(label = stringResource(R.string.bike_stat_moving_time), value = DurationFormatHelper.formatDurationSeconds(bike.totalTimeSeconds))
+                            BikeStatChip(label = stringResource(R.string.bike_stat_moving_time), value = DurationFormatHelper.formatDurationBreakdownSeconds(bike.totalTimeSeconds))
                             BikeStatChip(label = stringResource(R.string.bike_stat_avg_speed), value = stringResource(R.string.bike_stat_kmh, bike.avgSpeedKmh))
                             BikeStatChip(label = stringResource(R.string.bike_stat_max_speed), value = stringResource(R.string.bike_stat_kmh, bike.maxSpeedKmh))
                         }
