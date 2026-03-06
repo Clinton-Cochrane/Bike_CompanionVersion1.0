@@ -39,7 +39,7 @@ class RideTrackingService : Service() {
     val rideState: StateFlow<RideState> = _rideState.asStateFlow()
 
     private var lastLatLng: Pair<Double, Double>? = null
-    private var lastAltitude: Double = 0.0
+    private var lastAltitude: Double? = null
     private var lastMovementTimeMs: Long = 0L
     private val noMovementCheckHandler = Handler(Looper.getMainLooper())
     private val noMovementCheckRunnable = object : Runnable {
@@ -76,6 +76,8 @@ class RideTrackingService : Service() {
 
     private fun startTracking(bikeId: Long) {
         createNotificationChannel()
+        lastLatLng = null
+        lastAltitude = null
         val now = System.currentTimeMillis()
         lastMovementTimeMs = now
         _rideState.value = _rideState.value.copy(
@@ -145,16 +147,25 @@ class RideTrackingService : Service() {
                             lastMovementTimeMs = now
                             val distanceKm = distanceM / 1000.0
                             val speedKmh = location.speed * 3.6
-                            val elevDelta = alt - lastAltitude
-                            val cappedGain = elevDelta.coerceIn(0.0, MAX_ELEV_CHANGE_PER_UPDATE_M)
-                            val cappedLoss = (-elevDelta).coerceIn(0.0, MAX_ELEV_CHANGE_PER_UPDATE_M)
-                            _rideState.value = _rideState.value.copy(
-                                distanceKm = _rideState.value.distanceKm + distanceKm,
-                                currentSpeedKmh = speedKmh.coerceAtLeast(0.0),
-                                maxSpeedKmh = maxOf(_rideState.value.maxSpeedKmh, speedKmh.coerceAtLeast(0.0)),
-                                elevGainM = _rideState.value.elevGainM + cappedGain,
-                                elevLossM = _rideState.value.elevLossM + cappedLoss,
-                            )
+                            val prevAlt = lastAltitude
+                            if (prevAlt != null) {
+                                val elevDelta = alt - prevAlt
+                                val cappedGain = elevDelta.coerceIn(0.0, MAX_ELEV_CHANGE_PER_UPDATE_M)
+                                val cappedLoss = (-elevDelta).coerceIn(0.0, MAX_ELEV_CHANGE_PER_UPDATE_M)
+                                _rideState.value = _rideState.value.copy(
+                                    distanceKm = _rideState.value.distanceKm + distanceKm,
+                                    currentSpeedKmh = speedKmh.coerceAtLeast(0.0),
+                                    maxSpeedKmh = maxOf(_rideState.value.maxSpeedKmh, speedKmh.coerceAtLeast(0.0)),
+                                    elevGainM = _rideState.value.elevGainM + cappedGain,
+                                    elevLossM = _rideState.value.elevLossM + cappedLoss,
+                                )
+                            } else {
+                                _rideState.value = _rideState.value.copy(
+                                    distanceKm = _rideState.value.distanceKm + distanceKm,
+                                    currentSpeedKmh = speedKmh.coerceAtLeast(0.0),
+                                    maxSpeedKmh = maxOf(_rideState.value.maxSpeedKmh, speedKmh.coerceAtLeast(0.0)),
+                                )
+                            }
                             val n = _rideState.value.locationUpdateCount + 1
                             val prevAvg = _rideState.value.avgSpeedKmh
                             _rideState.value = _rideState.value.copy(
