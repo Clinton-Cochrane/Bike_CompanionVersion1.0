@@ -8,6 +8,7 @@ import com.you.bikecompanion.data.component.ComponentEntity
 import com.you.bikecompanion.data.component.ComponentRepository
 import com.you.bikecompanion.data.component.DefaultSeedComponent
 import com.you.bikecompanion.data.ride.RideEntity
+import com.you.bikecompanion.data.preferences.AppPreferencesRepository
 import com.you.bikecompanion.data.ride.RideRepository
 import com.you.bikecompanion.data.ride.RideSource
 import com.you.bikecompanion.healthconnect.HealthConnectImporter
@@ -25,7 +26,7 @@ import javax.inject.Inject
 
 /** Result of Health Connect import for UI to display via string resources. */
 sealed class HealthConnectImportResult {
-    data class Success(val count: Int) : HealthConnectImportResult()
+    data class Success(val count: Int, val showDisclaimer: Boolean = false) : HealthConnectImportResult()
     data object None : HealthConnectImportResult()
     data object NoBikeSelected : HealthConnectImportResult()
     data object Error : HealthConnectImportResult()
@@ -44,6 +45,8 @@ data class TripUiState(
     val lastRiddenBike: BikeEntity? = null,
     /** When non-null, show missing-parts dialog before starting ride. */
     val missingParts: List<MissingPartInfo>? = null,
+    /** Ride IDs whose review flags have been dismissed. */
+    val dismissedRideFlagIds: Set<Long> = emptySet(),
 )
 
 @HiltViewModel
@@ -52,6 +55,7 @@ class TripViewModel @Inject constructor(
     private val rideRepository: RideRepository,
     private val componentRepository: ComponentRepository,
     private val healthConnectImporter: HealthConnectImporter,
+    private val appPreferencesRepository: AppPreferencesRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TripUiState())
@@ -144,6 +148,18 @@ class TripViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(missingParts = if (updated.isEmpty()) null else updated)
     }
 
+    fun dismissRideFlag(rideId: Long) {
+        viewModelScope.launch {
+            appPreferencesRepository.addDismissedRideFlagId(rideId)
+        }
+    }
+
+    fun deleteRide(ride: RideEntity) {
+        viewModelScope.launch {
+            rideRepository.deleteRide(ride)
+        }
+    }
+
     fun importFromHealthConnect() {
         val bikeId = _uiState.value.selectedBike?.id ?: -1L
         if (bikeId < 0) {
@@ -170,7 +186,13 @@ class TripViewModel @Inject constructor(
                     rideRepository.saveRideAndUpdateBikeAndComponents(ride)
                     count++
                 }
-                _healthConnectImportResult.emit(HealthConnectImportResult.Success(count))
+                val hasSeenDisclaimer = appPreferencesRepository.getHasSeenHealthConnectImportDisclaimer()
+                if (!hasSeenDisclaimer) {
+                    appPreferencesRepository.setHasSeenHealthConnectImportDisclaimer()
+                }
+                _healthConnectImportResult.emit(
+                    HealthConnectImportResult.Success(count, showDisclaimer = !hasSeenDisclaimer),
+                )
             } catch (_: Exception) {
                 _healthConnectImportResult.emit(HealthConnectImportResult.Error)
             }

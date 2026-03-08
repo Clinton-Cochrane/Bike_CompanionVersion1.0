@@ -17,6 +17,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -31,6 +32,8 @@ data class BikeDetailUiState(
     val closeToServiceHealthThreshold: Int = AppPreferencesRepository.DEFAULT_CLOSE_TO_SERVICE_THRESHOLD,
     val loading: Boolean = true,
     val installOutcome: BikeDetailViewModel.InstallOutcome? = null,
+    /** Ride IDs whose review flags have been dismissed. */
+    val dismissedRideFlagIds: Set<Long> = emptySet(),
 )
 
 @HiltViewModel
@@ -67,8 +70,15 @@ class BikeDetailViewModel @Inject constructor(
                 }
             }
             viewModelScope.launch {
-                rideRepository.getRidesByBikeId(bikeId).collect { list ->
-                    _uiState.update { it.copy(rides = list.sortedByDescending { r -> r.endedAt }) }
+                combine(
+                    rideRepository.getRidesByBikeId(bikeId),
+                    appPreferencesRepository.dismissedRideFlagIds,
+                ) { rides, dismissedIds ->
+                    Pair(rides.sortedByDescending { r -> r.endedAt }, dismissedIds)
+                }.collect { (rides, dismissedIds) ->
+                    _uiState.update {
+                        it.copy(rides = rides, dismissedRideFlagIds = dismissedIds)
+                    }
                 }
             }
             viewModelScope.launch {
@@ -178,6 +188,18 @@ class BikeDetailViewModel @Inject constructor(
     fun deleteComponent(component: ComponentEntity) {
         viewModelScope.launch {
             componentRepository.deleteComponent(component)
+        }
+    }
+
+    fun dismissRideFlag(rideId: Long) {
+        viewModelScope.launch {
+            appPreferencesRepository.addDismissedRideFlagId(rideId)
+        }
+    }
+
+    fun deleteRide(ride: RideEntity) {
+        viewModelScope.launch {
+            rideRepository.deleteRide(ride)
         }
     }
 }

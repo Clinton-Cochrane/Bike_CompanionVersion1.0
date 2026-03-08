@@ -74,4 +74,16 @@ class DurationFormatHelperTest {
     fun formatDurationBreakdownMs_formatsCorrectly() {
         assertEquals("1h 30m 0s", DurationFormatHelper.formatDurationBreakdownMs(5_400_000))
     }
+
+    @Test
+    fun formatDurationBreakdownMs_over24h_returnsCapped() {
+        val over24h = 25 * 60 * 60 * 1000L
+        assertEquals(">24h", DurationFormatHelper.formatDurationBreakdownMs(over24h))
+    }
+
+    @Test
+    fun formatDurationBreakdownMs_capAt24hFalse_showsFullDuration() {
+        val over24h = 25 * 60 * 60 * 1000L
+        assertEquals("1d 1h 0s", DurationFormatHelper.formatDurationBreakdownMs(over24h, capAt24h = false))
+    }
 }
