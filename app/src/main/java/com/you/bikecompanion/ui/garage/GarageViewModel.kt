@@ -9,6 +9,7 @@ import com.you.bikecompanion.data.component.ComponentRepository
 import com.you.bikecompanion.data.component.ServiceIntervalRepository
 import com.you.bikecompanion.data.preferences.AppPreferencesRepository
 import com.you.bikecompanion.util.ComponentSortOrder
+import com.you.bikecompanion.util.GarageSpecHelper
 import com.you.bikecompanion.util.componentHealthPercent
 import com.you.bikecompanion.util.sortComponents
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,6 +41,10 @@ data class GarageUiState(
     /** Null means show all bikes. Otherwise filter to components assigned to this bike id. */
     val componentBikeFilter: Long? = null,
     val componentSortOrder: ComponentSortOrder = ComponentSortOrder.TYPE_AZ,
+    /** Total distance across all bikes (rider total). */
+    val totalDistanceKm: Double = 0.0,
+    /** Bike ID that was ridden most recently; null when no bike has been ridden. */
+    val lastRiddenBikeId: Long? = null,
 )
 
 @HiltViewModel
@@ -56,12 +61,15 @@ class GarageViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             bikeRepository.getAllBikes().collect { bikes ->
+                val sorted = GarageSpecHelper.sortBikesByLastRidden(bikes)
                 _uiState.update { state ->
-                    val health = computeBikeHealth(state.garageComponents, bikes)
+                    val health = computeBikeHealth(state.garageComponents, sorted)
                     state.copy(
-                        bikes = bikes,
+                        bikes = sorted,
                         bikeHealth = health,
-                        bikeHasAlert = computeBikeAlerts(state.garageComponents, bikes, health, state.closeToServiceThreshold),
+                        bikeHasAlert = computeBikeAlerts(state.garageComponents, sorted, health, state.closeToServiceThreshold),
+                        totalDistanceKm = GarageSpecHelper.computeTotalDistanceKm(sorted),
+                        lastRiddenBikeId = GarageSpecHelper.getLastRiddenBikeId(sorted),
                     )
                 }
             }

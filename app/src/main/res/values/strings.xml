@@ -92,6 +92,7 @@
     <string name="garage_filter_bike_all">All bikes</string>
     <string name="garage_filter_sort_label">Sort by</string>
     <string name="garage_filter_sort_content_description">Open filter and sort menu</string>
+    <string name="garage_spec_total_distance">Total: %1$.0f km</string>
     <string name="garage_no_bikes">No bikes yet. Add your first bike.</string>
     <string name="garage_no_components">No components yet. Add from the + button or via a bike.</string>
     <string name="garage_component_assigned_to">Assigned to: %1$s</string>
