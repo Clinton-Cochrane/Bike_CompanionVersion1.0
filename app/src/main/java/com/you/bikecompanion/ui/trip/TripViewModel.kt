@@ -69,18 +69,22 @@ class TripViewModel @Inject constructor(
             combine(
                 bikeRepository.getAllBikes(),
                 rideRepository.getAllRides(),
-            ) { bikes, rides ->
-                Pair(bikes, rides)
-            }.collect { (bikes, rides) ->
+                appPreferencesRepository.dismissedRideFlagIds,
+            ) { bikes, rides, dismissedRideFlagIds ->
+                Triple(bikes, rides, dismissedRideFlagIds)
+            }.collect { (bikes, rides, dismissedIds) ->
                 val lastRidden = bikeRepository.getMostRecentlyRiddenBike()
-                _uiState.value = TripUiState(
-                    bikes = bikes,
-                    rides = rides.sortedByDescending { it.endedAt },
-                    selectedBike = _uiState.value.selectedBike?.let { selected ->
-                        bikes.find { it.id == selected.id }
-                    } ?: lastRidden,
-                    lastRiddenBike = lastRidden,
-                )
+                _uiState.update { current ->
+                    current.copy(
+                        bikes = bikes,
+                        rides = rides.sortedByDescending { it.endedAt },
+                        selectedBike = current.selectedBike?.let { selected ->
+                            bikes.find { it.id == selected.id }
+                        } ?: lastRidden,
+                        lastRiddenBike = lastRidden,
+                        dismissedRideFlagIds = dismissedIds,
+                    )
+                }
             }
         }
     }
