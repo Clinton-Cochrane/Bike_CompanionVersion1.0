@@ -82,7 +82,7 @@ fun TripStartSplashScreen(
                         modifier = Modifier.semantics { contentDescription = tripSettingsDesc },
                     ) {
                         Icon(
-                            Icons.Default.Settings,
+                            Icons.Filled.Settings,
                             contentDescription = null,
                         )
                     }

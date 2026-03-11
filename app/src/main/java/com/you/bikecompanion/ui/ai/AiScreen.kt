@@ -84,7 +84,7 @@ fun AiScreen(
                 actions = {
                     IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
                         Icon(
-                            Icons.Default.Settings,
+                            Icons.Filled.Settings,
                             contentDescription = stringResource(R.string.settings_title),
                         )
                     }
