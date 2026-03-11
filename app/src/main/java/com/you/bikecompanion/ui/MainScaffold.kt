@@ -88,10 +88,10 @@ fun MainScaffold(modifier: Modifier = Modifier) {
     }
 
     val bottomNavItems = listOf(
-        Screen.Trip to (Icons.Default.Home to R.string.nav_trip),
-        Screen.Garage to (Icons.Default.DirectionsBike to R.string.nav_garage),
-        Screen.Stats to (Icons.Default.StackedBarChart to R.string.nav_stats),
-        Screen.Ai to (Icons.Default.Psychology to R.string.nav_ai),
+        Screen.Trip to (Icons.Filled.Home to R.string.nav_trip),
+        Screen.Garage to (Icons.Filled.DirectionsBike to R.string.nav_garage),
+        Screen.Stats to (Icons.Filled.StackedBarChart to R.string.nav_stats),
+        Screen.Ai to (Icons.Filled.Psychology to R.string.nav_ai),
     )
 
     androidx.compose.material3.Scaffold(
