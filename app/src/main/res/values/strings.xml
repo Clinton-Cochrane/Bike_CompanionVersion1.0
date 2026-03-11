@@ -23,6 +23,8 @@
     <string name="trip_import_health_connect">Import from Health Connect</string>
     <string name="trip_import_health_connect_content_description">Import cycling sessions from Health Connect</string>
     <string name="trip_import_success">Imported %1$d ride(s)</string>
+    <string name="trip_import_success_with_disclaimer">Imported %1$d ride(s). Elevation and max speed may not be available for imported rides.</string>
+    <string name="ride_stat_unavailable">—</string>
     <string name="trip_import_none">No cycling sessions found in Health Connect</string>
     <string name="trip_import_error">Could not read Health Connect. Check that Health Connect is installed and permission is granted.</string>
     <string name="trip_missing_parts_title">Missing parts</string>
@@ -52,14 +54,31 @@
     <string name="ride_duration">Duration: %1$s</string>
     <string name="ride_speed_current">Speed: %1$.1f km/h</string>
     <string name="ride_speed_avg">Avg: %1$.1f km/h</string>
-    <string name="ride_speed_max">Max: %1$.1f km/h</string>
-    <string name="ride_elevation_gain">Elev gain: %1$.0f m</string>
-    <string name="ride_elevation_loss">Elev loss: %1$.0f m</string>
+    <string name="ride_speed_max">Max: %1$s</string>
+    <string name="ride_elevation_gain">Elev gain: %1$s</string>
+    <string name="ride_elevation_loss">Elev loss: %1$s</string>
+    <string name="ride_elevation_label">Elev: </string>
     <string name="ride_pause">Pause</string>
     <string name="ride_paused">Paused</string>
     <string name="ride_auto_paused_no_movement">Your ride was automatically paused because there was no movement for 30 minutes.</string>
     <string name="ride_resume">Resume</string>
     <string name="ride_stop">Stop ride</string>
+    <string name="ride_stop_confirm_title">Exit ride?</string>
+    <string name="ride_stop_confirm_message">Your ride will be saved and you\'ll return to the trip screen.</string>
+    <string name="ride_duration_over_24h">>24h</string>
+    <string name="ride_save_failed_tracking">Ride could not be saved. Please wait for tracking to start.</string>
+    <string name="ride_flag_long">Long ride – review</string>
+    <string name="ride_flag_no_distance">No distance – review</string>
+    <string name="ride_review">Review</string>
+    <string name="ride_review_detail_long">This ride is longer than 10 hours. If that\'s correct, you can dismiss this alert. Otherwise, consider editing or deleting the ride.</string>
+    <string name="ride_review_detail_no_distance">This ride has duration over 2 hours but zero distance recorded. This often indicates a GPS or tracking issue. You can edit the ride, dismiss the alert, or delete it if the data is wrong.</string>
+    <string name="ride_review_edit_trip">Edit trip</string>
+    <string name="ride_review_dismiss">Dismiss alert</string>
+    <string name="ride_review_delete">Delete ride</string>
+    <string name="ride_review_delete_confirm_title">Delete ride?</string>
+    <string name="ride_review_delete_confirm_message">This ride will be permanently deleted. This cannot be undone.</string>
+    <string name="ride_edit_title">Edit ride</string>
+    <string name="ride_edit_coming_soon">Edit ride coming soon</string>
 
     <!-- Garage screen -->
     <string name="garage_title">Bike garage</string>
@@ -73,6 +92,7 @@
     <string name="garage_filter_bike_all">All bikes</string>
     <string name="garage_filter_sort_label">Sort by</string>
     <string name="garage_filter_sort_content_description">Open filter and sort menu</string>
+    <string name="garage_spec_total_distance">Total: %1$.0f km</string>
     <string name="garage_no_bikes">No bikes yet. Add your first bike.</string>
     <string name="garage_no_components">No components yet. Add from the + button or via a bike.</string>
     <string name="garage_component_assigned_to">Assigned to: %1$s</string>

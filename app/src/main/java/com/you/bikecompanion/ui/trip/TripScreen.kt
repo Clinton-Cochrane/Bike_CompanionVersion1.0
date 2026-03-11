@@ -24,6 +24,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -36,8 +37,11 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -58,6 +62,7 @@ import com.you.bikecompanion.ui.navigation.Screen
 import com.you.bikecompanion.ui.trip.HealthConnectImportResult
 import com.you.bikecompanion.util.DisplayFormatHelper
 import com.you.bikecompanion.util.DurationFormatHelper
+import com.you.bikecompanion.util.RideDisplayHelper
 import com.you.bikecompanion.location.RideTrackingService
 import com.you.bikecompanion.ui.ride.ActiveRideActivity
 import java.text.SimpleDateFormat
@@ -91,7 +96,11 @@ fun TripScreen(
         viewModel.healthConnectImportResult.collect { result ->
             val message = when (result) {
                 is HealthConnectImportResult.Success ->
-                    context.getString(R.string.trip_import_success, result.count)
+                    if (result.showDisclaimer) {
+                        context.getString(R.string.trip_import_success_with_disclaimer, result.count)
+                    } else {
+                        context.getString(R.string.trip_import_success, result.count)
+                    }
                 HealthConnectImportResult.None ->
                     context.getString(R.string.trip_import_none)
                 HealthConnectImportResult.NoBikeSelected ->
@@ -159,28 +168,98 @@ fun TripScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { paddingValues ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
+            contentPadding = PaddingValues(bottom = 24.dp),
         ) {
-            StartTripSection(
-                selectedBike = uiState.selectedBike,
-                bikes = uiState.bikes,
-                rideActiveBikeId = rideActiveBikeId,
-                onStartTrip = { startTrip() },
-                onViewCurrentTrip = {
-                    if (rideActiveBikeId >= 0) ActiveRideActivity.start(context, rideActiveBikeId)
-                },
-                onSelectBike = viewModel::selectBike,
-                onImportFromHealthConnect = { viewModel.importFromHealthConnect() },
+            if (rideActiveBikeId >= 0) {
+                item(key = "current_ride") {
+                    CurrentRideSection(
+                        bikeName = uiState.bikes.find { it.id == rideActiveBikeId }?.name ?: "",
+                        onViewRide = { ActiveRideActivity.start(context, rideActiveBikeId) },
+                    )
+                }
+            }
+            item(key = "start_trip") {
+                StartTripSection(
+                    selectedBike = uiState.selectedBike,
+                    bikes = uiState.bikes,
+                    rideActiveBikeId = rideActiveBikeId,
+                    onStartTrip = { startTrip() },
+                    onViewCurrentTrip = {
+                        if (rideActiveBikeId >= 0) ActiveRideActivity.start(context, rideActiveBikeId)
+                    },
+                    onSelectBike = viewModel::selectBike,
+                    onImportFromHealthConnect = { viewModel.importFromHealthConnect() },
+                )
+            }
+            item(key = "past_rides_header") {
+                Text(
+                    text = stringResource(R.string.trip_past_rides),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            if (uiState.rides.isEmpty()) {
+                item(key = "past_rides_empty") {
+                    Text(
+                        text = stringResource(R.string.trip_no_rides),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                items(uiState.rides, key = { it.id }) { ride ->
+                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                        RideCard(
+                            ride = ride,
+                            bikeName = ride.bikeId?.let { uiState.bikes.associateBy { b -> b.id }[it]?.name } ?: "",
+                            dismissedRideFlagIds = uiState.dismissedRideFlagIds,
+                            onEditTrip = { navController.navigate(com.you.bikecompanion.ui.navigation.Screen.EditRide.withId(ride.id)) },
+                            onDismissAlert = { viewModel.dismissRideFlag(ride.id) },
+                            onDeleteRide = { viewModel.deleteRide(ride) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CurrentRideSection(
+    bikeName: String,
+    onViewRide: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = stringResource(R.string.ride_active_title),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
-            PastRidesSection(
-                rides = uiState.rides,
-                bikeNames = uiState.bikes.associateBy { it.id },
-            )
+            if (bikeName.isNotEmpty()) {
+                Text(
+                    text = stringResource(R.string.trip_ride_bike, bikeName),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+            Button(
+                onClick = onViewRide,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 12.dp),
+            ) {
+                Text(stringResource(R.string.trip_view_current_trip))
+            }
         }
     }
 }
@@ -245,50 +324,53 @@ private fun StartTripSection(
 }
 
 @Composable
-private fun PastRidesSection(
-    rides: List<RideEntity>,
-    bikeNames: Map<Long, com.you.bikecompanion.data.bike.BikeEntity>,
-) {
-    Text(
-        text = stringResource(R.string.trip_past_rides),
-        style = MaterialTheme.typography.titleLarge,
-        color = MaterialTheme.colorScheme.onSurface,
-    )
-    if (rides.isEmpty()) {
-        Text(
-            text = stringResource(R.string.trip_no_rides),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    } else {
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(rides, key = { it.id }) { ride ->
-                RideCard(
-                    ride = ride,
-                    bikeName = ride.bikeId?.let { bikeNames[it]?.name } ?: "",
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun RideCard(
     ride: RideEntity,
     bikeName: String,
+    dismissedRideFlagIds: Set<Long>,
+    onEditTrip: () -> Unit,
+    onDismissAlert: () -> Unit,
+    onDeleteRide: () -> Unit,
 ) {
     val dateFormat = SimpleDateFormat("MMM d, yyyy • HH:mm", Locale.getDefault())
+    val flagReason = RideDisplayHelper.getRideFlagReason(ride)
+    var showReviewDialog by remember { mutableStateOf(false) }
+
+    if (showReviewDialog && flagReason != null) {
+        RideReviewDialog(
+            ride = ride,
+            flagReason = flagReason,
+            onEditTrip = onEditTrip,
+            onDismissAlert = onDismissAlert,
+            onDeleteRide = onDeleteRide,
+            onDismiss = { showReviewDialog = false },
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = dateFormat.format(Date(ride.endedAt)),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = dateFormat.format(Date(ride.endedAt)),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (RideDisplayHelper.shouldShowReviewChip(ride, dismissedRideFlagIds)) {
+                    FilterChip(
+                        selected = false,
+                        onClick = { showReviewDialog = true },
+                        label = { Text(stringResource(R.string.ride_review)) },
+                    )
+                }
+            }
             Text(
                 text = stringResource(R.string.trip_ride_distance, ride.distanceKm),
                 style = MaterialTheme.typography.titleMedium,
@@ -304,7 +386,13 @@ private fun RideCard(
                 )
             }
             Text(
-                text = stringResource(R.string.trip_ride_duration, DurationFormatHelper.formatDurationBreakdownMs(ride.durationMs)),
+                text = stringResource(
+                    R.string.trip_ride_duration,
+                    DurationFormatHelper.formatDurationBreakdownMs(
+                        ride.durationMs,
+                        over24hPlaceholder = stringResource(R.string.ride_duration_over_24h),
+                    ),
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -312,21 +400,38 @@ private fun RideCard(
                 modifier = Modifier.padding(top = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                val unavailable = stringResource(R.string.ride_stat_unavailable)
                 Text(
-                    text = stringResource(R.string.ride_speed_max, ride.maxSpeedKmh),
+                    text = stringResource(
+                        R.string.ride_speed_max,
+                        RideDisplayHelper.formatMaxSpeedKmh(ride.maxSpeedKmh, ride.source, unavailable),
+                    ),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(
-                    text = stringResource(R.string.ride_elevation_gain, ride.elevGainM),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFF2E7D32),
+                val elevValue = RideDisplayHelper.formatElevationGainLoss(
+                    ride.elevGainM, ride.elevLossM, ride.source, unavailable,
                 )
-                Text(
-                    text = stringResource(R.string.ride_elevation_loss, ride.elevLossM),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
+                val elevNet = RideDisplayHelper.elevationNetDelta(ride.elevGainM, ride.elevLossM)
+                val elevColor = when {
+                    RideDisplayHelper.isElevationUnavailable(ride.elevGainM, ride.elevLossM, ride.source) ->
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    elevNet > 0 -> Color(0xFF2E7D32)
+                    elevNet < 0 -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = stringResource(R.string.ride_elevation_label),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = elevValue,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = elevColor,
+                    )
+                }
             }
         }
     }

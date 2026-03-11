@@ -20,6 +20,7 @@ import com.you.bikecompanion.ui.stats.StatsScreen
 import com.you.bikecompanion.ui.trip.TripScreen
 import com.you.bikecompanion.ui.trip.TripStartSplashScreen
 import com.you.bikecompanion.ui.trip.TripSettingsPlaceholderScreen
+import com.you.bikecompanion.ui.trip.EditRidePlaceholderScreen
 
 sealed class Screen(val route: String) {
     data object Trip : Screen("trip")
@@ -39,6 +40,9 @@ sealed class Screen(val route: String) {
         fun withId(id: Long) = "trip_start_splash/$id"
     }
     data object TripSettings : Screen("trip_settings")
+    data object EditRide : Screen("edit_ride/{rideId}") {
+        fun withId(rideId: Long) = "edit_ride/$rideId"
+    }
     data object ComponentDetail : Screen("component_detail/{componentId}") {
         fun withId(id: Long) = "component_detail/$id"
     }
@@ -84,6 +88,10 @@ fun BikeCompanionNavGraph(
         }
         composable(Screen.TripSettings.route) {
             TripSettingsPlaceholderScreen(navController = navController)
+        }
+        composable(Screen.EditRide.route) { backStackEntry ->
+            val rideId = backStackEntry.arguments?.getString("rideId")?.toLongOrNull() ?: 0L
+            EditRidePlaceholderScreen(navController = navController, rideId = rideId)
         }
         composable(Screen.ComponentDetail.route) { backStackEntry ->
             ComponentDetailScreen(navController = navController, backStackEntry = backStackEntry)

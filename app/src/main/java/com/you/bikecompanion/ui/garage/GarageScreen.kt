@@ -1,6 +1,7 @@
 package com.you.bikecompanion.ui.garage
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,6 +60,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.you.bikecompanion.R
 import com.you.bikecompanion.data.bike.BikeEntity
 import com.you.bikecompanion.data.component.ComponentCategory
@@ -211,6 +215,8 @@ fun GarageScreen(
                     bikes = uiState.bikes,
                     bikeHealth = uiState.bikeHealth,
                     bikeHasAlert = uiState.bikeHasAlert,
+                    totalDistanceKm = uiState.totalDistanceKm,
+                    lastRiddenBikeId = uiState.lastRiddenBikeId,
                     navController = navController,
                 )
                 GarageTab.Components -> ComponentsContent(
@@ -234,6 +240,8 @@ private fun BikesContent(
     bikes: List<BikeEntity>,
     bikeHealth: Map<Long, Int>,
     bikeHasAlert: Set<Long>,
+    totalDistanceKm: Double,
+    lastRiddenBikeId: Long?,
     navController: NavController,
 ) {
     if (bikes.isEmpty()) {
@@ -261,14 +269,42 @@ private fun BikesContent(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp),
         ) {
+            item(key = "spec_summary") {
+                GarageSpecSummaryCard(totalDistanceKm = totalDistanceKm)
+            }
             items(bikes, key = { it.id }) { bike ->
                 BikeCard(
                     bike = bike,
                     healthPercent = bikeHealth[bike.id] ?: 100,
                     hasAlert = bike.id in bikeHasAlert,
+                    isLastRidden = bike.id == lastRiddenBikeId,
                     onClick = { navController.navigate(Screen.BikeDetail.withId(bike.id)) },
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun GarageSpecSummaryCard(totalDistanceKm: Double) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.garage_spec_total_distance, totalDistanceKm),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
         }
     }
 }
@@ -643,13 +679,27 @@ private fun BikeCard(
     bike: BikeEntity,
     healthPercent: Int,
     hasAlert: Boolean,
+    isLastRidden: Boolean,
     onClick: () -> Unit,
 ) {
     val alertContentDesc = stringResource(R.string.garage_bike_alert_content_description)
+    val dateFormat = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
+    val cardModifier = Modifier
+        .fillMaxWidth()
+        .then(
+            if (isLastRidden) Modifier.border(
+                width = 2.dp,
+                color = MaterialTheme.colorScheme.primary,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+            ) else Modifier,
+        )
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = cardModifier,
+        colors = CardDefaults.cardColors(
+            containerColor = if (isLastRidden) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            else MaterialTheme.colorScheme.surfaceVariant,
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -671,11 +721,23 @@ private fun BikeCard(
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = bike.name,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = bike.name,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        if (isLastRidden && bike.lastRideAt != null) {
+                            Text(
+                                text = stringResource(R.string.garage_bike_last_ride, dateFormat.format(Date(bike.lastRideAt))),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
                     if (bike.make.isNotEmpty() || bike.model.isNotEmpty() || bike.year.isNotEmpty()) {
                         Text(
                             text = listOf(bike.make, bike.model, bike.year).filter { it.isNotEmpty() }.joinToString(" "),

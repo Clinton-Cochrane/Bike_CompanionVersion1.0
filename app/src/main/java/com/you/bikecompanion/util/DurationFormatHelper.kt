@@ -6,6 +6,9 @@ package com.you.bikecompanion.util
  */
 object DurationFormatHelper {
 
+    /** Durations above this are capped for display to avoid absurd values (e.g. from bad data). */
+    const val MAX_REASONABLE_DURATION_MS = 24L * 60 * 60 * 1000
+
     /**
      * Formats a static duration (e.g. completed ride) as HH:MM:SS.
      * @param durationMs Duration in milliseconds.
@@ -52,11 +55,19 @@ object DurationFormatHelper {
 
     /**
      * Formats duration in milliseconds as a breakdown of days, hours, minutes, and seconds.
+     * When [capAt24h] is true, durations above [MAX_REASONABLE_DURATION_MS] return [over24hPlaceholder].
      *
      * @param durationMs Duration in milliseconds.
+     * @param over24hPlaceholder Shown when duration exceeds 24h (for localization).
+     * @param capAt24h When true, cap display at 24h for completed rides; when false, show full duration (e.g. live ticker).
      * @return Human-readable breakdown like "1d 2h 30m 45s".
      */
-    fun formatDurationBreakdownMs(durationMs: Long): String {
+    fun formatDurationBreakdownMs(
+        durationMs: Long,
+        over24hPlaceholder: String = ">24h",
+        capAt24h: Boolean = true,
+    ): String {
+        if (capAt24h && durationMs > MAX_REASONABLE_DURATION_MS) return over24hPlaceholder
         val totalSeconds = (durationMs / 1000).coerceAtLeast(0L)
         return formatDurationBreakdownSeconds(totalSeconds)
     }
@@ -69,7 +80,7 @@ object DurationFormatHelper {
      */
     fun formatElapsedFromStart(startTimeMs: Long): String {
         val elapsedMs = (System.currentTimeMillis() - startTimeMs).coerceAtLeast(0L)
-        return formatDurationBreakdownMs(elapsedMs)
+        return formatDurationBreakdownMs(elapsedMs, capAt24h = false)
     }
 
     /**

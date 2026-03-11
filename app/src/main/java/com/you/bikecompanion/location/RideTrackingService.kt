@@ -97,18 +97,25 @@ class RideTrackingService : Service() {
         noMovementCheckHandler.removeCallbacks(noMovementCheckRunnable)
         locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
         locationCallback = null
+        val now = System.currentTimeMillis()
         _rideState.value = _rideState.value.copy(
             isPaused = true,
             wasAutoPausedDueToNoMovement = wasAutoPause,
+            pausedAtMs = now,
         )
         updateNotification()
     }
 
     private fun resumeTracking() {
-        lastMovementTimeMs = System.currentTimeMillis()
+        val now = System.currentTimeMillis()
+        val state = _rideState.value
+        val pauseDuration = if (state.pausedAtMs > 0) now - state.pausedAtMs else 0L
+        lastMovementTimeMs = now
         _rideState.value = _rideState.value.copy(
             isPaused = false,
             wasAutoPausedDueToNoMovement = false,
+            pausedAtMs = 0L,
+            totalPausedDurationMs = state.totalPausedDurationMs + pauseDuration,
         )
         requestLocationUpdates()
         updateNotification()
@@ -327,6 +334,10 @@ data class RideState(
     val isTracking: Boolean = false,
     val isPaused: Boolean = false,
     val wasAutoPausedDueToNoMovement: Boolean = false,
+    /** When paused, epoch ms when this pause started. 0 when not paused. */
+    val pausedAtMs: Long = 0L,
+    /** Total accumulated pause duration in ms (excludes current pause). */
+    val totalPausedDurationMs: Long = 0L,
     val startTimeMs: Long = 0L,
     val distanceKm: Double = 0.0,
     val currentSpeedKmh: Double = 0.0,
