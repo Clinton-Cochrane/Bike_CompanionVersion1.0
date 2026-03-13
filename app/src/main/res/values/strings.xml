@@ -77,6 +77,11 @@
     <string name="ride_review_delete">Delete ride</string>
     <string name="ride_review_delete_confirm_title">Delete ride?</string>
     <string name="ride_review_delete_confirm_message">This ride will be permanently deleted. This cannot be undone.</string>
+    <string name="ride_placeholder_reminder">Update bike info</string>
+    <string name="ride_placeholder_reminder_detail">Update your bike info? You added placeholders before this ride—replace them with real component details.</string>
+    <string name="ride_placeholder_reminder_update_bike">Update bike</string>
+    <string name="ride_placeholder_reminder_snooze">Remind later</string>
+    <string name="ride_placeholder_reminder_dismiss">Don\'t remind again</string>
     <string name="ride_edit_title">Edit ride</string>
     <string name="ride_edit_coming_soon">Edit ride coming soon</string>
 

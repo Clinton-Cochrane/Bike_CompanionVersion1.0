@@ -64,7 +64,8 @@ class RideTrackingService : Service() {
         when (intent?.getStringExtra(ACTION_KEY)) {
             ACTION_START -> {
                 val bikeId = intent.getLongExtra(BIKE_ID_KEY, -1L)
-                if (bikeId >= 0) startTracking(bikeId)
+                val hadPlaceholdersAtStart = intent.getBooleanExtra(HAD_PLACEHOLDERS_KEY, false)
+                if (bikeId >= 0) startTracking(bikeId, hadPlaceholdersAtStart)
             }
             ACTION_PAUSE -> pauseTracking(wasAutoPause = false)
             ACTION_RESUME -> resumeTracking()
@@ -74,7 +75,7 @@ class RideTrackingService : Service() {
         return START_STICKY
     }
 
-    private fun startTracking(bikeId: Long) {
+    private fun startTracking(bikeId: Long, hadPlaceholdersAtStart: Boolean = false) {
         createNotificationChannel()
         lastLatLng = null
         lastAltitude = null
@@ -86,6 +87,7 @@ class RideTrackingService : Service() {
             isPaused = false,
             wasAutoPausedDueToNoMovement = false,
             startTimeMs = now,
+            hadPlaceholdersAtStart = hadPlaceholdersAtStart,
         )
         rideActiveBikeId.value = bikeId
         startForeground(NOTIFICATION_ID, createNotification(false))
@@ -205,10 +207,11 @@ class RideTrackingService : Service() {
     }
 
     private fun createNotification(isPaused: Boolean): Notification {
-        val bikeId = _rideState.value.bikeId
+        val state = _rideState.value
         val openIntent = Intent(this, ActiveRideActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-            putExtra(ActiveRideActivity.BIKE_ID_EXTRA, bikeId)
+            putExtra(ActiveRideActivity.BIKE_ID_EXTRA, state.bikeId)
+            putExtra(ActiveRideActivity.HAD_PLACEHOLDERS_EXTRA, state.hadPlaceholdersAtStart)
         }
         val contentIntent = PendingIntent.getActivity(
             this, 0, openIntent,
@@ -220,7 +223,6 @@ class RideTrackingService : Service() {
             createActionIntent(ACTION_PAUSE, getString(R.string.ride_pause))
         }
         val stopAction = createActionIntent(ACTION_STOP, getString(R.string.ride_stop))
-        val state = _rideState.value
         val distanceText = "%.2f km".format(state.distanceKm)
         val statusText = if (isPaused) getString(R.string.ride_paused) else getString(R.string.ride_active_title)
         return NotificationCompat.Builder(this, CHANNEL_ID)
@@ -321,6 +323,7 @@ class RideTrackingService : Service() {
 
         const val ACTION_KEY = "action"
         const val BIKE_ID_KEY = "bike_id"
+        const val HAD_PLACEHOLDERS_KEY = "had_placeholders_at_start"
         const val ACTION_START = "start"
         const val ACTION_PAUSE = "pause"
         const val ACTION_RESUME = "resume"
@@ -331,6 +334,8 @@ class RideTrackingService : Service() {
 
 data class RideState(
     val bikeId: Long = -1L,
+    /** True when placeholder components were added at ride start (from missing-parts dialog). */
+    val hadPlaceholdersAtStart: Boolean = false,
     val isTracking: Boolean = false,
     val isPaused: Boolean = false,
     val wasAutoPausedDueToNoMovement: Boolean = false,

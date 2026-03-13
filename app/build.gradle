@@ -64,13 +64,13 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
-    implementation("com.google.dagger:hilt-android:2.50")
-    kapt("com.google.dagger:hilt-compiler:2.50")
+    implementation("com.google.dagger:hilt-android:2.55")
+    kapt("com.google.dagger:hilt-compiler:2.55")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    kapt("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-runtime:2.7.0")
+    implementation("androidx.room:room-ktx:2.7.0")
+    kapt("androidx.room:room-compiler:2.7.0")
 
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("androidx.datastore:datastore-preferences:1.0.0")
@@ -95,4 +95,14 @@ dependencies {
 
 kapt {
     correctErrorTypes = true
+}
+
+// Force okio to version compatible with Kotlin 2.0 metadata (okio 3.16+ uses Kotlin 2.2)
+configurations.all {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "com.squareup.okio") {
+            useVersion("3.9.0")
+            because("Align okio to avoid Kotlin metadata version mismatch")
+        }
+    }
 }
