@@ -136,15 +136,7 @@ class TripViewModel @Inject constructor(
         _uiState.update { it.copy(placeholdersAddedThisSession = true) }
         val bike = _uiState.value.selectedBike ?: return
         viewModelScope.launch {
-            val entity = com.you.bikecompanion.data.component.ComponentEntity(
-                bikeId = bike.id,
-                type = missing.expected.type,
-                name = "Placeholder ${missing.expected.name}",
-                lifespanKm = missing.expected.defaultLifespanKm,
-                position = missing.expected.position,
-                installedAt = System.currentTimeMillis(),
-            )
-            componentRepository.insertComponent(entity)
+            insertPlaceholderComponent(bike.id, missing)
             removeMissingPart(missing.expected.type, missing.expected.position)
         }
     }
@@ -162,8 +154,23 @@ class TripViewModel @Inject constructor(
     fun addAllPlaceholders() {
         _uiState.update { it.copy(placeholdersAddedThisSession = true) }
         val list = _uiState.value.missingParts ?: return
-        list.forEach { addPlaceholderFor(it) }
-        _uiState.value = _uiState.value.copy(missingParts = null)
+        val bike = _uiState.value.selectedBike ?: return
+        viewModelScope.launch {
+            list.forEach { insertPlaceholderComponent(bike.id, it) }
+            _uiState.value = _uiState.value.copy(missingParts = null)
+        }
+    }
+
+    private suspend fun insertPlaceholderComponent(bikeId: Long, missing: MissingPartInfo) {
+        val entity = ComponentEntity(
+            bikeId = bikeId,
+            type = missing.expected.type,
+            name = "Placeholder ${missing.expected.name}",
+            lifespanKm = missing.expected.defaultLifespanKm,
+            position = missing.expected.position,
+            installedAt = System.currentTimeMillis(),
+        )
+        componentRepository.insertComponent(entity)
     }
 
     private fun removeMissingPart(type: String, position: String) {
