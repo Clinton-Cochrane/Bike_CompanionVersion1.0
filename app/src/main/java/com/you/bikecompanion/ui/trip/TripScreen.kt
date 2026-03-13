@@ -84,7 +84,9 @@ fun TripScreen(
         if (grants.values.any { it }) {
             val bikeId = uiState.selectedBike?.id ?: -1L
             if (bikeId >= 0) {
-                navController.navigate(Screen.TripStartSplash.withId(bikeId))
+                navController.navigate(
+                    Screen.TripStartSplash.withId(bikeId, uiState.placeholdersAddedThisSession),
+                )
             }
         }
     }
@@ -219,9 +221,18 @@ fun TripScreen(
                             ride = ride,
                             bikeName = ride.bikeId?.let { uiState.bikes.associateBy { b -> b.id }[it]?.name } ?: "",
                             dismissedRideFlagIds = uiState.dismissedRideFlagIds,
+                            dismissedPlaceholderReminderIds = uiState.dismissedPlaceholderReminderIds,
+                            snoozedPlaceholderReminderUntilMs = uiState.snoozedPlaceholderReminderUntilMs,
                             onEditTrip = { navController.navigate(com.you.bikecompanion.ui.navigation.Screen.EditRide.withId(ride.id)) },
                             onDismissAlert = { viewModel.dismissRideFlag(ride.id) },
                             onDeleteRide = { viewModel.deleteRide(ride) },
+                            onEditBike = {
+                                ride.bikeId?.let { bikeId ->
+                                    navController.navigate(com.you.bikecompanion.ui.navigation.Screen.BikeDetail.withId(bikeId))
+                                }
+                            },
+                            onDismissPlaceholderReminder = { viewModel.dismissPlaceholderReminder(ride.id) },
+                            onSnoozePlaceholderReminder = { viewModel.snoozePlaceholderReminder() },
                         )
                     }
                 }
@@ -328,13 +339,19 @@ private fun RideCard(
     ride: RideEntity,
     bikeName: String,
     dismissedRideFlagIds: Set<Long>,
+    dismissedPlaceholderReminderIds: Set<Long>,
+    snoozedPlaceholderReminderUntilMs: Long?,
     onEditTrip: () -> Unit,
     onDismissAlert: () -> Unit,
     onDeleteRide: () -> Unit,
+    onEditBike: () -> Unit,
+    onDismissPlaceholderReminder: () -> Unit,
+    onSnoozePlaceholderReminder: () -> Unit,
 ) {
     val dateFormat = SimpleDateFormat("MMM d, yyyy • HH:mm", Locale.getDefault())
     val flagReason = RideDisplayHelper.getRideFlagReason(ride)
     var showReviewDialog by remember { mutableStateOf(false) }
+    var showPlaceholderReminderDialog by remember { mutableStateOf(false) }
 
     if (showReviewDialog && flagReason != null) {
         RideReviewDialog(
@@ -344,6 +361,16 @@ private fun RideCard(
             onDismissAlert = onDismissAlert,
             onDeleteRide = onDeleteRide,
             onDismiss = { showReviewDialog = false },
+        )
+    }
+
+    if (showPlaceholderReminderDialog) {
+        PlaceholderReminderDialog(
+            ride = ride,
+            onEditBike = onEditBike,
+            onSnooze = onSnoozePlaceholderReminder,
+            onDismiss = onDismissPlaceholderReminder,
+            onClose = { showPlaceholderReminderDialog = false },
         )
     }
 
@@ -363,12 +390,25 @@ private fun RideCard(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (RideDisplayHelper.shouldShowReviewChip(ride, dismissedRideFlagIds)) {
-                    FilterChip(
-                        selected = false,
-                        onClick = { showReviewDialog = true },
-                        label = { Text(stringResource(R.string.ride_review)) },
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (RideDisplayHelper.shouldShowReviewChip(ride, dismissedRideFlagIds)) {
+                        FilterChip(
+                            selected = false,
+                            onClick = { showReviewDialog = true },
+                            label = { Text(stringResource(R.string.ride_review)) },
+                        )
+                    }
+                    if (RideDisplayHelper.shouldShowPlaceholderReminderChip(
+                            ride,
+                            dismissedPlaceholderReminderIds,
+                            snoozedPlaceholderReminderUntilMs,
+                        )) {
+                        FilterChip(
+                            selected = false,
+                            onClick = { showPlaceholderReminderDialog = true },
+                            label = { Text(stringResource(R.string.ride_placeholder_reminder)) },
+                        )
+                    }
                 }
             }
             Text(

@@ -91,12 +91,17 @@ class ActiveRideActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val bikeId = intent.getLongExtra(BIKE_ID_EXTRA, -1L)
+        val hadPlaceholdersFromIntent = intent.getBooleanExtra(HAD_PLACEHOLDERS_EXTRA, false)
         setContent {
             BikeCompanionTheme {
                 ActiveRideScreen(
                     bikeId = bikeId,
                     rideRepository = rideRepository,
-                    onStopRide = { state -> stopRideAndSave(state) },
+                    onStopRide = { state ->
+                        val hadPlaceholders = boundService?.rideState?.value?.hadPlaceholdersAtStart
+                            ?: hadPlaceholdersFromIntent
+                        stopRideAndSave(state, hadPlaceholders)
+                    },
                     rideStateFlow = rideStateFlow.asStateFlow(),
                     saveFailedEvents = saveFailedEvents.asSharedFlow(),
                 )
@@ -118,7 +123,7 @@ class ActiveRideActivity : ComponentActivity() {
         unbindService(connection)
     }
 
-    private fun stopRideAndSave(state: RideState) {
+    private fun stopRideAndSave(state: RideState, hadPlaceholdersAtStart: Boolean) {
         if (state.startTimeMs <= 0 || !state.isTracking) {
             lifecycleScope.launch {
                 saveFailedEvents.emit(Unit)
@@ -141,6 +146,7 @@ class ActiveRideActivity : ComponentActivity() {
             startedAt = state.startTimeMs,
             endedAt = endTime,
             source = RideSource.APP,
+            hadPlaceholdersAtStart = hadPlaceholdersAtStart,
         )
         lifecycleScope.launch {
             rideRepository.saveRideAndUpdateBikeAndComponents(ride)
@@ -153,9 +159,12 @@ class ActiveRideActivity : ComponentActivity() {
 
     companion object {
         const val BIKE_ID_EXTRA = "bike_id"
-        fun start(context: Context, bikeId: Long) {
+        const val HAD_PLACEHOLDERS_EXTRA = "had_placeholders_at_start"
+
+        fun start(context: Context, bikeId: Long, hadPlaceholdersAtStart: Boolean = false) {
             context.startActivity(Intent(context, ActiveRideActivity::class.java).apply {
                 putExtra(BIKE_ID_EXTRA, bikeId)
+                putExtra(HAD_PLACEHOLDERS_EXTRA, hadPlaceholdersAtStart)
             })
         }
     }

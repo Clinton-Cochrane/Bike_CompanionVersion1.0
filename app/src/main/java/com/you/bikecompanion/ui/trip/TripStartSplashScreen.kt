@@ -44,6 +44,7 @@ import kotlinx.coroutines.flow.collectLatest
 fun TripStartSplashScreen(
     navController: NavController,
     bikeId: Long,
+    hadPlaceholdersAtStart: Boolean = false,
 ) {
     val viewModel: TripStartSplashViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
@@ -60,9 +61,10 @@ fun TripStartSplashScreen(
                 Intent(context, RideTrackingService::class.java).apply {
                     putExtra(RideTrackingService.ACTION_KEY, RideTrackingService.ACTION_START)
                     putExtra(RideTrackingService.BIKE_ID_KEY, bikeId)
+                    putExtra(RideTrackingService.HAD_PLACEHOLDERS_KEY, hadPlaceholdersAtStart)
                 }
             )
-            ActiveRideActivity.start(context, bikeId)
+            ActiveRideActivity.start(context, bikeId, hadPlaceholdersAtStart)
             navController.popBackStack()
         }
     }

@@ -40,4 +40,9 @@ data class RideEntity(
     val startedAt: Long,
     val endedAt: Long,
     val source: RideSource = RideSource.APP,
+    /**
+     * True when the bike had placeholder components added at ride start (from missing-parts dialog).
+     * Used to prompt user to update bike info after the ride.
+     */
+    val hadPlaceholdersAtStart: Boolean = false,
 )

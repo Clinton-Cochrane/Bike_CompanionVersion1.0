@@ -36,8 +36,9 @@ sealed class Screen(val route: String) {
     data object EditBike : Screen("edit_bike/{bikeId}") {
         fun withId(id: Long) = "edit_bike/$id"
     }
-    data object TripStartSplash : Screen("trip_start_splash/{bikeId}") {
-        fun withId(id: Long) = "trip_start_splash/$id"
+    data object TripStartSplash : Screen("trip_start_splash/{bikeId}/{hadPlaceholders}") {
+        fun withId(id: Long, hadPlaceholders: Boolean = false) =
+            "trip_start_splash/$id/${hadPlaceholders}"
     }
     data object TripSettings : Screen("trip_settings")
     data object EditRide : Screen("edit_ride/{rideId}") {
@@ -84,7 +85,12 @@ fun BikeCompanionNavGraph(
         }
         composable(Screen.TripStartSplash.route) { backStackEntry ->
             val bikeId = backStackEntry.arguments?.getString("bikeId")?.toLongOrNull() ?: -1L
-            TripStartSplashScreen(navController = navController, bikeId = bikeId)
+            val hadPlaceholders = backStackEntry.arguments?.getString("hadPlaceholders")?.toBooleanStrictOrNull() ?: false
+            TripStartSplashScreen(
+                navController = navController,
+                bikeId = bikeId,
+                hadPlaceholdersAtStart = hadPlaceholders,
+            )
         }
         composable(Screen.TripSettings.route) {
             TripSettingsPlaceholderScreen(navController = navController)

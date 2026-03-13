@@ -54,6 +54,22 @@ object RideDisplayHelper {
         getRideFlagReason(ride) != null && ride.id !in dismissedRideIds
 
     /**
+     * Returns true when the ride had placeholder components at start and should show the
+     * "Update bike info" reminder chip (not dismissed, not snoozed).
+     *
+     * @param snoozedUntilMs Epoch ms until which reminders are snoozed; null = not snoozed.
+     */
+    fun shouldShowPlaceholderReminderChip(
+        ride: RideEntity,
+        dismissedPlaceholderReminderIds: Set<Long>,
+        snoozedUntilMs: Long?,
+    ): Boolean {
+        if (!ride.hadPlaceholdersAtStart || ride.id in dismissedPlaceholderReminderIds) return false
+        if (snoozedUntilMs != null && System.currentTimeMillis() < snoozedUntilMs) return false
+        return true
+    }
+
+    /**
      * Returns true when the given numeric stat is known to be unavailable (not provided by source).
      * Health Connect and manual entries do not supply elevation or max speed.
      */

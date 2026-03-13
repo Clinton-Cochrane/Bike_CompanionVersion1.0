@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -25,6 +26,8 @@ class AppPreferencesRepository @Inject constructor(
     private val closeToServiceKey = intPreferencesKey("close_to_service_health_threshold")
     private val hasSeenHealthConnectImportDisclaimerKey = booleanPreferencesKey("has_seen_health_connect_import_disclaimer")
     private val dismissedRideFlagIdsKey = stringPreferencesKey("dismissed_ride_flag_ids")
+    private val dismissedPlaceholderReminderIdsKey = stringPreferencesKey("dismissed_placeholder_reminder_ids")
+    private val snoozedPlaceholderReminderUntilMsKey = longPreferencesKey("snoozed_placeholder_reminder_until_ms")
 
     /**
      * Threshold (health %) below which a "mild" alert is shown (close to inspection/service).
@@ -67,6 +70,32 @@ class AppPreferencesRepository @Inject constructor(
             val raw = prefs[dismissedRideFlagIdsKey] ?: ""
             val current = if (raw.isEmpty()) emptySet<Long>() else raw.split(",").mapNotNull { s -> s.trim().toLongOrNull() }.toSet()
             prefs[dismissedRideFlagIdsKey] = (current + rideId).joinToString(",")
+        }
+    }
+
+    /** Ride IDs whose placeholder reminder has been dismissed (do not remind again for this ride). */
+    val dismissedPlaceholderReminderIds: Flow<Set<Long>> = context.dataStore.data.map { prefs ->
+        val raw = prefs[dismissedPlaceholderReminderIdsKey] ?: ""
+        if (raw.isEmpty()) emptySet()
+        else raw.split(",").mapNotNull { s -> s.trim().toLongOrNull() }.toSet()
+    }
+
+    suspend fun addDismissedPlaceholderReminderId(rideId: Long) {
+        context.dataStore.edit { prefs ->
+            val raw = prefs[dismissedPlaceholderReminderIdsKey] ?: ""
+            val current = if (raw.isEmpty()) emptySet<Long>() else raw.split(",").mapNotNull { s -> s.trim().toLongOrNull() }.toSet()
+            prefs[dismissedPlaceholderReminderIdsKey] = (current + rideId).joinToString(",")
+        }
+    }
+
+    /** Epoch ms until which placeholder reminders are snoozed (remind later). Null = not snoozed. */
+    val snoozedPlaceholderReminderUntilMs: Flow<Long?> = context.dataStore.data.map { prefs ->
+        prefs[snoozedPlaceholderReminderUntilMsKey]
+    }
+
+    suspend fun snoozePlaceholderReminder(durationMs: Long = 24 * 60 * 60 * 1000L) {
+        context.dataStore.edit { prefs ->
+            prefs[snoozedPlaceholderReminderUntilMsKey] = System.currentTimeMillis() + durationMs
         }
     }
 
