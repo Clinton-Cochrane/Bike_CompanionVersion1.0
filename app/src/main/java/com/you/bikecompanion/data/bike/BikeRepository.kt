@@ -1,5 +1,6 @@
 package com.you.bikecompanion.data.bike
 
+import com.you.bikecompanion.data.image.ImageRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -8,6 +9,7 @@ import javax.inject.Singleton
 @Singleton
 class BikeRepository @Inject constructor(
     private val bikeDao: BikeDao,
+    private val imageRepository: ImageRepository,
 ) {
     fun getAllBikes(): Flow<List<BikeEntity>> = bikeDao.getAllBikes()
 
@@ -22,7 +24,10 @@ class BikeRepository @Inject constructor(
 
     suspend fun updateBike(bike: BikeEntity) = bikeDao.update(bike)
 
-    suspend fun deleteBike(bike: BikeEntity) = bikeDao.deleteById(bike.id)
+    suspend fun deleteBike(bike: BikeEntity) {
+        imageRepository.deleteBikeImage(bike.id)
+        bikeDao.deleteById(bike.id)
+    }
 
     /** Resets chain replacement count after cassette/freewheel/chainrings inspection or replacement. */
     suspend fun resetChainReplacementCount(bikeId: Long) {
