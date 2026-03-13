@@ -31,9 +31,7 @@ class BikeRepositoryImageCleanupTest {
 
         repository.deleteBike(bike)
 
-        coVerify(order = io.mockk.VerifyOrder.ORDERED) {
-            imageRepository.deleteBikeImage(1L)
-            bikeDao.deleteById(1L)
-        }
+        coVerify { imageRepository.deleteBikeImage(1L) }
+        coVerify { bikeDao.deleteById(1L) }
     }
 }

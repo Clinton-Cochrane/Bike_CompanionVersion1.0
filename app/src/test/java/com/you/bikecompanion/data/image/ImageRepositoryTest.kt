@@ -26,7 +26,7 @@ class ImageRepositoryTest {
     fun setUp() {
         baseDir = File.createTempFile("image_repo_test", "").apply { delete(); mkdirs() }
         openUriStream = { _ ->
-            ByteArrayInputStream(byteArrayOf(0x89, 0x50, 0x4E, 0x47)) // minimal PNG header
+            ByteArrayInputStream(byteArrayOf(0x89.toByte(), 0x50.toByte(), 0x4E.toByte(), 0x47.toByte())) // minimal PNG header
         }
         repository = ImageRepository(baseDir, openUriStream)
     }

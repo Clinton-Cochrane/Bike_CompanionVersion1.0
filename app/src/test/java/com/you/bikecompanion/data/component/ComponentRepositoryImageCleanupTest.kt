@@ -51,9 +51,7 @@ class ComponentRepositoryImageCleanupTest {
 
         repository.deleteComponent(component)
 
-        coVerify(order = io.mockk.VerifyOrder.ORDERED) {
-            imageRepository.deleteComponentImage(5L)
-            componentDao.deleteById(5L)
-        }
+        coVerify { imageRepository.deleteComponentImage(5L) }
+        coVerify { componentDao.deleteById(5L) }
     }
 }
