@@ -131,6 +131,14 @@ class TripViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(missingParts = null)
     }
 
+    /**
+     * Resets [placeholdersAddedThisSession] after the ride has started.
+     * Prevents subsequent rides in the same session from incorrectly inheriting the flag.
+     */
+    fun onRideStarted() {
+        _uiState.update { it.copy(placeholdersAddedThisSession = false) }
+    }
+
     /** Adds a placeholder component for the given slot and removes it from missing list. */
     fun addPlaceholderFor(missing: MissingPartInfo) {
         _uiState.update { it.copy(placeholdersAddedThisSession = true) }

@@ -188,7 +188,11 @@ class ComponentDetailViewModel @Inject constructor(
                 imageRepository.deleteImageAtPath(component.thumbnailUri)
                 thumbnailUri = null
             } else if (pickedImageUri != null) {
-                thumbnailUri = imageRepository.saveComponentImage(component.id, pickedImageUri)
+                val newPath = imageRepository.saveComponentImage(component.id, pickedImageUri)
+                if (newPath != null) {
+                    thumbnailUri = newPath
+                }
+                // If save failed (null), keep existing thumbnailUri to avoid data loss
             }
 
             val updated = component.copy(

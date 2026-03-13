@@ -84,9 +84,11 @@ fun TripScreen(
         if (grants.values.any { it }) {
             val bikeId = uiState.selectedBike?.id ?: -1L
             if (bikeId >= 0) {
+                val hadPlaceholders = uiState.placeholdersAddedThisSession
                 navController.navigate(
-                    Screen.TripStartSplash.withId(bikeId, uiState.placeholdersAddedThisSession),
+                    Screen.TripStartSplash.withId(bikeId, hadPlaceholders),
                 )
+                viewModel.onRideStarted()
             }
         }
     }

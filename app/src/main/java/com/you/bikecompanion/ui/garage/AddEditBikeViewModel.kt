@@ -76,7 +76,8 @@ class AddEditBikeViewModel @Inject constructor(
                     bikeToSave = bike.copy(thumbnailUri = null)
                 } else if (state.pickedImageUri != null) {
                     val path = imageRepository.saveBikeImage(bike.id, state.pickedImageUri)
-                    bikeToSave = bike.copy(thumbnailUri = path)
+                    bikeToSave = bike.copy(thumbnailUri = path ?: bike.thumbnailUri)
+                    // If save failed (null), keep existing thumbnail to avoid data loss
                 }
                 bikeRepository.updateBike(bikeToSave)
                 _uiState.update {
@@ -86,7 +87,10 @@ class AddEditBikeViewModel @Inject constructor(
                 val newId = bikeRepository.insertBike(bikeToSave)
                 if (state.pickedImageUri != null) {
                     val path = imageRepository.saveBikeImage(newId, state.pickedImageUri)
-                    bikeRepository.updateBike(bikeToSave.copy(id = newId, thumbnailUri = path))
+                    if (path != null) {
+                        bikeRepository.updateBike(bikeToSave.copy(id = newId, thumbnailUri = path))
+                    }
+                    // If save failed, bike has no thumbnail yet; update id only for consistency
                 }
                 componentRepository.seedDefaultComponentsIfEmpty(newId)
                 _uiState.update {
