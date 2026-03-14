@@ -35,7 +35,7 @@ class ImageRepositoryTest {
     fun saveBikeImage_returnsPath_whenCopySucceeds() = runTest {
         val path = repository.saveBikeImage(1L, Uri.parse("content://test/1"))
 
-        assertEquals(File(baseDir, "images/bikes/bike_1.jpg").absolutePath, path)
+        assertEquals(File(baseDir, "bikes/bike_1.jpg").absolutePath, path)
         assert(File(path!!).exists())
     }
 
@@ -44,14 +44,14 @@ class ImageRepositoryTest {
         repository.saveBikeImage(2L, Uri.parse("content://test/2"))
         val path2 = repository.saveBikeImage(2L, Uri.parse("content://test/2"))
 
-        assertEquals(File(baseDir, "images/bikes/bike_2.jpg").absolutePath, path2)
+        assertEquals(File(baseDir, "bikes/bike_2.jpg").absolutePath, path2)
     }
 
     @Test
     fun saveComponentImage_returnsPath_whenCopySucceeds() = runTest {
         val path = repository.saveComponentImage(10L, Uri.parse("content://test/10"))
 
-        assertEquals(File(baseDir, "images/components/component_10.jpg").absolutePath, path)
+        assertEquals(File(baseDir, "components/component_10.jpg").absolutePath, path)
         assert(File(path!!).exists())
     }
 

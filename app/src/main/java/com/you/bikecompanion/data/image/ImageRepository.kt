@@ -96,7 +96,7 @@ class ImageRepository(
     private fun fileNameForComponent(componentId: Long) = "component_$componentId.jpg"
 
     companion object {
-        private const val BIKE_IMAGES_SUBDIR = "images/bikes"
-        private const val COMPONENT_IMAGES_SUBDIR = "images/components"
+        private const val BIKE_IMAGES_SUBDIR = "bikes"
+        private const val COMPONENT_IMAGES_SUBDIR = "components"
     }
 }
