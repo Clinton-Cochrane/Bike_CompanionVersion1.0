@@ -1,19 +1,32 @@
 package com.you.bikecompanion.ui.garage
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -27,17 +40,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import com.you.bikecompanion.ui.garage.SaveOutcome
-import com.you.bikecompanion.ui.navigation.Screen
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
+import coil3.compose.AsyncImage
 import com.you.bikecompanion.R
 import com.you.bikecompanion.data.bike.BikeEntity
+import com.you.bikecompanion.ui.garage.SaveOutcome
+import com.you.bikecompanion.ui.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,6 +87,10 @@ fun AddEditBikeScreen(
             brakeType = b.brakeType
         }
     }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> viewModel.setPickedImageUri(uri) }
 
     val backContentDesc = stringResource(R.string.common_back_content_description)
     Scaffold(
@@ -109,6 +129,13 @@ fun AddEditBikeScreen(
                 onValueChange = { name = it },
                 label = { Text(stringResource(R.string.bike_name)) },
                 modifier = Modifier.fillMaxWidth(),
+            )
+            BikeImagePickerRow(
+                thumbnailUri = uiState.bike?.thumbnailUri,
+                pickedImageUri = uiState.pickedImageUri,
+                removeImageRequested = uiState.removeImageRequested,
+                onAddPhoto = { imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                onRemovePhoto = { viewModel.setRemoveImageRequested() },
             )
             OutlinedTextField(
                 value = make,
@@ -229,6 +256,69 @@ fun AddEditBikeScreen(
                         viewModel.clearSaveOutcome()
                     }
                     null -> { }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BikeImagePickerRow(
+    thumbnailUri: String?,
+    pickedImageUri: Uri?,
+    removeImageRequested: Boolean,
+    onAddPhoto: () -> Unit,
+    onRemovePhoto: () -> Unit,
+) {
+    val hasImage = !removeImageRequested && (pickedImageUri != null || !thumbnailUri.isNullOrBlank())
+    val imageModel = when {
+        removeImageRequested -> null
+        pickedImageUri != null -> pickedImageUri
+        !thumbnailUri.isNullOrBlank() -> java.io.File(thumbnailUri)
+        else -> null
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            when (imageModel) {
+                null -> Icon(
+                    imageVector = Icons.Filled.DirectionsBike,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                else -> AsyncImage(
+                    model = imageModel,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(64.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (hasImage) {
+                OutlinedButton(onClick = onAddPhoto) {
+                    Text(stringResource(R.string.garage_bike_change_photo))
+                }
+                OutlinedButton(onClick = onRemovePhoto) {
+                    Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Text(stringResource(R.string.garage_bike_remove_photo))
+                }
+            } else {
+                OutlinedButton(onClick = onAddPhoto) {
+                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Text(stringResource(R.string.garage_bike_add_photo))
                 }
             }
         }

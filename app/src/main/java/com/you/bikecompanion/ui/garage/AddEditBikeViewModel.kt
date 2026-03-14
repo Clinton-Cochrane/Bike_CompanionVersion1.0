@@ -1,11 +1,13 @@
 package com.you.bikecompanion.ui.garage
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.you.bikecompanion.data.bike.BikeEntity
 import com.you.bikecompanion.data.bike.BikeRepository
 import com.you.bikecompanion.data.component.ComponentRepository
+import com.you.bikecompanion.data.image.ImageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +25,10 @@ sealed class SaveOutcome {
 data class AddEditBikeUiState(
     val bike: BikeEntity? = null,
     val saveOutcome: SaveOutcome? = null,
+    /** User-picked image URI; shown before save. Cleared after save. */
+    val pickedImageUri: Uri? = null,
+    /** User requested removal of image; show placeholder until save. */
+    val removeImageRequested: Boolean = false,
 )
 
 @HiltViewModel
@@ -30,6 +36,7 @@ class AddEditBikeViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val bikeRepository: BikeRepository,
     private val componentRepository: ComponentRepository,
+    private val imageRepository: ImageRepository,
 ) : ViewModel() {
 
     private val bikeId: Long? = savedStateHandle.get<String>("bikeId")?.toLongOrNull()?.takeIf { it > 0 }
@@ -46,15 +53,49 @@ class AddEditBikeViewModel @Inject constructor(
         }
     }
 
+    fun setPickedImageUri(uri: Uri?) {
+        _uiState.update {
+            it.copy(pickedImageUri = uri, removeImageRequested = false)
+        }
+    }
+
+    fun setRemoveImageRequested() {
+        _uiState.update {
+            it.copy(pickedImageUri = null, removeImageRequested = true)
+        }
+    }
+
     fun saveBike(bike: BikeEntity) {
         viewModelScope.launch {
+            val state = _uiState.value
+            var bikeToSave = bike
+
             if (bike.id > 0) {
-                bikeRepository.updateBike(bike)
-                _uiState.update { it.copy(saveOutcome = SaveOutcome.Updated) }
+                if (state.removeImageRequested) {
+                    imageRepository.deleteImageAtPath(bike.thumbnailUri)
+                    bikeToSave = bike.copy(thumbnailUri = null)
+                } else if (state.pickedImageUri != null) {
+                    val path = imageRepository.saveBikeImage(bike.id, state.pickedImageUri)
+                    bikeToSave = bike.copy(thumbnailUri = path ?: bike.thumbnailUri)
+                    // If save failed (null), keep existing thumbnail to avoid data loss
+                }
+                bikeRepository.updateBike(bikeToSave)
+                _uiState.update {
+                    it.copy(saveOutcome = SaveOutcome.Updated, pickedImageUri = null, removeImageRequested = false)
+                }
             } else {
-                val newId = bikeRepository.insertBike(bike)
+                val newId = bikeRepository.insertBike(bikeToSave)
+                if (state.pickedImageUri != null) {
+                    val path = imageRepository.saveBikeImage(newId, state.pickedImageUri)
+                    if (path != null) {
+                        bikeRepository.updateBike(bikeToSave.copy(id = newId, thumbnailUri = path))
+                    }
+                    // If save failed, bike has no thumbnail yet; update id only for consistency
+                }
                 componentRepository.seedDefaultComponentsIfEmpty(newId)
-                _uiState.update { it.copy(saveOutcome = SaveOutcome.NewBike(newId)) }
+                _uiState.update {
+                    it.copy(saveOutcome = SaveOutcome.NewBike(newId), pickedImageUri = null, removeImageRequested = false)
+                }
             }
         }
     }

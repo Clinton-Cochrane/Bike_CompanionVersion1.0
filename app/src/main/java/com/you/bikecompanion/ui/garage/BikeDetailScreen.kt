@@ -81,6 +81,7 @@ import com.you.bikecompanion.util.componentTypeIcon
 import com.you.bikecompanion.data.component.DefaultComponentTypes
 import com.you.bikecompanion.util.ComponentSortOrder
 import com.you.bikecompanion.util.componentHealthPercent
+import com.you.bikecompanion.ui.garage.ThumbnailAvatar
 import com.you.bikecompanion.data.ride.RideEntity
 import com.you.bikecompanion.util.DurationFormatHelper
 import android.app.DatePickerDialog
@@ -339,18 +340,17 @@ fun BikeDetailScreen(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text = "${bike.name.firstOrNull()?.uppercaseChar() ?: "?"}",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                            ThumbnailAvatar(
+                                thumbnailUri = bike.thumbnailUri,
+                                size = 48.dp,
+                                placeholder = {
+                                    Text(
+                                        text = "${bike.name.firstOrNull()?.uppercaseChar() ?: "?"}",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
+                            )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(bike.name, style = MaterialTheme.typography.titleLarge)
                                 if (bike.make.isNotEmpty() || bike.model.isNotEmpty() || bike.year.isNotEmpty()) {

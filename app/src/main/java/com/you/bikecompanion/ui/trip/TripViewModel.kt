@@ -24,6 +24,14 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+private data class TripCombineResult(
+    val bikes: List<BikeEntity>,
+    val rides: List<RideEntity>,
+    val dismissedRideFlagIds: Set<Long>,
+    val dismissedPlaceholderReminderIds: Set<Long>,
+    val snoozedPlaceholderReminderUntilMs: Long?,
+)
+
 /** Result of Health Connect import for UI to display via string resources. */
 sealed class HealthConnectImportResult {
     data class Success(val count: Int, val showDisclaimer: Boolean = false) : HealthConnectImportResult()
@@ -47,6 +55,12 @@ data class TripUiState(
     val missingParts: List<MissingPartInfo>? = null,
     /** Ride IDs whose review flags have been dismissed. */
     val dismissedRideFlagIds: Set<Long> = emptySet(),
+    /** Ride IDs whose placeholder reminder has been dismissed. */
+    val dismissedPlaceholderReminderIds: Set<Long> = emptySet(),
+    /** Epoch ms until which placeholder reminders are snoozed; null = not snoozed. */
+    val snoozedPlaceholderReminderUntilMs: Long? = null,
+    /** True when user added placeholder components this session (before starting ride). */
+    val placeholdersAddedThisSession: Boolean = false,
 )
 
 @HiltViewModel
@@ -70,19 +84,23 @@ class TripViewModel @Inject constructor(
                 bikeRepository.getAllBikes(),
                 rideRepository.getAllRides(),
                 appPreferencesRepository.dismissedRideFlagIds,
-            ) { bikes, rides, dismissedRideFlagIds ->
-                Triple(bikes, rides, dismissedRideFlagIds)
-            }.collect { (bikes, rides, dismissedIds) ->
+                appPreferencesRepository.dismissedPlaceholderReminderIds,
+                appPreferencesRepository.snoozedPlaceholderReminderUntilMs,
+            ) { bikes, rides, dismissedFlagIds, dismissedPlaceholderIds, snoozedUntil ->
+                TripCombineResult(bikes, rides, dismissedFlagIds, dismissedPlaceholderIds, snoozedUntil)
+            }.collect { result ->
                 val lastRidden = bikeRepository.getMostRecentlyRiddenBike()
                 _uiState.update { current ->
                     current.copy(
-                        bikes = bikes,
-                        rides = rides.sortedByDescending { it.endedAt },
+                        bikes = result.bikes,
+                        rides = result.rides.sortedByDescending { it.endedAt },
                         selectedBike = current.selectedBike?.let { selected ->
-                            bikes.find { it.id == selected.id }
+                            result.bikes.find { it.id == selected.id }
                         } ?: lastRidden,
                         lastRiddenBike = lastRidden,
-                        dismissedRideFlagIds = dismissedIds,
+                        dismissedRideFlagIds = result.dismissedRideFlagIds,
+                        dismissedPlaceholderReminderIds = result.dismissedPlaceholderReminderIds,
+                        snoozedPlaceholderReminderUntilMs = result.snoozedPlaceholderReminderUntilMs,
                     )
                 }
             }
@@ -113,19 +131,20 @@ class TripViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(missingParts = null)
     }
 
+    /**
+     * Resets [placeholdersAddedThisSession] after the ride has started.
+     * Prevents subsequent rides in the same session from incorrectly inheriting the flag.
+     */
+    fun onRideStarted() {
+        _uiState.update { it.copy(placeholdersAddedThisSession = false) }
+    }
+
     /** Adds a placeholder component for the given slot and removes it from missing list. */
     fun addPlaceholderFor(missing: MissingPartInfo) {
+        _uiState.update { it.copy(placeholdersAddedThisSession = true) }
         val bike = _uiState.value.selectedBike ?: return
         viewModelScope.launch {
-            val entity = com.you.bikecompanion.data.component.ComponentEntity(
-                bikeId = bike.id,
-                type = missing.expected.type,
-                name = "Placeholder ${missing.expected.name}",
-                lifespanKm = missing.expected.defaultLifespanKm,
-                position = missing.expected.position,
-                installedAt = System.currentTimeMillis(),
-            )
-            componentRepository.insertComponent(entity)
+            insertPlaceholderComponent(bike.id, missing)
             removeMissingPart(missing.expected.type, missing.expected.position)
         }
     }
@@ -141,9 +160,25 @@ class TripViewModel @Inject constructor(
 
     /** Adds placeholders for all missing parts and clears the dialog. */
     fun addAllPlaceholders() {
+        _uiState.update { it.copy(placeholdersAddedThisSession = true) }
         val list = _uiState.value.missingParts ?: return
-        list.forEach { addPlaceholderFor(it) }
-        _uiState.value = _uiState.value.copy(missingParts = null)
+        val bike = _uiState.value.selectedBike ?: return
+        viewModelScope.launch {
+            list.forEach { insertPlaceholderComponent(bike.id, it) }
+            _uiState.value = _uiState.value.copy(missingParts = null)
+        }
+    }
+
+    private suspend fun insertPlaceholderComponent(bikeId: Long, missing: MissingPartInfo) {
+        val entity = ComponentEntity(
+            bikeId = bikeId,
+            type = missing.expected.type,
+            name = "Placeholder ${missing.expected.name}",
+            lifespanKm = missing.expected.defaultLifespanKm,
+            position = missing.expected.position,
+            installedAt = System.currentTimeMillis(),
+        )
+        componentRepository.insertComponent(entity)
     }
 
     private fun removeMissingPart(type: String, position: String) {
@@ -155,6 +190,18 @@ class TripViewModel @Inject constructor(
     fun dismissRideFlag(rideId: Long) {
         viewModelScope.launch {
             appPreferencesRepository.addDismissedRideFlagId(rideId)
+        }
+    }
+
+    fun dismissPlaceholderReminder(rideId: Long) {
+        viewModelScope.launch {
+            appPreferencesRepository.addDismissedPlaceholderReminderId(rideId)
+        }
+    }
+
+    fun snoozePlaceholderReminder() {
+        viewModelScope.launch {
+            appPreferencesRepository.snoozePlaceholderReminder()
         }
     }
 

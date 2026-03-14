@@ -77,6 +77,11 @@
     <string name="ride_review_delete">Delete ride</string>
     <string name="ride_review_delete_confirm_title">Delete ride?</string>
     <string name="ride_review_delete_confirm_message">This ride will be permanently deleted. This cannot be undone.</string>
+    <string name="ride_placeholder_reminder">Update bike info</string>
+    <string name="ride_placeholder_reminder_detail">Update your bike info? You added placeholders before this ride—replace them with real component details.</string>
+    <string name="ride_placeholder_reminder_update_bike">Update bike</string>
+    <string name="ride_placeholder_reminder_snooze">Remind later</string>
+    <string name="ride_placeholder_reminder_dismiss">Don\'t remind again</string>
     <string name="ride_edit_title">Edit ride</string>
     <string name="ride_edit_coming_soon">Edit ride coming soon</string>
 
@@ -101,6 +106,9 @@
     <string name="garage_add_component_content_description">Add a component to garage</string>
     <string name="garage_add_bike">Add bike</string>
     <string name="garage_add_bike_content_description">Add a new bike</string>
+    <string name="garage_bike_add_photo">Add photo</string>
+    <string name="garage_bike_change_photo">Change photo</string>
+    <string name="garage_bike_remove_photo">Remove photo</string>
     <string name="add_bike_choose_mode">How do you want to add your bike?</string>
     <string name="add_bike_quick_add">Quick add</string>
     <string name="add_bike_quick_add_subtitle">Name, drivetrain, and brakes. We’ll add suggested components.</string>
@@ -244,6 +252,9 @@
     <string name="component_edit_time_hint">0:00:00 (hours:minutes:seconds)</string>
     <string name="component_edit_reset_speeds">Reset avg and max speed</string>
     <string name="component_edit_reset_speeds_summary">Set avg/max speed to zero</string>
+    <string name="component_add_photo">Add photo</string>
+    <string name="component_change_photo">Change photo</string>
+    <string name="component_remove_photo">Remove photo</string>
     <string name="component_edit_validation_name_empty">Display name is required</string>
     <string name="component_edit_validation_mileage_invalid">Mileage must be 0 or greater</string>
     <string name="component_edit_validation_time_invalid">Time must be in format H:MM:SS or M:SS</string>

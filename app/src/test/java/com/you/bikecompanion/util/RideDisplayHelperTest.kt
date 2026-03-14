@@ -1,5 +1,6 @@
 package com.you.bikecompanion.util
 
+import com.you.bikecompanion.data.ride.RideEntity
 import com.you.bikecompanion.data.ride.RideSource
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -76,5 +77,86 @@ class RideDisplayHelperTest {
     fun isZeroDistanceLongDurationNeedsReview_over2hWithDistance_returnsFalse() {
         val threeHoursMs = 3L * 60 * 60 * 1000
         assertFalse(RideDisplayHelper.isZeroDistanceLongDurationNeedsReview(threeHoursMs, 15.5))
+    }
+
+    @Test
+    fun shouldShowPlaceholderReminderChip_hadPlaceholdersNotDismissedNotSnoozed_returnsTrue() {
+        val ride = RideEntity(
+            id = 1L,
+            bikeId = 1L,
+            distanceKm = 10.0,
+            durationMs = 3600_000,
+            startedAt = 1000L,
+            endedAt = 3_601_000L,
+            hadPlaceholdersAtStart = true,
+        )
+        assertTrue(
+            RideDisplayHelper.shouldShowPlaceholderReminderChip(
+                ride,
+                dismissedPlaceholderReminderIds = emptySet(),
+                snoozedUntilMs = null,
+            ),
+        )
+    }
+
+    @Test
+    fun shouldShowPlaceholderReminderChip_dismissed_returnsFalse() {
+        val ride = RideEntity(
+            id = 1L,
+            bikeId = 1L,
+            distanceKm = 10.0,
+            durationMs = 3600_000,
+            startedAt = 1000L,
+            endedAt = 3_601_000L,
+            hadPlaceholdersAtStart = true,
+        )
+        assertFalse(
+            RideDisplayHelper.shouldShowPlaceholderReminderChip(
+                ride,
+                dismissedPlaceholderReminderIds = setOf(1L),
+                snoozedUntilMs = null,
+            ),
+        )
+    }
+
+    @Test
+    fun shouldShowPlaceholderReminderChip_snoozed_returnsFalse() {
+        val ride = RideEntity(
+            id = 1L,
+            bikeId = 1L,
+            distanceKm = 10.0,
+            durationMs = 3600_000,
+            startedAt = 1000L,
+            endedAt = 3_601_000L,
+            hadPlaceholdersAtStart = true,
+        )
+        val oneHourFromNow = System.currentTimeMillis() + 3600_000
+        assertFalse(
+            RideDisplayHelper.shouldShowPlaceholderReminderChip(
+                ride,
+                dismissedPlaceholderReminderIds = emptySet(),
+                snoozedUntilMs = oneHourFromNow,
+            ),
+        )
+    }
+
+    @Test
+    fun shouldShowPlaceholderReminderChip_noPlaceholders_returnsFalse() {
+        val ride = RideEntity(
+            id = 1L,
+            bikeId = 1L,
+            distanceKm = 10.0,
+            durationMs = 3600_000,
+            startedAt = 1000L,
+            endedAt = 3_601_000L,
+            hadPlaceholdersAtStart = false,
+        )
+        assertFalse(
+            RideDisplayHelper.shouldShowPlaceholderReminderChip(
+                ride,
+                dismissedPlaceholderReminderIds = emptySet(),
+                snoozedUntilMs = null,
+            ),
+        )
     }
 }

@@ -74,6 +74,7 @@ import com.you.bikecompanion.util.componentHealthPercent
 import com.you.bikecompanion.util.componentTypeIcon
 import com.you.bikecompanion.util.DisplayFormatHelper
 import com.you.bikecompanion.util.DurationFormatHelper
+import com.you.bikecompanion.ui.garage.ThumbnailAvatar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -628,19 +629,18 @@ private fun GarageComponentCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = componentTypeIcon(component.type),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            }
+            ThumbnailAvatar(
+                thumbnailUri = component.thumbnailUri,
+                size = 40.dp,
+                placeholder = {
+                    Icon(
+                        imageVector = componentTypeIcon(component.type),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                },
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = DisplayFormatHelper.formatForDisplay(component.name),
@@ -708,18 +708,17 @@ private fun BikeCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                    contentAlignment = androidx.compose.ui.Alignment.Center,
-                ) {
-                    Text(
-                        text = "${bike.name.firstOrNull()?.uppercaseChar() ?: "?"}",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                ThumbnailAvatar(
+                    thumbnailUri = bike.thumbnailUri,
+                    size = 40.dp,
+                    placeholder = {
+                        Text(
+                            text = "${bike.name.firstOrNull()?.uppercaseChar() ?: "?"}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                )
                 Column(modifier = Modifier.weight(1f)) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
