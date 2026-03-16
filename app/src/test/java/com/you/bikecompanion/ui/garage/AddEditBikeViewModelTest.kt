@@ -2,6 +2,7 @@ package com.you.bikecompanion.ui.garage
 
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import com.you.bikecompanion.data.bike.BikeEntity
 import com.you.bikecompanion.data.bike.BikeRepository
 import com.you.bikecompanion.data.component.ComponentRepository
@@ -9,7 +10,6 @@ import com.you.bikecompanion.data.image.ImageRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -22,6 +22,7 @@ import org.junit.Test
 /**
  * Unit tests for [AddEditBikeViewModel] image handling.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class AddEditBikeViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
@@ -47,7 +48,7 @@ class AddEditBikeViewModelTest {
             componentRepository,
             imageRepository,
         )
-        val uri = Uri.parse("content://test/1")
+        val uri = mockk<Uri>(relaxed = true)
 
         viewModel.setPickedImageUri(uri)
 
@@ -63,7 +64,7 @@ class AddEditBikeViewModelTest {
             componentRepository,
             imageRepository,
         )
-        viewModel.setPickedImageUri(Uri.parse("content://test/1"))
+        viewModel.setPickedImageUri(mockk<Uri>(relaxed = true))
 
         viewModel.setRemoveImageRequested()
 
@@ -84,7 +85,7 @@ class AddEditBikeViewModelTest {
             componentRepository,
             imageRepository,
         )
-        viewModel.setPickedImageUri(Uri.parse("content://test/pick"))
+        viewModel.setPickedImageUri(mockk<Uri>(relaxed = true))
 
         viewModel.saveBike(
             BikeEntity(name = "Test", createdAt = 1000L),
@@ -137,7 +138,7 @@ class AddEditBikeViewModelTest {
             imageRepository,
         )
         advanceUntilIdle()
-        viewModel.setPickedImageUri(Uri.parse("content://test/new"))
+        viewModel.setPickedImageUri(mockk<Uri>(relaxed = true))
 
         viewModel.saveBike(bike)
         advanceUntilIdle()
