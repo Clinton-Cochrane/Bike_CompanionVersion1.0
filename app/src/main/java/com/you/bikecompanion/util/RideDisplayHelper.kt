@@ -80,13 +80,13 @@ object RideDisplayHelper {
      * Formats max speed for display. Returns placeholder when unavailable.
      */
     fun formatMaxSpeedKmh(value: Double, source: RideSource, placeholder: String): String =
-        if (isStatUnavailable(value, source)) placeholder else "%.1f km/h".format(value)
+        if (isStatUnavailable(value, source)) placeholder else "%.1f mph".format(ImperialUnits.kmhToMph(value))
 
     /**
      * Formats elevation (gain or loss) for display. Returns placeholder when unavailable.
      */
     fun formatElevationM(value: Double, source: RideSource, placeholder: String): String =
-        if (isStatUnavailable(value, source)) placeholder else "%.0f m".format(value)
+        if (isStatUnavailable(value, source)) placeholder else "%.0f ft".format(ImperialUnits.metersToFeet(value))
 
     /**
      * Returns true when elevation data is unavailable (both gain and loss are 0 from a source
@@ -101,7 +101,10 @@ object RideDisplayHelper {
      */
     fun formatElevationGainLoss(gainM: Double, lossM: Double, source: RideSource, placeholder: String): String =
         if (isElevationUnavailable(gainM, lossM, source)) placeholder
-        else "+%.0f / -%.0f m".format(gainM, lossM)
+        else "+%.0f / -%.0f ft".format(
+            ImperialUnits.metersToFeet(gainM),
+            ImperialUnits.metersToFeet(lossM),
+        )
 
     /**
      * Net elevation change (gain − loss) in meters. Positive = net climb, negative = net descent.

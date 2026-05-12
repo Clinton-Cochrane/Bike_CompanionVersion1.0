@@ -83,6 +83,7 @@ import com.you.bikecompanion.data.component.ComponentSwapEntity
 import com.you.bikecompanion.data.component.ServiceIntervalEntity
 import com.you.bikecompanion.util.DisplayFormatHelper
 import com.you.bikecompanion.util.DurationFormatHelper
+import com.you.bikecompanion.util.ImperialUnits
 import com.you.bikecompanion.util.IntervalTimeConstants
 import com.you.bikecompanion.util.ServiceIntervalHelper
 import com.you.bikecompanion.util.componentTypeIcon
@@ -145,7 +146,7 @@ fun ComponentDetailScreen(
                     else -> {
                         viewModel.updateComponent(
                             nameTrimmed,
-                            mileage ?: 0.0,
+                            ImperialUnits.milesToKm(mileage),
                             timeSeconds ?: 0L,
                             resetSpeeds,
                             pickedImageUri,
@@ -391,10 +392,10 @@ fun ComponentDetailScreen(
                                 .padding(top = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
-                            Text(stringResource(R.string.bike_stat_km, component.distanceUsedKm), style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.bike_stat_km, ImperialUnits.kmToMiles(component.distanceUsedKm)), style = MaterialTheme.typography.labelMedium)
                             Text(DurationFormatHelper.formatDurationBreakdownSeconds(component.totalTimeSeconds), style = MaterialTheme.typography.labelMedium)
-                            Text(stringResource(R.string.bike_stat_kmh, component.avgSpeedKmh), style = MaterialTheme.typography.labelMedium)
-                            Text(stringResource(R.string.bike_stat_kmh, component.maxSpeedKmh), style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.bike_stat_kmh, ImperialUnits.kmhToMph(component.avgSpeedKmh)), style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.bike_stat_kmh, ImperialUnits.kmhToMph(component.maxSpeedKmh)), style = MaterialTheme.typography.labelMedium)
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -576,7 +577,7 @@ fun ComponentDetailScreen(
 
     if (showAddIntervalDialog) {
         var name by remember { mutableStateOf("") }
-        var intervalKm by remember { mutableStateOf("") }
+        var intervalMi by remember { mutableStateOf("") }
         var intervalTimeStr by remember { mutableStateOf("") }
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showAddIntervalDialog = false },
@@ -591,10 +592,10 @@ fun ComponentDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     androidx.compose.material3.OutlinedTextField(
-                        value = intervalKm,
-                        onValueChange = { intervalKm = it },
+                        value = intervalMi,
+                        onValueChange = { intervalMi = it },
                         label = { Text(stringResource(R.string.component_interval_km_label)) },
-                        placeholder = { Text("5000") },
+                        placeholder = { Text("3000") },
                         modifier = Modifier.fillMaxWidth(),
                     )
                     androidx.compose.material3.OutlinedTextField(
@@ -608,7 +609,8 @@ fun ComponentDetailScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val km = intervalKm.toDoubleOrNull() ?: 0.0
+                    val mi = intervalMi.toDoubleOrNull() ?: 0.0
+                    val km = ImperialUnits.milesToKm(mi)
                     val timeSeconds = intervalTimeStr.trim().takeIf { it.isNotEmpty() }?.let {
                         IntervalTimeConstants.parseIntervalTime(it)
                     }
@@ -636,7 +638,7 @@ private fun ServiceIntervalEditDialog(
     onSave: (name: String, intervalKm: Double, intervalTimeSeconds: Long?) -> Unit,
 ) {
     var name by remember(interval.id) { mutableStateOf(interval.name) }
-    var intervalKmStr by remember(interval.id) { mutableStateOf(interval.intervalKm.toString()) }
+    var intervalKmStr by remember(interval.id) { mutableStateOf(ImperialUnits.milesFromKmToInputString(interval.intervalKm)) }
     var intervalTimeStr by remember(interval.id) {
         mutableStateOf(
             interval.intervalTimeSeconds?.let { IntervalTimeConstants.formatSecondsToIntervalStr(it) } ?: "",
@@ -671,7 +673,8 @@ private fun ServiceIntervalEditDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                val km = intervalKmStr.toDoubleOrNull() ?: 0.0
+                val mi = intervalKmStr.toDoubleOrNull() ?: 0.0
+                val km = ImperialUnits.milesToKm(mi)
                 val timeSeconds = intervalTimeStr.trim().takeIf { it.isNotEmpty() }?.let {
                     IntervalTimeConstants.parseIntervalTime(it)
                 }
@@ -698,7 +701,7 @@ private fun ComponentEditDialog(
     onSave: (name: String, mileageStr: String, timeStr: String, resetAvgMaxSpeed: Boolean, pickedImageUri: Uri?, removeImage: Boolean) -> Unit,
 ) {
     var name by remember(component.id) { mutableStateOf(component.name) }
-    var mileageStr by remember(component.id) { mutableStateOf(component.distanceUsedKm.toString()) }
+    var mileageStr by remember(component.id) { mutableStateOf(ImperialUnits.milesFromKmToInputString(component.distanceUsedKm)) }
     var timeStr by remember(component.id) {
         mutableStateOf(DurationFormatHelper.formatDurationSeconds(component.totalTimeSeconds))
     }

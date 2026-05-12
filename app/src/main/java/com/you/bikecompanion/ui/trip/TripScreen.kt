@@ -2,8 +2,12 @@ package com.you.bikecompanion.ui.trip
 
 import android.Manifest
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,7 +22,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DirectionsBike
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -26,6 +32,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -62,6 +69,7 @@ import com.you.bikecompanion.ui.navigation.Screen
 import com.you.bikecompanion.ui.trip.HealthConnectImportResult
 import com.you.bikecompanion.util.DisplayFormatHelper
 import com.you.bikecompanion.util.DurationFormatHelper
+import com.you.bikecompanion.util.ImperialUnits
 import com.you.bikecompanion.util.RideDisplayHelper
 import com.you.bikecompanion.location.RideTrackingService
 import com.you.bikecompanion.ui.ride.ActiveRideActivity
@@ -69,6 +77,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripScreen(
     navController: NavController,
@@ -95,6 +104,42 @@ fun TripScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var showDeleteRidesConfirm by remember { mutableStateOf(false) }
+    val selectionCloseDesc = stringResource(R.string.trip_ride_selection_close_content_description)
+    val deleteSelectedDesc = stringResource(R.string.trip_delete_selected_content_description)
+
+    BackHandler(enabled = uiState.rideSelectionMode) {
+        viewModel.clearRideSelection()
+    }
+
+    if (showDeleteRidesConfirm && uiState.selectedRideIds.isNotEmpty()) {
+        val deleteCount = uiState.selectedRideIds.size
+        AlertDialog(
+            onDismissRequest = { showDeleteRidesConfirm = false },
+            title = { Text(stringResource(R.string.trip_delete_rides_confirm_title)) },
+            text = {
+                Text(
+                    stringResource(R.plurals.trip_delete_rides_confirm_message, deleteCount, deleteCount),
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteRidesConfirm = false
+                        viewModel.deleteSelectedRides()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                ) {
+                    Text(stringResource(R.string.trip_delete_selected))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteRidesConfirm = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
+    }
 
     LaunchedEffect(Unit) {
         viewModel.healthConnectImportResult.collect { result ->
@@ -162,13 +207,48 @@ fun TripScreen(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.nav_trip)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
-            )
+            if (uiState.rideSelectionMode) {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            stringResource(
+                                R.plurals.trip_ride_selection_count,
+                                uiState.selectedRideIds.size,
+                                uiState.selectedRideIds.size,
+                            ),
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = { viewModel.clearRideSelection() },
+                            modifier = Modifier.semantics { contentDescription = selectionCloseDesc },
+                        ) {
+                            Icon(Icons.Filled.Close, contentDescription = null)
+                        }
+                    },
+                    actions = {
+                        TextButton(
+                            onClick = { showDeleteRidesConfirm = true },
+                            enabled = uiState.selectedRideIds.isNotEmpty(),
+                            modifier = Modifier.semantics { contentDescription = deleteSelectedDesc },
+                        ) {
+                            Text(stringResource(R.string.trip_delete_selected))
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
+                )
+            } else {
+                CenterAlignedTopAppBar(
+                    title = { Text(stringResource(R.string.nav_trip)) },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
+                )
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { paddingValues ->
@@ -222,6 +302,10 @@ fun TripScreen(
                         RideCard(
                             ride = ride,
                             bikeName = ride.bikeId?.let { uiState.bikes.associateBy { b -> b.id }[it]?.name } ?: "",
+                            rideSelectionMode = uiState.rideSelectionMode,
+                            rideSelected = ride.id in uiState.selectedRideIds,
+                            onEnterRideSelection = { viewModel.enterRideSelection(ride.id) },
+                            onToggleRideSelection = { viewModel.toggleRideSelection(ride.id) },
                             dismissedRideFlagIds = uiState.dismissedRideFlagIds,
                             dismissedPlaceholderReminderIds = uiState.dismissedPlaceholderReminderIds,
                             snoozedPlaceholderReminderUntilMs = uiState.snoozedPlaceholderReminderUntilMs,
@@ -340,6 +424,10 @@ private fun StartTripSection(
 private fun RideCard(
     ride: RideEntity,
     bikeName: String,
+    rideSelectionMode: Boolean,
+    rideSelected: Boolean,
+    onEnterRideSelection: () -> Unit,
+    onToggleRideSelection: () -> Unit,
     dismissedRideFlagIds: Set<Long>,
     dismissedPlaceholderReminderIds: Set<Long>,
     snoozedPlaceholderReminderUntilMs: Long?,
@@ -354,6 +442,19 @@ private fun RideCard(
     val flagReason = RideDisplayHelper.getRideFlagReason(ride)
     var showReviewDialog by remember { mutableStateOf(false) }
     var showPlaceholderReminderDialog by remember { mutableStateOf(false) }
+
+    val cardModifier = Modifier
+        .fillMaxWidth()
+        .then(
+            if (rideSelectionMode) {
+                Modifier.clickable(onClick = onToggleRideSelection)
+            } else {
+                Modifier.combinedClickable(
+                    onClick = {},
+                    onLongClick = onEnterRideSelection,
+                )
+            },
+        )
 
     if (showReviewDialog && flagReason != null) {
         RideReviewDialog(
@@ -377,7 +478,12 @@ private fun RideCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = cardModifier,
+        border = if (rideSelected) {
+            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            null
+        },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
@@ -387,14 +493,27 @@ private fun RideCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = dateFormat.format(Date(ride.endedAt)),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    if (rideSelectionMode) {
+                        Checkbox(
+                            checked = rideSelected,
+                            onCheckedChange = { onToggleRideSelection() },
+                        )
+                    }
+                    Text(
+                        text = dateFormat.format(Date(ride.endedAt)),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (RideDisplayHelper.shouldShowReviewChip(ride, dismissedRideFlagIds)) {
                         FilterChip(
+                            enabled = !rideSelectionMode,
                             selected = false,
                             onClick = { showReviewDialog = true },
                             label = { Text(stringResource(R.string.ride_review)) },
@@ -406,6 +525,7 @@ private fun RideCard(
                             snoozedPlaceholderReminderUntilMs,
                         )) {
                         FilterChip(
+                            enabled = !rideSelectionMode,
                             selected = false,
                             onClick = { showPlaceholderReminderDialog = true },
                             label = { Text(stringResource(R.string.ride_placeholder_reminder)) },
@@ -414,7 +534,7 @@ private fun RideCard(
                 }
             }
             Text(
-                text = stringResource(R.string.trip_ride_distance, ride.distanceKm),
+                text = stringResource(R.string.trip_ride_distance, ImperialUnits.kmToMiles(ride.distanceKm)),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )

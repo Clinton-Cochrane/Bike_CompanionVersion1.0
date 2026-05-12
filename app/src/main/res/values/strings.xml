@@ -14,7 +14,7 @@
     <string name="trip_start_button_content_description">Start a new bike trip</string>
     <string name="trip_past_rides">Past rides</string>
     <string name="trip_no_rides">No rides yet. Start a trip to record your first ride.</string>
-    <string name="trip_ride_distance">%1$.1f km</string>
+    <string name="trip_ride_distance">%1$.1f mi</string>
     <string name="trip_ride_duration">Duration: %1$s</string>
     <string name="trip_ride_bike">Bike: %1$s</string>
     <string name="trip_select_bike">Select bike</string>
@@ -33,6 +33,18 @@
     <string name="trip_add_all_placeholders">Add all as placeholders</string>
     <string name="trip_install_from_garage">Use %1$s from garage</string>
     <string name="trip_start_anyway">Start ride anyway</string>
+    <string name="trip_ride_selection_close_content_description">Exit selection mode</string>
+    <string name="trip_delete_selected_content_description">Delete selected trips</string>
+    <string name="trip_delete_selected">Delete</string>
+    <string name="trip_delete_rides_confirm_title">Delete trips?</string>
+    <plurals name="trip_delete_rides_confirm_message">
+        <item quantity="one">This trip will be permanently removed. Bike and component totals will be updated. This cannot be undone.</item>
+        <item quantity="other">These %1$d trips will be permanently removed. Bike and component totals will be updated. This cannot be undone.</item>
+    </plurals>
+    <plurals name="trip_ride_selection_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
 
     <!-- Trip start splash (countdown) -->
     <string name="trip_splash_title">Starting trip</string>
@@ -50,10 +62,10 @@
 
     <!-- Active ride screen -->
     <string name="ride_active_title">Ride in progress</string>
-    <string name="ride_distance">Distance: %1$.2f km</string>
+    <string name="ride_distance">Distance: %1$.2f mi</string>
     <string name="ride_duration">Duration: %1$s</string>
-    <string name="ride_speed_current">Speed: %1$.1f km/h</string>
-    <string name="ride_speed_avg">Avg: %1$.1f km/h</string>
+    <string name="ride_speed_current">Speed: %1$.1f mph</string>
+    <string name="ride_speed_avg">Avg: %1$.1f mph</string>
     <string name="ride_speed_max">Max: %1$s</string>
     <string name="ride_elevation_gain">Elev gain: %1$s</string>
     <string name="ride_elevation_loss">Elev loss: %1$s</string>
@@ -97,7 +109,7 @@
     <string name="garage_filter_bike_all">All bikes</string>
     <string name="garage_filter_sort_label">Sort by</string>
     <string name="garage_filter_sort_content_description">Open filter and sort menu</string>
-    <string name="garage_spec_total_distance">Total: %1$.0f km</string>
+    <string name="garage_spec_total_distance">Total: %1$.0f mi</string>
     <string name="garage_no_bikes">No bikes yet. Add your first bike.</string>
     <string name="garage_no_components">No components yet. Add from the + button or via a bike.</string>
     <string name="garage_component_assigned_to">Assigned to: %1$s</string>
@@ -133,9 +145,9 @@
     <string name="bike_stat_moving_time">MOVING TIME</string>
     <string name="bike_stat_avg_speed">AVG. SPEED</string>
     <string name="bike_stat_max_speed">MAX SPEED</string>
-    <string name="bike_stat_km">%1$.0fkm</string>
-    <string name="bike_stat_kmh">%1$.0fkm/h</string>
-    <string name="bike_stat_elevation">Elev: +%1$dm / -%2$dm</string>
+    <string name="bike_stat_km">%1$.0f mi</string>
+    <string name="bike_stat_kmh">%1$.0f mph</string>
+    <string name="bike_stat_elevation">Elev: +%1$d ft / -%2$d ft</string>
     <string name="garage_bike_last_ride">Last ride: %1$s</string>
     <string name="garage_components_attention">%1$d components need attention</string>
     <string name="garage_components">Components</string>
@@ -165,7 +177,7 @@
     <string name="bike_save">Save</string>
     <string name="bike_add_component">Add component</string>
     <string name="bike_component_health">Health: %1$d%%</string>
-    <string name="bike_component_used_km">%1$.0f / %2$.0f km</string>
+    <string name="bike_component_used_km">%1$.0f / %2$.0f mi</string>
     <string name="bike_component_total_time">Total ride time: %1$s</string>
     <string name="bike_component_replaced">Mark replaced</string>
     <string name="bike_component_last_replaced">Last replaced: %1$s</string>
@@ -201,7 +213,7 @@
     <string name="component_type_brake_pads">Brake pads</string>
     <string name="component_type_bottom_bracket">Bottom bracket</string>
     <string name="component_type_cables">Cables</string>
-    <string name="component_lifespan_km">%1$.0f km</string>
+    <string name="component_lifespan_km">%1$.0f mi</string>
     <string name="component_add_custom">Add custom component</string>
     <string name="component_done">Done</string>
     <string name="component_install">Install</string>
@@ -229,11 +241,11 @@
     <string name="component_service_intervals">Service intervals</string>
     <string name="component_add_interval">Add service interval</string>
     <string name="component_interval_name">Name</string>
-    <string name="component_interval_km_label">Interval (km)</string>
+    <string name="component_interval_km_label">Interval (mi)</string>
     <string name="component_interval_time_label">Interval time (optional)</string>
     <string name="component_interval_time_hint">e.g. 2 weeks, 50 hours</string>
     <string name="component_interval_edit_title">Edit service interval</string>
-    <string name="component_interval_km">%1$.0fkm of %2$.0fkm left</string>
+    <string name="component_interval_km">%1$.0f mi of %2$.0f mi left</string>
     <string name="bike_chain_recommendation_title">Chain replacement reminder</string>
     <string name="bike_chain_recommendation_message">After %1$d chain replacements, consider inspecting or replacing cassette, freewheel, and chainrings.</string>
     <string name="bike_chain_recommendation_reset">Reset chain count</string>
@@ -246,7 +258,7 @@
     <string name="component_edit_title_format">Edit %1$s</string>
     <string name="component_edit_display_name">Display name</string>
     <string name="component_edit_display_name_hint">e.g. Chain 1</string>
-    <string name="component_edit_mileage">Mileage (km)</string>
+    <string name="component_edit_mileage">Mileage (mi)</string>
     <string name="component_edit_mileage_hint">0</string>
     <string name="component_edit_time">Total ride time</string>
     <string name="component_edit_time_hint">0:00:00 (hours:minutes:seconds)</string>
@@ -262,11 +274,11 @@
     <!-- Stats screen -->
     <string name="stats_title">Stats</string>
     <string name="stats_filter_all">All</string>
-    <string name="stats_total_distance">Total distance: %1$.1f km</string>
+    <string name="stats_total_distance">Total distance: %1$.1f mi</string>
     <string name="stats_ride_count">Rides: %1$d</string>
-    <string name="stats_avg_distance">Avg distance: %1$.1f km</string>
-    <string name="stats_avg_speed">Avg speed: %1$.1f km/h</string>
-    <string name="stats_elevation_gain">Elevation gain: %1$.0f m</string>
+    <string name="stats_avg_distance">Avg distance: %1$.1f mi</string>
+    <string name="stats_avg_speed">Avg speed: %1$.1f mph</string>
+    <string name="stats_elevation_gain">Elevation gain: %1$.0f ft</string>
     <string name="stats_no_data">No ride data for this bike yet.</string>
 
     <!-- AI screen -->

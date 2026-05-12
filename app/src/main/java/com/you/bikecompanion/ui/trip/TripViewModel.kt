@@ -49,6 +49,9 @@ data class MissingPartInfo(
 data class TripUiState(
     val bikes: List<BikeEntity> = emptyList(),
     val rides: List<RideEntity> = emptyList(),
+    /** Long-press ride list: multi-select mode for batch delete. */
+    val rideSelectionMode: Boolean = false,
+    val selectedRideIds: Set<Long> = emptySet(),
     val selectedBike: BikeEntity? = null,
     val lastRiddenBike: BikeEntity? = null,
     /** When non-null, show missing-parts dialog before starting ride. */
@@ -205,9 +208,48 @@ class TripViewModel @Inject constructor(
         }
     }
 
+    fun enterRideSelection(rideId: Long) {
+        _uiState.update {
+            it.copy(rideSelectionMode = true, selectedRideIds = setOf(rideId))
+        }
+    }
+
+    fun toggleRideSelection(rideId: Long) {
+        _uiState.update { s ->
+            val next = s.selectedRideIds.toMutableSet().apply {
+                if (rideId in this) remove(rideId) else add(rideId)
+            }
+            s.copy(rideSelectionMode = true, selectedRideIds = next)
+        }
+    }
+
+    fun clearRideSelection() {
+        _uiState.update {
+            it.copy(rideSelectionMode = false, selectedRideIds = emptySet())
+        }
+    }
+
+    fun deleteSelectedRides() {
+        val ids = _uiState.value.selectedRideIds
+        if (ids.isEmpty()) return
+        val toDelete = _uiState.value.rides.filter { it.id in ids }
+        viewModelScope.launch {
+            rideRepository.deleteRidesAndRevertAggregates(toDelete)
+            clearRideSelection()
+        }
+    }
+
     fun deleteRide(ride: RideEntity) {
         viewModelScope.launch {
             rideRepository.deleteRide(ride)
+            _uiState.update { s ->
+                val newSel = s.selectedRideIds - ride.id
+                if (newSel.isEmpty()) {
+                    s.copy(rideSelectionMode = false, selectedRideIds = emptySet())
+                } else {
+                    s.copy(selectedRideIds = newSel)
+                }
+            }
         }
     }
 

@@ -23,6 +23,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.you.bikecompanion.R
 import com.you.bikecompanion.data.ride.RideEntity
+import com.you.bikecompanion.util.ImperialUnits
 import com.you.bikecompanion.util.RideDisplayHelper
 
 /**
@@ -88,7 +89,7 @@ fun RideReviewDialog(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = stringResource(R.string.trip_ride_distance, ride.distanceKm),
+                    text = stringResource(R.string.trip_ride_distance, ImperialUnits.kmToMiles(ride.distanceKm)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

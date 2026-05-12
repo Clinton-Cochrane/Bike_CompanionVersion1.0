@@ -22,4 +22,16 @@ interface RideDao {
 
     @Query("DELETE FROM rides WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    /** Max end time among rides for this bike excluding ids about to be deleted. */
+    @Query(
+        "SELECT MAX(endedAt) FROM rides WHERE bikeId = :bikeId AND id NOT IN (:excludeIds)",
+    )
+    suspend fun getMaxEndedAtExcluding(bikeId: Long, excludeIds: List<Long>): Long?
+
+    /** Max recorded max speed among remaining rides for this bike. */
+    @Query(
+        "SELECT MAX(maxSpeedKmh) FROM rides WHERE bikeId = :bikeId AND id NOT IN (:excludeIds)",
+    )
+    suspend fun getMaxMaxSpeedKmhExcluding(bikeId: Long, excludeIds: List<Long>): Double?
 }

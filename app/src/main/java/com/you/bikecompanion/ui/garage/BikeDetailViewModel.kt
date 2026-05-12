@@ -26,6 +26,9 @@ data class BikeDetailUiState(
     val bike: BikeEntity? = null,
     val components: List<ComponentEntity> = emptyList(),
     val rides: List<RideEntity> = emptyList(),
+    /** Long-press ride list: multi-select mode for batch delete. */
+    val rideSelectionMode: Boolean = false,
+    val selectedRideIds: Set<Long> = emptySet(),
     val bikes: List<BikeEntity> = emptyList(),
     val componentSortOrder: ComponentSortOrder = ComponentSortOrder.TYPE_AZ,
     /** User-configured threshold below which mild alert is shown (default from [AppPreferencesRepository]). */
@@ -197,9 +200,48 @@ class BikeDetailViewModel @Inject constructor(
         }
     }
 
+    fun enterRideSelection(rideId: Long) {
+        _uiState.update {
+            it.copy(rideSelectionMode = true, selectedRideIds = setOf(rideId))
+        }
+    }
+
+    fun toggleRideSelection(rideId: Long) {
+        _uiState.update { s ->
+            val next = s.selectedRideIds.toMutableSet().apply {
+                if (rideId in this) remove(rideId) else add(rideId)
+            }
+            s.copy(rideSelectionMode = true, selectedRideIds = next)
+        }
+    }
+
+    fun clearRideSelection() {
+        _uiState.update {
+            it.copy(rideSelectionMode = false, selectedRideIds = emptySet())
+        }
+    }
+
+    fun deleteSelectedRides() {
+        val ids = _uiState.value.selectedRideIds
+        if (ids.isEmpty()) return
+        val toDelete = _uiState.value.rides.filter { it.id in ids }
+        viewModelScope.launch {
+            rideRepository.deleteRidesAndRevertAggregates(toDelete)
+            clearRideSelection()
+        }
+    }
+
     fun deleteRide(ride: RideEntity) {
         viewModelScope.launch {
             rideRepository.deleteRide(ride)
+            _uiState.update { s ->
+                val newSel = s.selectedRideIds - ride.id
+                if (newSel.isEmpty()) {
+                    s.copy(rideSelectionMode = false, selectedRideIds = emptySet())
+                } else {
+                    s.copy(selectedRideIds = newSel)
+                }
+            }
         }
     }
 }

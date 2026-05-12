@@ -74,6 +74,7 @@ import com.you.bikecompanion.util.componentHealthPercent
 import com.you.bikecompanion.util.componentTypeIcon
 import com.you.bikecompanion.util.DisplayFormatHelper
 import com.you.bikecompanion.util.DurationFormatHelper
+import com.you.bikecompanion.util.ImperialUnits
 import com.you.bikecompanion.ui.garage.ThumbnailAvatar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -113,7 +114,7 @@ fun GarageScreen(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
-                                "${suggested.displayName} — ${stringResource(R.string.component_lifespan_km, suggested.defaultLifespanKm)}",
+                                "${suggested.displayName} — ${stringResource(R.string.component_lifespan_km, ImperialUnits.kmToMiles(suggested.defaultLifespanKm))}",
                             )
                         }
                     }
@@ -302,7 +303,7 @@ private fun GarageSpecSummaryCard(totalDistanceKm: Double) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(R.string.garage_spec_total_distance, totalDistanceKm),
+                text = stringResource(R.string.garage_spec_total_distance, ImperialUnits.kmToMiles(totalDistanceKm)),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
@@ -660,7 +661,7 @@ private fun GarageComponentCard(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = stringResource(R.string.bike_stat_km, component.distanceUsedKm),
+                    text = stringResource(R.string.bike_stat_km, ImperialUnits.kmToMiles(component.distanceUsedKm)),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -754,7 +755,7 @@ private fun BikeCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = stringResource(R.string.bike_stat_km, bike.totalDistanceKm),
+                    text = stringResource(R.string.bike_stat_km, ImperialUnits.kmToMiles(bike.totalDistanceKm)),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -764,7 +765,7 @@ private fun BikeCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = stringResource(R.string.bike_stat_kmh, bike.avgSpeedKmh),
+                    text = stringResource(R.string.bike_stat_kmh, ImperialUnits.kmhToMph(bike.avgSpeedKmh)),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

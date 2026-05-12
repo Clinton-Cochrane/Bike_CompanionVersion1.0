@@ -145,4 +145,171 @@ class RideRepositoryTotalsTest {
         coVerify(exactly = 0) { componentDao.getComponentsByBikeIdOnce(any()) }
         coVerify(exactly = 0) { componentDao.update(any()) }
     }
+
+    @Test
+    fun deleteRidesAndRevertAggregates_revertsBikeAndUsesRemainingMaxEndedAtAndMaxSpeed() = runBlocking {
+        val bikeId = 1L
+        val ride = RideEntity(
+            id = 5L,
+            bikeId = bikeId,
+            distanceKm = 5.0,
+            durationMs = 3600_000,
+            maxSpeedKmh = 40.0,
+            startedAt = 1000L,
+            endedAt = 9_000L,
+        )
+        val bike = BikeEntity(
+            id = bikeId,
+            name = "Test Bike",
+            totalDistanceKm = 15.0,
+            totalTimeSeconds = 4800L,
+            lastRideAt = 9_000L,
+            maxSpeedKmh = 40.0,
+            createdAt = 0L,
+        )
+        val component = ComponentEntity(
+            id = 1L,
+            bikeId = bikeId,
+            type = "chain",
+            name = "Chain",
+            lifespanKm = 3000.0,
+            distanceUsedKm = 15.0,
+            totalTimeSeconds = 4800L,
+            maxSpeedKmh = 40.0,
+            maxSpeedBikeId = bikeId,
+            installedAt = 0L,
+        )
+
+        coEvery { bikeDao.getBikeById(bikeId) } returns bike
+        coEvery { rideDao.getMaxEndedAtExcluding(bikeId, listOf(5L)) } returns 2000L
+        coEvery { rideDao.getMaxMaxSpeedKmhExcluding(bikeId, listOf(5L)) } returns 25.0
+        coEvery { bikeDao.update(any()) } coAnswers { }
+        coEvery { componentDao.getComponentsByBikeIdOnce(bikeId) } returns listOf(component)
+        coEvery { componentDao.update(any()) } coAnswers { }
+        coEvery { rideDao.deleteById(5L) } coAnswers { }
+
+        repository.deleteRidesAndRevertAggregates(listOf(ride))
+
+        coVerify {
+            bikeDao.update(
+                match { b ->
+                    b.totalDistanceKm == 10.0 &&
+                        b.totalTimeSeconds == 1200L &&
+                        b.lastRideAt == 2000L &&
+                        b.maxSpeedKmh == 25.0
+                },
+            )
+        }
+        coVerify {
+            componentDao.update(
+                match { c ->
+                    c.distanceUsedKm == 10.0 &&
+                        c.totalTimeSeconds == 1200L &&
+                        c.maxSpeedKmh == 25.0 &&
+                        c.maxSpeedBikeId == bikeId
+                },
+            )
+        }
+        coVerify(exactly = 1) { rideDao.deleteById(5L) }
+        coVerify(exactly = 1) { componentAlertNotifier.notifyIfNeeded(bikeId) }
+    }
+
+    @Test
+    fun deleteRidesAndRevertAggregates_nullBikeId_onlyDeletesRideRow() = runBlocking {
+        val ride = RideEntity(
+            id = 99L,
+            bikeId = null,
+            distanceKm = 5.0,
+            durationMs = 3600_000,
+            startedAt = 0L,
+            endedAt = 1L,
+        )
+        coEvery { rideDao.deleteById(99L) } coAnswers { }
+
+        repository.deleteRidesAndRevertAggregates(listOf(ride))
+
+        coVerify(exactly = 1) { rideDao.deleteById(99L) }
+        coVerify(exactly = 0) { bikeDao.getBikeById(any()) }
+        coVerify(exactly = 0) { bikeDao.update(any()) }
+        coVerify(exactly = 0) { componentDao.getComponentsByBikeIdOnce(any()) }
+    }
+
+    @Test
+    fun deleteRidesAndRevertAggregates_batchSameBike_subtractsCombinedSumsOnce() = runBlocking {
+        val bikeId = 2L
+        val r1 = RideEntity(
+            id = 1L,
+            bikeId = bikeId,
+            distanceKm = 3.0,
+            durationMs = 600_000,
+            maxSpeedKmh = 30.0,
+            startedAt = 0L,
+            endedAt = 100L,
+        )
+        val r2 = RideEntity(
+            id = 2L,
+            bikeId = bikeId,
+            distanceKm = 7.0,
+            durationMs = 300_000,
+            maxSpeedKmh = 35.0,
+            startedAt = 0L,
+            endedAt = 200L,
+        )
+        val bike = BikeEntity(
+            id = bikeId,
+            name = "B",
+            totalDistanceKm = 20.0,
+            totalTimeSeconds = 1500L,
+            lastRideAt = 200L,
+            maxSpeedKmh = 35.0,
+            createdAt = 0L,
+        )
+        val component = ComponentEntity(
+            id = 10L,
+            bikeId = bikeId,
+            type = "tires",
+            name = "Tires",
+            lifespanKm = 4000.0,
+            distanceUsedKm = 20.0,
+            totalTimeSeconds = 1500L,
+            maxSpeedKmh = 35.0,
+            maxSpeedBikeId = bikeId,
+            installedAt = 0L,
+        )
+
+        coEvery { bikeDao.getBikeById(bikeId) } returns bike
+        coEvery { rideDao.getMaxEndedAtExcluding(bikeId, listOf(1L, 2L)) } returns null
+        coEvery { rideDao.getMaxMaxSpeedKmhExcluding(bikeId, listOf(1L, 2L)) } returns null
+        coEvery { bikeDao.update(any()) } coAnswers { }
+        coEvery { componentDao.getComponentsByBikeIdOnce(bikeId) } returns listOf(component)
+        coEvery { componentDao.update(any()) } coAnswers { }
+        coEvery { rideDao.deleteById(any()) } coAnswers { }
+
+        repository.deleteRidesAndRevertAggregates(listOf(r1, r2))
+
+        // 600s + 300s = 900s; 3 + 7 = 10 km
+        coVerify {
+            bikeDao.update(
+                match { b ->
+                    b.totalDistanceKm == 10.0 &&
+                        b.totalTimeSeconds == 600L &&
+                        b.lastRideAt == null &&
+                        b.maxSpeedKmh == 0.0
+                },
+            )
+        }
+        coVerify {
+            componentDao.update(
+                match { c ->
+                    c.distanceUsedKm == 10.0 &&
+                        c.totalTimeSeconds == 600L &&
+                        c.maxSpeedKmh == 0.0 &&
+                        c.maxSpeedBikeId == null
+                },
+            )
+        }
+        coVerify(exactly = 1) { rideDao.deleteById(1L) }
+        coVerify(exactly = 1) { rideDao.deleteById(2L) }
+        coVerify(exactly = 1) { componentAlertNotifier.notifyIfNeeded(bikeId) }
+    }
 }

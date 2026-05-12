@@ -9,6 +9,7 @@ import com.you.bikecompanion.data.component.ComponentRepository
 import com.you.bikecompanion.data.preferences.SecurePreferencesRepository
 import com.you.bikecompanion.di.IoDispatcher
 import com.you.bikecompanion.util.DisplayFormatHelper
+import com.you.bikecompanion.util.ImperialUnits
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -105,7 +106,7 @@ class AiViewModel @Inject constructor(
         val bikeNamesById = bikes.associate { it.id to it.name }
         val bikesSection = "Bikes:\n" + bikes.joinToString("\n") { bike ->
             val comps = byBike[bike.id].orEmpty()
-            val bikeLine = "${bike.name}: ${bike.totalDistanceKm.toInt()} km total"
+            val bikeLine = "${bike.name}: ${ImperialUnits.kmToMiles(bike.totalDistanceKm).toInt()} mi total"
             if (comps.isEmpty()) bikeLine
             else bikeLine + "\n  " + comps.joinToString("; ") { c ->
                 val health = componentHealthPercent(c)

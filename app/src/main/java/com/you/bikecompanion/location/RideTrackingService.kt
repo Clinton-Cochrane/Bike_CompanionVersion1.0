@@ -19,6 +19,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.you.bikecompanion.R
+import com.you.bikecompanion.util.ImperialUnits
 import com.you.bikecompanion.ui.ride.ActiveRideActivity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -223,7 +224,7 @@ class RideTrackingService : Service() {
             createActionIntent(ACTION_PAUSE, getString(R.string.ride_pause))
         }
         val stopAction = createActionIntent(ACTION_STOP, getString(R.string.ride_stop))
-        val distanceText = "%.2f km".format(state.distanceKm)
+        val distanceText = "%.2f mi".format(ImperialUnits.kmToMiles(state.distanceKm))
         val statusText = if (isPaused) getString(R.string.ride_paused) else getString(R.string.ride_active_title)
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.app_name))

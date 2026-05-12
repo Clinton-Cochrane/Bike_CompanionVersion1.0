@@ -24,7 +24,7 @@ class RideRepository @Inject constructor(
      * distanceUsedKm and totalTimeSeconds. Call this after a ride ends (in-app or imported).
      *
      * Aggregation strategy: Option B (denormalized). Totals are stored on bike/components
-     * and incremented on trip completion for fast reads. See TRIP_TIME_TRACKING.md.
+     * and incremented on trip completion for fast reads. Reverted by [deleteRidesAndRevertAggregates].
      */
     suspend fun saveRideAndUpdateBikeAndComponents(ride: RideEntity) {
         val id = rideDao.insert(ride)
@@ -85,5 +85,105 @@ class RideRepository @Inject constructor(
 
     suspend fun insertRide(ride: RideEntity): Long = rideDao.insert(ride)
 
-    suspend fun deleteRide(ride: RideEntity) = rideDao.deleteById(ride.id)
+    /**
+     * Deletes [ride] and reverts denormalized totals on the bike, its components, and service intervals
+     * (mirror of [saveRideAndUpdateBikeAndComponents]).
+     */
+    suspend fun deleteRide(ride: RideEntity) {
+        deleteRidesAndRevertAggregates(listOf(ride))
+    }
+
+    /**
+     * Deletes rides and reverts denormalized roll-ups. Rides with null [RideEntity.bikeId] are only removed
+     * from the rides table. Grouped by bike so max speed / last ride date reflect remaining rows.
+     *
+     * Steps run sequentially (not in a single DB transaction) to keep JVM unit tests simple; callers
+     * should invoke from a coroutine scope off the main thread.
+     */
+    suspend fun deleteRidesAndRevertAggregates(rides: List<RideEntity>) {
+        val unique = rides.distinctBy { it.id }
+        if (unique.isEmpty()) return
+
+        unique.filter { it.bikeId == null }.forEach { ride ->
+            rideDao.deleteById(ride.id)
+        }
+
+        val byBike = unique.filter { it.bikeId != null }.groupBy { it.bikeId!! }
+        for ((bikeId, toRemove) in byBike) {
+            val excludeIds = toRemove.map { it.id }
+            val sumDistanceKm = toRemove.sumOf { it.distanceKm }
+            val sumDurationSeconds = toRemove.sumOf { (it.durationMs / 1000).coerceAtLeast(0L) }
+            val sumElevGainM = toRemove.sumOf { it.elevGainM }
+            val sumElevLossM = toRemove.sumOf { it.elevLossM }
+
+            val bike = bikeDao.getBikeById(bikeId)
+            if (bike == null) {
+                toRemove.forEach { rideDao.deleteById(it.id) }
+                continue
+            }
+
+            val maxEndedAtRemaining = rideDao.getMaxEndedAtExcluding(bikeId, excludeIds)
+            val maxSpeedRemaining = rideDao.getMaxMaxSpeedKmhExcluding(bikeId, excludeIds)?.coerceAtLeast(0.0) ?: 0.0
+
+            val newDistanceKm = (bike.totalDistanceKm - sumDistanceKm).coerceAtLeast(0.0)
+            val newTimeSeconds = (bike.totalTimeSeconds - sumDurationSeconds).coerceAtLeast(0L)
+            val newAvgSpeedKmh = if (newTimeSeconds > 0) {
+                newDistanceKm / (newTimeSeconds / 3600.0)
+            } else {
+                0.0
+            }
+
+            bikeDao.update(
+                bike.copy(
+                    totalDistanceKm = newDistanceKm,
+                    totalTimeSeconds = newTimeSeconds,
+                    lastRideAt = maxEndedAtRemaining,
+                    avgSpeedKmh = newAvgSpeedKmh,
+                    maxSpeedKmh = maxSpeedRemaining,
+                    totalElevGainM = (bike.totalElevGainM - sumElevGainM).coerceAtLeast(0.0),
+                    totalElevLossM = (bike.totalElevLossM - sumElevLossM).coerceAtLeast(0.0),
+                ),
+            )
+
+            val components = componentDao.getComponentsByBikeIdOnce(bikeId)
+            val compMaxSpeedBikeId = if (maxSpeedRemaining > 0.0) bikeId else null
+            components.forEach { comp ->
+                val compNewDistance = (comp.distanceUsedKm - sumDistanceKm).coerceAtLeast(0.0)
+                val compNewTime = (comp.totalTimeSeconds - sumDurationSeconds).coerceAtLeast(0L)
+                val compNewAvg = if (compNewTime > 0) {
+                    compNewDistance / (compNewTime / 3600.0)
+                } else {
+                    0.0
+                }
+                componentDao.update(
+                    comp.copy(
+                        distanceUsedKm = compNewDistance,
+                        totalTimeSeconds = compNewTime,
+                        avgSpeedKmh = compNewAvg,
+                        maxSpeedKmh = maxSpeedRemaining,
+                        maxSpeedBikeId = compMaxSpeedBikeId,
+                    ),
+                )
+                serviceIntervalDao.getIntervalsByComponentIdOnce(comp.id).forEach { interval ->
+                    val newTrackedKm = (interval.trackedKm - sumDistanceKm).coerceAtLeast(0.0)
+                    val newTrackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
+                        ((interval.trackedTimeSeconds ?: 0L) - sumDurationSeconds).coerceAtLeast(0L)
+                    } else {
+                        interval.trackedTimeSeconds
+                    }
+                    serviceIntervalDao.update(
+                        interval.copy(
+                            trackedKm = newTrackedKm,
+                            trackedTimeSeconds = newTrackedTimeSeconds,
+                        ),
+                    )
+                }
+            }
+
+            toRemove.forEach { ride ->
+                rideDao.deleteById(ride.id)
+            }
+            componentAlertNotifier.notifyIfNeeded(bikeId)
+        }
+    }
 }

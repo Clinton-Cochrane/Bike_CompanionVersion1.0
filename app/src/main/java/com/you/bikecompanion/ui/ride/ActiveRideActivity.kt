@@ -58,6 +58,8 @@ import com.you.bikecompanion.data.ride.RideSource
 import com.you.bikecompanion.location.RideState
 import com.you.bikecompanion.location.RideTrackingService
 import com.you.bikecompanion.ui.theme.BikeCompanionTheme
+import com.you.bikecompanion.util.ImperialUnits
+import com.you.bikecompanion.util.RideDisplayHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -250,7 +252,7 @@ private fun ActiveRideScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                text = stringResource(R.string.ride_distance, state.distanceKm),
+                text = stringResource(R.string.ride_distance, ImperialUnits.kmToMiles(state.distanceKm)),
                 style = MaterialTheme.typography.headlineMedium,
             )
             // key(tick) forces recomposition every second when active; when paused, elapsedMovingMs is static
@@ -264,15 +266,15 @@ private fun ActiveRideScreen(
                 )
             }
             Text(
-                text = stringResource(R.string.ride_speed_current, state.currentSpeedKmh),
+                text = stringResource(R.string.ride_speed_current, ImperialUnits.kmhToMph(state.currentSpeedKmh)),
                 style = MaterialTheme.typography.bodyLarge,
             )
             Text(
-                text = stringResource(R.string.ride_speed_avg, state.avgSpeedKmh),
+                text = stringResource(R.string.ride_speed_avg, ImperialUnits.kmhToMph(state.avgSpeedKmh)),
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                text = stringResource(R.string.ride_speed_max, "%.1f km/h".format(state.maxSpeedKmh)),
+                text = stringResource(R.string.ride_speed_max, "%.1f mph".format(ImperialUnits.kmhToMph(state.maxSpeedKmh))),
                 style = MaterialTheme.typography.bodyMedium,
             )
             Row(
@@ -290,8 +292,14 @@ private fun ActiveRideScreen(
                     elevNet < 0 -> MaterialTheme.colorScheme.error
                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                 }
+                val elevUnavailable = stringResource(R.string.ride_stat_unavailable)
                 Text(
-                    text = "+%.0f / -%.0f m".format(state.elevGainM, state.elevLossM),
+                    text = RideDisplayHelper.formatElevationGainLoss(
+                        state.elevGainM,
+                        state.elevLossM,
+                        RideSource.APP,
+                        elevUnavailable,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = elevColor,
                 )

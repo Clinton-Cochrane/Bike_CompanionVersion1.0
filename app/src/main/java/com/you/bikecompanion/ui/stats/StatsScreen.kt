@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.you.bikecompanion.R
+import com.you.bikecompanion.util.ImperialUnits
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -121,7 +122,7 @@ private fun StatsCard(
             )
             if (stats != null) {
                 Text(
-                    stringResource(R.string.stats_total_distance, stats.totalDistanceKm),
+                    stringResource(R.string.stats_total_distance, ImperialUnits.kmToMiles(stats.totalDistanceKm)),
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 Text(
@@ -129,15 +130,15 @@ private fun StatsCard(
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
-                    stringResource(R.string.stats_avg_distance, stats.avgDistanceKm),
+                    stringResource(R.string.stats_avg_distance, ImperialUnits.kmToMiles(stats.avgDistanceKm)),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
-                    stringResource(R.string.stats_avg_speed, stats.avgSpeedKmh),
+                    stringResource(R.string.stats_avg_speed, ImperialUnits.kmhToMph(stats.avgSpeedKmh)),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
-                    stringResource(R.string.stats_elevation_gain, stats.totalElevGainM),
+                    stringResource(R.string.stats_elevation_gain, ImperialUnits.metersToFeet(stats.totalElevGainM)),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             } else {

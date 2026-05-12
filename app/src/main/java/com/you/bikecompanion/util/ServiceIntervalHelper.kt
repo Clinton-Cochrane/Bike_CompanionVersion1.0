@@ -9,19 +9,22 @@ import com.you.bikecompanion.data.component.ServiceIntervalEntity
 object ServiceIntervalHelper {
 
     data class IntervalDescription(
+        /** Remaining / total distance in miles (domain still uses km). */
         val kmText: String?,
         val timeText: String?,
     )
 
     /**
-     * Builds display description parts for an interval (km and/or time).
-     * - kmText: e.g. "180km of 250km left"
+     * Builds display description parts for an interval (distance in mi and/or time).
+     * - kmText: e.g. "112 mi of 155 mi left"
      * - timeText: e.g. "2w" (remaining time, human-readable)
      */
     fun description(interval: ServiceIntervalEntity): IntervalDescription {
         val kmText = if (interval.intervalKm > 0) {
-            val remaining = (interval.intervalKm - interval.trackedKm).coerceAtLeast(0.0)
-            "${remaining.toInt()}km of ${interval.intervalKm.toInt()}km left"
+            val remainingKm = (interval.intervalKm - interval.trackedKm).coerceAtLeast(0.0)
+            val remainingMi = ImperialUnits.kmToMiles(remainingKm)
+            val intervalMi = ImperialUnits.kmToMiles(interval.intervalKm)
+            "${remainingMi.toInt()} mi of ${intervalMi.toInt()} mi left"
         } else null
         val timeText = if (interval.intervalTimeSeconds != null && interval.intervalTimeSeconds > 0) {
             val tracked = interval.trackedTimeSeconds ?: 0L

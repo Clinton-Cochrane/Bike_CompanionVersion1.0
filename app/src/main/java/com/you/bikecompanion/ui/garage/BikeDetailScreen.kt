@@ -1,9 +1,12 @@
 package com.you.bikecompanion.ui.garage
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
@@ -28,6 +32,9 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Error
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -77,6 +84,7 @@ import com.you.bikecompanion.data.component.ComponentContext
 import com.you.bikecompanion.data.component.ComponentEntity
 import com.you.bikecompanion.util.DisplayFormatHelper
 import com.you.bikecompanion.util.RideDisplayHelper
+import com.you.bikecompanion.util.ImperialUnits
 import com.you.bikecompanion.util.componentTypeIcon
 import com.you.bikecompanion.data.component.DefaultComponentTypes
 import com.you.bikecompanion.util.ComponentSortOrder
@@ -113,6 +121,42 @@ fun BikeDetailScreen(
     val context = LocalContext.current
     val backContentDesc = stringResource(R.string.common_back_content_description)
     val editContentDesc = stringResource(R.string.common_edit)
+    var showDeleteRidesConfirm by remember { mutableStateOf(false) }
+    val selectionCloseDesc = stringResource(R.string.trip_ride_selection_close_content_description)
+    val deleteSelectedDesc = stringResource(R.string.trip_delete_selected_content_description)
+
+    BackHandler(enabled = uiState.rideSelectionMode) {
+        viewModel.clearRideSelection()
+    }
+
+    if (showDeleteRidesConfirm && uiState.selectedRideIds.isNotEmpty()) {
+        val deleteCount = uiState.selectedRideIds.size
+        AlertDialog(
+            onDismissRequest = { showDeleteRidesConfirm = false },
+            title = { Text(stringResource(R.string.trip_delete_rides_confirm_title)) },
+            text = {
+                Text(
+                    stringResource(R.plurals.trip_delete_rides_confirm_message, deleteCount, deleteCount),
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteRidesConfirm = false
+                        viewModel.deleteSelectedRides()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                ) {
+                    Text(stringResource(R.string.trip_delete_selected))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteRidesConfirm = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
+    }
 
     if (showAddComponentDialog) {
         AlertDialog(
@@ -133,7 +177,7 @@ fun BikeDetailScreen(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
-                                "${suggested.displayName} — ${stringResource(R.string.component_lifespan_km, suggested.defaultLifespanKm)}",
+                                "${suggested.displayName} — ${stringResource(R.string.component_lifespan_km, ImperialUnits.kmToMiles(suggested.defaultLifespanKm))}",
                             )
                         }
                     }
@@ -273,17 +317,56 @@ fun BikeDetailScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(uiState.bike?.name ?: stringResource(R.string.garage_title)) },
+                title = {
+                    if (uiState.rideSelectionMode) {
+                        Text(
+                            stringResource(
+                                R.plurals.trip_ride_selection_count,
+                                uiState.selectedRideIds.size,
+                                uiState.selectedRideIds.size,
+                            ),
+                        )
+                    } else {
+                        Text(uiState.bike?.name ?: stringResource(R.string.garage_title))
+                    }
+                },
                 navigationIcon = {
                     IconButton(
-                        onClick = { navController.navigateUp() },
-                        modifier = Modifier.semantics { contentDescription = backContentDesc },
+                        onClick = {
+                            if (uiState.rideSelectionMode) {
+                                viewModel.clearRideSelection()
+                            } else {
+                                navController.navigateUp()
+                            }
+                        },
+                        modifier = Modifier.semantics {
+                            contentDescription = if (uiState.rideSelectionMode) {
+                                selectionCloseDesc
+                            } else {
+                                backContentDesc
+                            }
+                        },
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                        Icon(
+                            imageVector = if (uiState.rideSelectionMode) {
+                                Icons.Filled.Close
+                            } else {
+                                Icons.AutoMirrored.Filled.ArrowBack
+                            },
+                            contentDescription = null,
+                        )
                     }
                 },
                 actions = {
-                    if (uiState.bike != null) {
+                    if (uiState.rideSelectionMode) {
+                        TextButton(
+                            onClick = { showDeleteRidesConfirm = true },
+                            enabled = uiState.selectedRideIds.isNotEmpty(),
+                            modifier = Modifier.semantics { contentDescription = deleteSelectedDesc },
+                        ) {
+                            Text(stringResource(R.string.trip_delete_selected))
+                        }
+                    } else if (uiState.bike != null) {
                         IconButton(
                             onClick = { navController.navigate(Screen.EditBike.withId(uiState.bike!!.id)) },
                             modifier = Modifier.semantics { contentDescription = editContentDesc },
@@ -397,14 +480,18 @@ fun BikeDetailScreen(
                                 .padding(top = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
-                            BikeStatChip(label = stringResource(R.string.bike_stat_distance), value = stringResource(R.string.bike_stat_km, bike.totalDistanceKm))
+                            BikeStatChip(label = stringResource(R.string.bike_stat_distance), value = stringResource(R.string.bike_stat_km, ImperialUnits.kmToMiles(bike.totalDistanceKm)))
                             BikeStatChip(label = stringResource(R.string.bike_stat_moving_time), value = DurationFormatHelper.formatDurationBreakdownSeconds(bike.totalTimeSeconds))
-                            BikeStatChip(label = stringResource(R.string.bike_stat_avg_speed), value = stringResource(R.string.bike_stat_kmh, bike.avgSpeedKmh))
-                            BikeStatChip(label = stringResource(R.string.bike_stat_max_speed), value = stringResource(R.string.bike_stat_kmh, bike.maxSpeedKmh))
+                            BikeStatChip(label = stringResource(R.string.bike_stat_avg_speed), value = stringResource(R.string.bike_stat_kmh, ImperialUnits.kmhToMph(bike.avgSpeedKmh)))
+                            BikeStatChip(label = stringResource(R.string.bike_stat_max_speed), value = stringResource(R.string.bike_stat_kmh, ImperialUnits.kmhToMph(bike.maxSpeedKmh)))
                         }
                         if (bike.totalElevGainM > 0 || bike.totalElevLossM > 0) {
                             Text(
-                                stringResource(R.string.bike_stat_elevation, bike.totalElevGainM.toInt(), bike.totalElevLossM.toInt()),
+                                stringResource(
+                                    R.string.bike_stat_elevation,
+                                    ImperialUnits.metersToFeet(bike.totalElevGainM).toInt(),
+                                    ImperialUnits.metersToFeet(bike.totalElevLossM).toInt(),
+                                ),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(top = 8.dp),
@@ -546,6 +633,10 @@ fun BikeDetailScreen(
             items(uiState.rides, key = { "ride_${it.id}" }) { ride ->
                 RideSummaryCard(
                     ride = ride,
+                    rideSelectionMode = uiState.rideSelectionMode,
+                    rideSelected = ride.id in uiState.selectedRideIds,
+                    onEnterRideSelection = { viewModel.enterRideSelection(ride.id) },
+                    onToggleRideSelection = { viewModel.toggleRideSelection(ride.id) },
                     dismissedRideFlagIds = uiState.dismissedRideFlagIds,
                     onEditTrip = { navController.navigate(Screen.EditRide.withId(ride.id)) },
                     onDismissAlert = { viewModel.dismissRideFlag(ride.id) },
@@ -776,7 +867,11 @@ private fun ComponentHealthCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = stringResource(R.string.bike_component_used_km, component.distanceUsedKm, component.lifespanKm),
+                    text = stringResource(
+                        R.string.bike_component_used_km,
+                        ImperialUnits.kmToMiles(component.distanceUsedKm),
+                        ImperialUnits.kmToMiles(component.lifespanKm),
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 LinearProgressIndicator(
@@ -929,6 +1024,10 @@ internal fun ComponentContextEditDialog(
 @Composable
 private fun RideSummaryCard(
     ride: RideEntity,
+    rideSelectionMode: Boolean,
+    rideSelected: Boolean,
+    onEnterRideSelection: () -> Unit,
+    onToggleRideSelection: () -> Unit,
     dismissedRideFlagIds: Set<Long>,
     onEditTrip: () -> Unit,
     onDismissAlert: () -> Unit,
@@ -937,6 +1036,19 @@ private fun RideSummaryCard(
     val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
     val flagReason = RideDisplayHelper.getRideFlagReason(ride)
     var showReviewDialog by remember { mutableStateOf(false) }
+
+    val cardModifier = Modifier
+        .fillMaxWidth()
+        .then(
+            if (rideSelectionMode) {
+                Modifier.clickable(onClick = onToggleRideSelection)
+            } else {
+                Modifier.combinedClickable(
+                    onClick = {},
+                    onLongClick = onEnterRideSelection,
+                )
+            },
+        )
 
     if (showReviewDialog && flagReason != null) {
         RideReviewDialog(
@@ -950,7 +1062,12 @@ private fun RideSummaryCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = cardModifier,
+        border = if (rideSelected) {
+            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            null
+        },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -959,16 +1076,29 @@ private fun RideSummaryCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(dateFormat.format(Date(ride.endedAt)), style = MaterialTheme.typography.labelMedium)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    if (rideSelectionMode) {
+                        Checkbox(
+                            checked = rideSelected,
+                            onCheckedChange = { onToggleRideSelection() },
+                        )
+                    }
+                    Text(dateFormat.format(Date(ride.endedAt)), style = MaterialTheme.typography.labelMedium)
+                }
                 if (RideDisplayHelper.shouldShowReviewChip(ride, dismissedRideFlagIds)) {
                     FilterChip(
+                        enabled = !rideSelectionMode,
                         selected = false,
                         onClick = { showReviewDialog = true },
                         label = { Text(stringResource(R.string.ride_review)) },
                     )
                 }
             }
-            Text(stringResource(R.string.trip_ride_distance, ride.distanceKm), style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.trip_ride_distance, ImperialUnits.kmToMiles(ride.distanceKm)), style = MaterialTheme.typography.bodyLarge)
             Text(
                 stringResource(
                     R.string.trip_ride_duration,

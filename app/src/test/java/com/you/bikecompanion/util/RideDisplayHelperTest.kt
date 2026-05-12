@@ -13,7 +13,7 @@ class RideDisplayHelperTest {
 
     @Test
     fun formatMaxSpeedKmh_appRideWithValue_formatsCorrectly() {
-        assertEquals("42.5 km/h", RideDisplayHelper.formatMaxSpeedKmh(42.5, RideSource.APP, unavailable))
+        assertEquals("26.4 mph", RideDisplayHelper.formatMaxSpeedKmh(42.5, RideSource.APP, unavailable))
     }
 
     @Test
@@ -28,7 +28,7 @@ class RideDisplayHelperTest {
 
     @Test
     fun formatMaxSpeedKmh_appRideWithZero_returnsFormattedZero() {
-        assertEquals("0.0 km/h", RideDisplayHelper.formatMaxSpeedKmh(0.0, RideSource.APP, unavailable))
+        assertEquals("0.0 mph", RideDisplayHelper.formatMaxSpeedKmh(0.0, RideSource.APP, unavailable))
     }
 
     @Test
@@ -38,12 +38,12 @@ class RideDisplayHelperTest {
 
     @Test
     fun formatElevationM_appRideWithValue_formatsCorrectly() {
-        assertEquals("150 m", RideDisplayHelper.formatElevationM(150.0, RideSource.APP, unavailable))
+        assertEquals("492 ft", RideDisplayHelper.formatElevationM(150.0, RideSource.APP, unavailable))
     }
 
     @Test
     fun formatElevationGainLoss_available_formatsGainMinusLoss() {
-        assertEquals("+150 / -120 m", RideDisplayHelper.formatElevationGainLoss(150.0, 120.0, RideSource.APP, unavailable))
+        assertEquals("+492 / -394 ft", RideDisplayHelper.formatElevationGainLoss(150.0, 120.0, RideSource.APP, unavailable))
     }
 
     @Test
