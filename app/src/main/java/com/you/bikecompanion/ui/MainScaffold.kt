@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -97,7 +98,9 @@ fun MainScaffold(modifier: Modifier = Modifier) {
     androidx.compose.material3.Scaffold(
         modifier = modifier,
         bottomBar = {
-            NavigationBar {
+            NavigationBar(
+                contentColor = Color.White,
+            ) {
                 bottomNavItems.forEach { (screen, pair) ->
                     val (icon, labelRes) = pair
                     val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
@@ -118,7 +121,13 @@ fun MainScaffold(modifier: Modifier = Modifier) {
                             }
                         },
                         colors = NavigationBarItemDefaults.colors(
-                            indicatorColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
+                            selectedIconColor = Color.White,
+                            selectedTextColor = Color.White,
+                            unselectedIconColor = Color.White.copy(alpha = 0.72f),
+                            unselectedTextColor = Color.White.copy(alpha = 0.72f),
+                            disabledIconColor = Color.White.copy(alpha = 0.38f),
+                            disabledTextColor = Color.White.copy(alpha = 0.38f),
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
                         ),
                     )
                 }
