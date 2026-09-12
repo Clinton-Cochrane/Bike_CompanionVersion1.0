@@ -25,6 +25,7 @@ class RideRepositoryTotalsTest {
     private lateinit var componentDao: ComponentDao
     private lateinit var serviceIntervalDao: ServiceIntervalDao
     private lateinit var componentAlertNotifier: ComponentAlertNotifier
+    private lateinit var ridePersistenceTransaction: RidePersistenceTransaction
     private lateinit var repository: RideRepository
 
     @Before
@@ -35,7 +36,18 @@ class RideRepositoryTotalsTest {
         serviceIntervalDao = mockk(relaxed = true)
         coEvery { serviceIntervalDao.getIntervalsByComponentIdOnce(any()) } returns emptyList()
         componentAlertNotifier = mockk(relaxed = true)
-        repository = RideRepository(rideDao, bikeDao, componentDao, serviceIntervalDao, componentAlertNotifier)
+        ridePersistenceTransaction = mockk()
+        coEvery { ridePersistenceTransaction.run(any()) } coAnswers {
+            firstArg<suspend () -> Long?>().invoke()
+        }
+        repository = RideRepository(
+            rideDao,
+            bikeDao,
+            componentDao,
+            serviceIntervalDao,
+            componentAlertNotifier,
+            ridePersistenceTransaction,
+        )
     }
 
     @Test
