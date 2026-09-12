@@ -11,6 +11,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -92,6 +93,7 @@ class RideRepositoryTotalsTest {
                     updatedBike.totalDistanceKm == bike.totalDistanceKm + 5.0
             })
         }
+        coVerify(exactly = 1) { componentAlertNotifier.notifyIfNeeded(bikeId) }
     }
 
     @Test
@@ -190,5 +192,26 @@ class RideRepositoryTotalsTest {
         coVerify(exactly = 0) { bikeDao.update(any()) }
         coVerify(exactly = 0) { componentDao.getComponentsByBikeIdOnce(any()) }
         coVerify(exactly = 0) { componentDao.update(any()) }
+        coVerify(exactly = 0) { componentAlertNotifier.notifyIfNeeded(any()) }
+    }
+
+    @Test
+    fun saveRideAndUpdateBikeAndComponents_transactionFailure_doesNotUpdateOrNotify() = runBlocking {
+        val ride = RideEntity(
+            bikeId = 1L,
+            distanceKm = 5.0,
+            durationMs = 3600_000,
+            startedAt = 1000L,
+            endedAt = 3_601_000L,
+        )
+        coEvery { ridePersistenceTransaction.run(any()) } throws RuntimeException("forced rollback")
+
+        val result = runCatching { repository.saveRideAndUpdateBikeAndComponents(ride) }
+
+        assertTrue(result.isFailure)
+        coVerify(exactly = 0) { rideDao.insert(any()) }
+        coVerify(exactly = 0) { bikeDao.update(any()) }
+        coVerify(exactly = 0) { componentDao.update(any()) }
+        coVerify(exactly = 0) { componentAlertNotifier.notifyIfNeeded(any()) }
     }
 }

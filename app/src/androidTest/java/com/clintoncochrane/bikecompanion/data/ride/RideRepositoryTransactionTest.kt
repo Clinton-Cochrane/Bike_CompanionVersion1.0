@@ -90,8 +90,17 @@ class RideRepositoryTransactionTest {
         assertEquals(1, rides.size)
         assertEquals(15.0, bike.totalDistanceKm, 0.0)
         assertEquals(4_200L, bike.totalTimeSeconds)
+        assertEquals(3_601_000L, bike.lastRideAt)
+        val expectedAvgSpeed = 15.0 / (4_200.0 / 3600.0)
+        assertEquals(expectedAvgSpeed, bike.avgSpeedKmh, 1e-9)
+        assertEquals(30.0, bike.maxSpeedKmh, 0.0)
+        assertEquals(100.0, bike.totalElevGainM, 0.0)
+        assertEquals(90.0, bike.totalElevLossM, 0.0)
         assertEquals(15.0, component.distanceUsedKm, 0.0)
         assertEquals(4_200L, component.totalTimeSeconds)
+        assertEquals(expectedAvgSpeed, component.avgSpeedKmh, 1e-9)
+        assertEquals(30.0, component.maxSpeedKmh, 0.0)
+        assertEquals(bikeId, component.maxSpeedBikeId)
         assertEquals(15.0, interval.trackedKm, 0.0)
         assertEquals(4_200L, interval.trackedTimeSeconds)
     }
@@ -113,6 +122,39 @@ class RideRepositoryTransactionTest {
         }
 
         assertTrue("The forced service-interval failure must escape the save operation", result.isFailure)
+        val rides = database.rideDao().getAllRides().first()
+        val bike = requireNotNull(database.bikeDao().getBikeById(bikeId))
+        val component = requireNotNull(database.componentDao().getComponentById(componentId))
+        val interval = database.serviceIntervalDao()
+            .getIntervalsByComponentIdOnce(componentId)
+            .single { it.id == intervalId }
+
+        assertTrue(rides.isEmpty())
+        assertEquals(10.0, bike.totalDistanceKm, 0.0)
+        assertEquals(600L, bike.totalTimeSeconds)
+        assertEquals(10.0, component.distanceUsedKm, 0.0)
+        assertEquals(600L, component.totalTimeSeconds)
+        assertEquals(10.0, interval.trackedKm, 0.0)
+        assertEquals(600L, interval.trackedTimeSeconds)
+    }
+
+    @Test
+    fun saveRideAndUpdateBikeAndComponents_bikeUpdateFails_rollsBackEveryUpdate() = runBlocking {
+        database.openHelper.writableDatabase.execSQL(
+            """
+            CREATE TRIGGER force_bike_update_failure
+            BEFORE UPDATE ON bikes
+            BEGIN
+                SELECT RAISE(ABORT, 'forced bike update failure');
+            END
+            """.trimIndent(),
+        )
+
+        val result = runCatching {
+            repository.saveRideAndUpdateBikeAndComponents(testRide())
+        }
+
+        assertTrue("The forced bike-update failure must escape the save operation", result.isFailure)
         val rides = database.rideDao().getAllRides().first()
         val bike = requireNotNull(database.bikeDao().getBikeById(bikeId))
         val component = requireNotNull(database.componentDao().getComponentById(componentId))
