@@ -64,6 +64,7 @@ class RideTrackingService : Service() {
     private var lastMovementTimeMs: Long = 0L
     private lateinit var serviceScope: CoroutineScope
     private val checkpointMutex = Mutex()
+    @Volatile
     private var terminalActionInProgress = false
     private val noMovementCheckHandler = Handler(Looper.getMainLooper())
     private val noMovementCheckRunnable = object : Runnable {
