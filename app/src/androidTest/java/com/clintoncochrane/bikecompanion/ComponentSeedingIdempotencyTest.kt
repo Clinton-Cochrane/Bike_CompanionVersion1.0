@@ -7,6 +7,7 @@ import com.clintoncochrane.bikecompanion.data.BikeCompanionDatabase
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
 import com.clintoncochrane.bikecompanion.data.component.DefaultSeedComponents
+import com.clintoncochrane.bikecompanion.data.image.ImageRepository
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -35,6 +36,7 @@ class ComponentSeedingIdempotencyTest {
             db.serviceIntervalDao(),
             db.componentSwapDao(),
             db.bikeDao(),
+            ImageRepository(context.cacheDir.resolve("component-seeding-images")) { null },
         )
     }
 

@@ -13,6 +13,7 @@ class RideRepository @Inject constructor(
     private val componentDao: com.clintoncochrane.bikecompanion.data.component.ComponentDao,
     private val serviceIntervalDao: com.clintoncochrane.bikecompanion.data.component.ServiceIntervalDao,
     private val componentAlertNotifier: ComponentAlertNotifier,
+    private val ridePersistenceTransaction: RidePersistenceTransaction,
 ) {
     fun getAllRides(): Flow<List<RideEntity>> = rideDao.getAllRides()
 
@@ -69,20 +70,40 @@ class RideRepository @Inject constructor(
                     maxSpeedBikeId = compNewMaxSpeedBikeId,
                 ),
             )
-            serviceIntervalDao.getIntervalsByComponentIdOnce(comp.id).forEach { interval ->
-                serviceIntervalDao.update(
-                    interval.copy(
-                        trackedKm = interval.trackedKm + savedRide.distanceKm,
-                        trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
-                            (interval.trackedTimeSeconds ?: 0L) + durationSeconds
-                        } else {
-                            interval.trackedTimeSeconds
-                        },
+            val components = componentDao.getComponentsByBikeIdOnce(bikeId)
+            components.forEach { comp ->
+                val compNewDistance = comp.distanceUsedKm + savedRide.distanceKm
+                val compNewTime = comp.totalTimeSeconds + durationSeconds
+                val compNewAvgSpeed = if (compNewTime > 0) {
+                    compNewDistance / (compNewTime / 3600.0)
+                } else comp.avgSpeedKmh
+                val compNewMaxSpeed = maxOf(comp.maxSpeedKmh, savedRide.maxSpeedKmh)
+                val compNewMaxSpeedBikeId = if (savedRide.maxSpeedKmh >= comp.maxSpeedKmh) bikeId else comp.maxSpeedBikeId
+                componentDao.update(
+                    comp.copy(
+                        distanceUsedKm = compNewDistance,
+                        totalTimeSeconds = compNewTime,
+                        avgSpeedKmh = compNewAvgSpeed,
+                        maxSpeedKmh = compNewMaxSpeed,
+                        maxSpeedBikeId = compNewMaxSpeedBikeId,
                     ),
                 )
+                serviceIntervalDao.getIntervalsByComponentIdOnce(comp.id).forEach { interval ->
+                    serviceIntervalDao.update(
+                        interval.copy(
+                            trackedKm = interval.trackedKm + savedRide.distanceKm,
+                            trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
+                                (interval.trackedTimeSeconds ?: 0L) + durationSeconds
+                            } else {
+                                interval.trackedTimeSeconds
+                            },
+                        ),
+                    )
+                }
             }
+            bikeId
         }
-        componentAlertNotifier.notifyIfNeeded(bikeId)
+        bikeIdForNotification?.let { componentAlertNotifier.notifyIfNeeded(it) }
     }
 
     suspend fun insertRide(ride: RideEntity): Long = rideDao.insert(ride)
