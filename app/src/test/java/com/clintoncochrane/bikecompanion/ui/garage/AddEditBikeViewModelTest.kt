@@ -178,6 +178,73 @@ class AddEditBikeViewModelTest {
     }
 
     @Test
+    fun saveBike_editBaselineWithNewImage_preservesBaselineAndSetsThumbnail() = runTest(testDispatcher) {
+        val bike = BikeEntity(
+            id = 1L,
+            name = "Test",
+            baselineDistanceKm = 1_000.0,
+            totalDistanceKm = 1_075.0,
+            createdAt = 1000L,
+        )
+        coEvery { bikeRepository.getBikeById(1L) } returns bike
+        coEvery { bikeRepository.updateBike(any()) } coAnswers { }
+        coEvery { imageRepository.saveBikeImage(1L, any()) } returns "/new/path.jpg"
+        viewModel = AddEditBikeViewModel(
+            SavedStateHandle(mapOf("bikeId" to "1")),
+            bikeRepository,
+            componentRepository,
+            imageRepository,
+        )
+        advanceUntilIdle()
+        viewModel.setPickedImageUri(testUri())
+
+        viewModel.saveBike(bike, "800")
+        advanceUntilIdle()
+
+        coVerify {
+            bikeRepository.updateBike(match {
+                it.thumbnailUri == "/new/path.jpg" &&
+                    it.baselineDistanceKm == 800.0 &&
+                    it.totalDistanceKm == 875.0
+            })
+        }
+    }
+
+    @Test
+    fun saveBike_editBaselineWithRemove_preservesBaselineAndClearsThumbnail() = runTest(testDispatcher) {
+        val bike = BikeEntity(
+            id = 1L,
+            name = "Test",
+            baselineDistanceKm = 1_000.0,
+            totalDistanceKm = 1_075.0,
+            thumbnailUri = "/old/path.jpg",
+            createdAt = 1000L,
+        )
+        coEvery { bikeRepository.getBikeById(1L) } returns bike
+        coEvery { bikeRepository.updateBike(any()) } coAnswers { }
+        coEvery { imageRepository.deleteImageAtPath("/old/path.jpg") } coAnswers { }
+        viewModel = AddEditBikeViewModel(
+            SavedStateHandle(mapOf("bikeId" to "1")),
+            bikeRepository,
+            componentRepository,
+            imageRepository,
+        )
+        advanceUntilIdle()
+        viewModel.setRemoveImageRequested()
+
+        viewModel.saveBike(bike, "800")
+        advanceUntilIdle()
+
+        coVerify {
+            bikeRepository.updateBike(match {
+                it.thumbnailUri == null &&
+                    it.baselineDistanceKm == 800.0 &&
+                    it.totalDistanceKm == 875.0
+            })
+        }
+    }
+
+    @Test
     fun saveBike_invalidBaseline_doesNotCallRepository() = runTest(testDispatcher) {
         viewModel = AddEditBikeViewModel(
             SavedStateHandle(mapOf()),
