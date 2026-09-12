@@ -7,7 +7,6 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.clintoncochrane.bikecompanion.ui.ai.AiScreen
 import com.clintoncochrane.bikecompanion.ui.garage.AddBikeEntryScreen
 import com.clintoncochrane.bikecompanion.ui.garage.AddEditBikeScreen
 import com.clintoncochrane.bikecompanion.ui.garage.BikeDetailScreen
@@ -26,7 +25,6 @@ sealed class Screen(val route: String) {
     data object Trip : Screen("trip")
     data object Garage : Screen("garage")
     data object Stats : Screen("stats")
-    data object Ai : Screen("ai")
     data object BikeDetail : Screen("bike_detail/{bikeId}") {
         fun withId(id: Long) = "bike_detail/$id"
     }
@@ -66,7 +64,6 @@ fun BikeCompanionNavGraph(
         composable(Screen.Trip.route) { TripScreen(navController = navController) }
         composable(Screen.Garage.route) { GarageScreen(navController = navController) }
         composable(Screen.Stats.route) { StatsScreen(navController = navController) }
-        composable(Screen.Ai.route) { AiScreen(navController = navController) }
         composable(Screen.BikeDetail.route) { backStackEntry ->
             BikeDetailScreen(navController = navController, backStackEntry = backStackEntry)
         }

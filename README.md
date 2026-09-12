@@ -7,7 +7,6 @@ Android app for tracking bikes, rides, and component maintenance. Built with Kot
 - **Trip:** Start a ride (in-app GPS), view past rides, import from Health Connect.
 - **Garage:** Manage bikes and components with health bars and replacement alerts.
 - **Stats:** Per-bike distance, ride count, averages, elevation.
-- **AI:** Chat with a bike assistant for diagnosis and trip readiness (API key required for live responses).
 
 ## Tech stack
 
@@ -25,7 +24,6 @@ Android app for tracking bikes, rides, and component maintenance. Built with Kot
   - **location/** – RideTrackingService (single boundary for location during rides)
   - **healthconnect/** – Health Connect import
   - **notifications/** – Component alert notifications
-  - **ai/** – AI API client abstraction
   - **di/** – Hilt modules
 
 ## Privacy
