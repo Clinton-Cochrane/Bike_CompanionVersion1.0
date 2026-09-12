@@ -1,0 +1,252 @@
+package com.clintoncochrane.bikecompanion.ui.trip
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
+import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
+import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
+import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
+import com.clintoncochrane.bikecompanion.data.component.DefaultSeedComponent
+import com.clintoncochrane.bikecompanion.data.ride.RideEntity
+import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesRepository
+import com.clintoncochrane.bikecompanion.data.ride.RideRepository
+import com.clintoncochrane.bikecompanion.data.ride.RideSource
+import com.clintoncochrane.bikecompanion.healthconnect.HealthConnectImporter
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+private data class TripCombineResult(
+    val bikes: List<BikeEntity>,
+    val rides: List<RideEntity>,
+    val dismissedRideFlagIds: Set<Long>,
+    val dismissedPlaceholderReminderIds: Set<Long>,
+    val snoozedPlaceholderReminderUntilMs: Long?,
+)
+
+/** Result of Health Connect import for UI to display via string resources. */
+sealed class HealthConnectImportResult {
+    data class Success(val count: Int, val showDisclaimer: Boolean = false) : HealthConnectImportResult()
+    data object None : HealthConnectImportResult()
+    data object NoBikeSelected : HealthConnectImportResult()
+    data object Error : HealthConnectImportResult()
+}
+
+/** Info for one missing part slot: expected component and optional garage matches. */
+data class MissingPartInfo(
+    val expected: DefaultSeedComponent,
+    val garageMatches: List<ComponentEntity>,
+)
+
+data class TripUiState(
+    val bikes: List<BikeEntity> = emptyList(),
+    val rides: List<RideEntity> = emptyList(),
+    val selectedBike: BikeEntity? = null,
+    val lastRiddenBike: BikeEntity? = null,
+    /** When non-null, show missing-parts dialog before starting ride. */
+    val missingParts: List<MissingPartInfo>? = null,
+    /** Ride IDs whose review flags have been dismissed. */
+    val dismissedRideFlagIds: Set<Long> = emptySet(),
+    /** Ride IDs whose placeholder reminder has been dismissed. */
+    val dismissedPlaceholderReminderIds: Set<Long> = emptySet(),
+    /** Epoch ms until which placeholder reminders are snoozed; null = not snoozed. */
+    val snoozedPlaceholderReminderUntilMs: Long? = null,
+    /** True when user added placeholder components this session (before starting ride). */
+    val placeholdersAddedThisSession: Boolean = false,
+)
+
+@HiltViewModel
+class TripViewModel @Inject constructor(
+    private val bikeRepository: BikeRepository,
+    private val rideRepository: RideRepository,
+    private val componentRepository: ComponentRepository,
+    private val healthConnectImporter: HealthConnectImporter,
+    private val appPreferencesRepository: AppPreferencesRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(TripUiState())
+    val uiState: StateFlow<TripUiState> = _uiState.asStateFlow()
+
+    private val _healthConnectImportResult = MutableSharedFlow<HealthConnectImportResult>(replay = 0, extraBufferCapacity = 1)
+    val healthConnectImportResult: SharedFlow<HealthConnectImportResult> = _healthConnectImportResult.asSharedFlow()
+
+    init {
+        viewModelScope.launch {
+            combine(
+                bikeRepository.getAllBikes(),
+                rideRepository.getAllRides(),
+                appPreferencesRepository.dismissedRideFlagIds,
+                appPreferencesRepository.dismissedPlaceholderReminderIds,
+                appPreferencesRepository.snoozedPlaceholderReminderUntilMs,
+            ) { bikes, rides, dismissedFlagIds, dismissedPlaceholderIds, snoozedUntil ->
+                TripCombineResult(bikes, rides, dismissedFlagIds, dismissedPlaceholderIds, snoozedUntil)
+            }.collect { result ->
+                val lastRidden = bikeRepository.getMostRecentlyRiddenBike()
+                _uiState.update { current ->
+                    current.copy(
+                        bikes = result.bikes,
+                        rides = result.rides.sortedByDescending { it.endedAt },
+                        selectedBike = current.selectedBike?.let { selected ->
+                            result.bikes.find { it.id == selected.id }
+                        } ?: lastRidden,
+                        lastRiddenBike = lastRidden,
+                        dismissedRideFlagIds = result.dismissedRideFlagIds,
+                        dismissedPlaceholderReminderIds = result.dismissedPlaceholderReminderIds,
+                        snoozedPlaceholderReminderUntilMs = result.snoozedPlaceholderReminderUntilMs,
+                    )
+                }
+            }
+        }
+    }
+
+    fun selectBike(bike: BikeEntity?) {
+        _uiState.value = _uiState.value.copy(selectedBike = bike)
+    }
+
+    /**
+     * Checks if the selected bike has missing parts. If so, sets missingParts for the dialog.
+     * @return true if OK to proceed (no missing parts), false if dialog should be shown.
+     */
+    suspend fun checkMissingPartsBeforeStart(): Boolean {
+        val bike = _uiState.value.selectedBike ?: return true
+        val missing = componentRepository.getMissingComponentsForBike(bike)
+        if (missing.isEmpty()) return true
+        val infos = missing.map { expected ->
+            val garageMatches = componentRepository.getComponentsInGarageMatching(expected.type, expected.position)
+            MissingPartInfo(expected = expected, garageMatches = garageMatches)
+        }
+        _uiState.value = _uiState.value.copy(missingParts = infos)
+        return false
+    }
+
+    fun clearMissingParts() {
+        _uiState.value = _uiState.value.copy(missingParts = null)
+    }
+
+    /**
+     * Resets [placeholdersAddedThisSession] after the ride has started.
+     * Prevents subsequent rides in the same session from incorrectly inheriting the flag.
+     */
+    fun onRideStarted() {
+        _uiState.update { it.copy(placeholdersAddedThisSession = false) }
+    }
+
+    /** Adds a placeholder component for the given slot and removes it from missing list. */
+    fun addPlaceholderFor(missing: MissingPartInfo) {
+        _uiState.update { it.copy(placeholdersAddedThisSession = true) }
+        val bike = _uiState.value.selectedBike ?: return
+        viewModelScope.launch {
+            insertPlaceholderComponent(bike.id, missing)
+            removeMissingPart(missing.expected.type, missing.expected.position)
+        }
+    }
+
+    /** Installs a garage component on the bike and removes from missing list. */
+    fun installFromGarage(component: ComponentEntity) {
+        val bike = _uiState.value.selectedBike ?: return
+        viewModelScope.launch {
+            componentRepository.installComponent(component, bike.id)
+            removeMissingPart(component.type, component.position)
+        }
+    }
+
+    /** Adds placeholders for all missing parts and clears the dialog. */
+    fun addAllPlaceholders() {
+        _uiState.update { it.copy(placeholdersAddedThisSession = true) }
+        val list = _uiState.value.missingParts ?: return
+        val bike = _uiState.value.selectedBike ?: return
+        viewModelScope.launch {
+            list.forEach { insertPlaceholderComponent(bike.id, it) }
+            _uiState.value = _uiState.value.copy(missingParts = null)
+        }
+    }
+
+    private suspend fun insertPlaceholderComponent(bikeId: Long, missing: MissingPartInfo) {
+        val entity = ComponentEntity(
+            bikeId = bikeId,
+            type = missing.expected.type,
+            name = "Placeholder ${missing.expected.name}",
+            lifespanKm = missing.expected.defaultLifespanKm,
+            position = missing.expected.position,
+            installedAt = System.currentTimeMillis(),
+        )
+        componentRepository.insertComponent(entity)
+    }
+
+    private fun removeMissingPart(type: String, position: String) {
+        val current = _uiState.value.missingParts ?: return
+        val updated = current.filter { it.expected.type != type || it.expected.position != position }
+        _uiState.value = _uiState.value.copy(missingParts = if (updated.isEmpty()) null else updated)
+    }
+
+    fun dismissRideFlag(rideId: Long) {
+        viewModelScope.launch {
+            appPreferencesRepository.addDismissedRideFlagId(rideId)
+        }
+    }
+
+    fun dismissPlaceholderReminder(rideId: Long) {
+        viewModelScope.launch {
+            appPreferencesRepository.addDismissedPlaceholderReminderId(rideId)
+        }
+    }
+
+    fun snoozePlaceholderReminder() {
+        viewModelScope.launch {
+            appPreferencesRepository.snoozePlaceholderReminder()
+        }
+    }
+
+    fun deleteRide(ride: RideEntity) {
+        viewModelScope.launch {
+            rideRepository.deleteRide(ride)
+        }
+    }
+
+    fun importFromHealthConnect() {
+        val bikeId = _uiState.value.selectedBike?.id ?: -1L
+        if (bikeId < 0) {
+            viewModelScope.launch { _healthConnectImportResult.emit(HealthConnectImportResult.NoBikeSelected) }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val sessions = healthConnectImporter.readCyclingSessions()
+                if (sessions.isEmpty()) {
+                    _healthConnectImportResult.emit(HealthConnectImportResult.None)
+                    return@launch
+                }
+                var count = 0
+                sessions.forEach { session ->
+                    val ride = RideEntity(
+                        bikeId = bikeId,
+                        distanceKm = session.distanceKm,
+                        durationMs = session.durationMs,
+                        startedAt = session.startTimeMs,
+                        endedAt = session.endTimeMs,
+                        source = RideSource.HEALTH_CONNECT,
+                    )
+                    rideRepository.saveRideAndUpdateBikeAndComponents(ride)
+                    count++
+                }
+                val hasSeenDisclaimer = appPreferencesRepository.getHasSeenHealthConnectImportDisclaimer()
+                if (!hasSeenDisclaimer) {
+                    appPreferencesRepository.setHasSeenHealthConnectImportDisclaimer()
+                }
+                _healthConnectImportResult.emit(
+                    HealthConnectImportResult.Success(count, showDisclaimer = !hasSeenDisclaimer),
+                )
+            } catch (_: Exception) {
+                _healthConnectImportResult.emit(HealthConnectImportResult.Error)
+            }
+        }
+    }
+}

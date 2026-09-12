@@ -4,7 +4,7 @@ Bike Companion treats location and other personal data as sensitive. This docume
 
 ## Location
 
-- **Collected:** Only during an **active ride** started from the app. The single place that receives location updates is [RideTrackingService](app/src/main/java/com/you/bikecompanion/location/RideTrackingService.kt) (Fused Location Provider).
+- **Collected:** Only during an **active ride** started from the app. The single place that receives location updates is [RideTrackingService](app/src/main/java/com/clintoncochrane/bikecompanion/location/RideTrackingService.kt) (Fused Location Provider).
 - **Use:** Location is used only to compute **distance** and **elevation** for the current ride. Coordinates are **not** logged, **not** written to the database as track points in the MVP, and **not** sent to analytics or third parties.
 - **Storage:** Only derived values (distance, elevation gain/loss, duration, speeds) are saved when you stop the ride. They are stored in the local Room database (BikeCompanionDatabase) on the device.
 - **Retention:** No location coordinates are retained after the ride is saved. Aggregated ride stats (distance, duration, etc.) are kept locally until you clear app data or uninstall.
