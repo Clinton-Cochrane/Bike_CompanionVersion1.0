@@ -31,6 +31,8 @@ class AddEditBikeViewModelTest {
     private lateinit var imageRepository: ImageRepository
     private lateinit var viewModel: AddEditBikeViewModel
 
+    private fun testUri(): Uri = mockk()
+
     @Before
     fun setUp() {
         kotlinx.coroutines.Dispatchers.setMain(testDispatcher)
@@ -47,7 +49,7 @@ class AddEditBikeViewModelTest {
             componentRepository,
             imageRepository,
         )
-        val uri = Uri.parse("content://test/1")
+        val uri = testUri()
 
         viewModel.setPickedImageUri(uri)
 
@@ -63,7 +65,7 @@ class AddEditBikeViewModelTest {
             componentRepository,
             imageRepository,
         )
-        viewModel.setPickedImageUri(Uri.parse("content://test/1"))
+        viewModel.setPickedImageUri(testUri())
 
         viewModel.setRemoveImageRequested()
 
@@ -84,7 +86,7 @@ class AddEditBikeViewModelTest {
             componentRepository,
             imageRepository,
         )
-        viewModel.setPickedImageUri(Uri.parse("content://test/pick"))
+        viewModel.setPickedImageUri(testUri())
 
         viewModel.saveBike(
             BikeEntity(name = "Test", createdAt = 1000L),
@@ -137,7 +139,7 @@ class AddEditBikeViewModelTest {
             imageRepository,
         )
         advanceUntilIdle()
-        viewModel.setPickedImageUri(Uri.parse("content://test/new"))
+        viewModel.setPickedImageUri(testUri())
 
         viewModel.saveBike(bike)
         advanceUntilIdle()

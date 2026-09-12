@@ -22,6 +22,8 @@ class ImageRepositoryTest {
     private lateinit var openUriStream: (Uri) -> java.io.InputStream?
     private lateinit var repository: ImageRepository
 
+    private fun testUri(): Uri = mockk()
+
     @Before
     fun setUp() {
         baseDir = File.createTempFile("image_repo_test", "").apply { delete(); mkdirs() }
@@ -33,7 +35,7 @@ class ImageRepositoryTest {
 
     @Test
     fun saveBikeImage_returnsPath_whenCopySucceeds() = runTest {
-        val path = repository.saveBikeImage(1L, Uri.parse("content://test/1"))
+        val path = repository.saveBikeImage(1L, testUri())
 
         assertEquals(File(baseDir, "bikes/bike_1.jpg").absolutePath, path)
         assert(File(path!!).exists())
@@ -41,15 +43,15 @@ class ImageRepositoryTest {
 
     @Test
     fun saveBikeImage_replacesExisting_whenCalledTwice() = runTest {
-        repository.saveBikeImage(2L, Uri.parse("content://test/2"))
-        val path2 = repository.saveBikeImage(2L, Uri.parse("content://test/2"))
+        repository.saveBikeImage(2L, testUri())
+        val path2 = repository.saveBikeImage(2L, testUri())
 
         assertEquals(File(baseDir, "bikes/bike_2.jpg").absolutePath, path2)
     }
 
     @Test
     fun saveComponentImage_returnsPath_whenCopySucceeds() = runTest {
-        val path = repository.saveComponentImage(10L, Uri.parse("content://test/10"))
+        val path = repository.saveComponentImage(10L, testUri())
 
         assertEquals(File(baseDir, "components/component_10.jpg").absolutePath, path)
         assert(File(path!!).exists())
@@ -57,7 +59,7 @@ class ImageRepositoryTest {
 
     @Test
     fun deleteBikeImage_removesFile_whenExists() = runTest {
-        val path = repository.saveBikeImage(3L, Uri.parse("content://test/3"))
+        val path = repository.saveBikeImage(3L, testUri())
         assert(File(path!!).exists())
 
         repository.deleteBikeImage(3L)
@@ -73,7 +75,7 @@ class ImageRepositoryTest {
 
     @Test
     fun deleteComponentImage_removesFile_whenExists() = runTest {
-        val path = repository.saveComponentImage(20L, Uri.parse("content://test/20"))
+        val path = repository.saveComponentImage(20L, testUri())
         assert(File(path!!).exists())
 
         repository.deleteComponentImage(20L)
@@ -83,7 +85,7 @@ class ImageRepositoryTest {
 
     @Test
     fun deleteImageAtPath_removesFile_whenPathInBikesDir() = runTest {
-        val path = repository.saveBikeImage(4L, Uri.parse("content://test/4"))
+        val path = repository.saveBikeImage(4L, testUri())
         assert(File(path!!).exists())
 
         repository.deleteImageAtPath(path)
@@ -93,7 +95,7 @@ class ImageRepositoryTest {
 
     @Test
     fun deleteImageAtPath_removesFile_whenPathInComponentsDir() = runTest {
-        val path = repository.saveComponentImage(30L, Uri.parse("content://test/30"))
+        val path = repository.saveComponentImage(30L, testUri())
         assert(File(path!!).exists())
 
         repository.deleteImageAtPath(path)
@@ -112,7 +114,7 @@ class ImageRepositoryTest {
     fun saveBikeImage_returnsNull_whenOpenUriStreamFails() = runTest {
         val failingRepository = ImageRepository(baseDir) { null }
 
-        val path = failingRepository.saveBikeImage(5L, Uri.parse("content://test/5"))
+        val path = failingRepository.saveBikeImage(5L, testUri())
 
         assertNull(path)
     }
