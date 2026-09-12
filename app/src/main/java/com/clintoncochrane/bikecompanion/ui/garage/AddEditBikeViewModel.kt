@@ -78,10 +78,10 @@ class AddEditBikeViewModel @Inject constructor(
             if (bike.id > 0) {
                 if (state.removeImageRequested) {
                     imageRepository.deleteImageAtPath(bike.thumbnailUri)
-                    bikeToSave = bike.copy(thumbnailUri = null)
+                    bikeToSave = bikeToSave.copy(thumbnailUri = null)
                 } else if (state.pickedImageUri != null) {
                     val path = imageRepository.saveBikeImage(bike.id, state.pickedImageUri)
-                    bikeToSave = bike.copy(thumbnailUri = path ?: bike.thumbnailUri)
+                    bikeToSave = bikeToSave.copy(thumbnailUri = path ?: bike.thumbnailUri)
                     // If save failed (null), keep existing thumbnail to avoid data loss
                 }
                 bikeRepository.updateBike(bikeToSave)
