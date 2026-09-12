@@ -9,6 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.clintoncochrane.bikecompanion.data.BikeCompanionDatabase
 import com.clintoncochrane.bikecompanion.data.BikeCompanionMigrations
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -49,6 +50,27 @@ class ComponentContextMigrationTest {
         db.openHelper.writableDatabase
         db.componentContextDao()
         assertTrue("DB opened and componentContextDao() succeeded; schema validated by Room", true)
+    }
+
+    @Test
+    fun migration3ToLatest_addsZeroBikeBaselineWithoutChangingExistingTotal() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val legacyDb = SQLiteDatabase.openDatabase(dbFile.path, null, SQLiteDatabase.OPEN_READWRITE)
+        legacyDb.execSQL(
+            "INSERT INTO bikes (name, totalDistanceKm, createdAt) VALUES ('Existing bike', 321.5, 1000)",
+        )
+        legacyDb.close()
+
+        db = Room.databaseBuilder(context, BikeCompanionDatabase::class.java, MIGRATION_TEST_DB_NAME)
+            .addMigrations(*BikeCompanionMigrations.ALL)
+            .build()
+        val migratedDb = db.openHelper.writableDatabase
+
+        migratedDb.query("SELECT totalDistanceKm, baselineDistanceKm FROM bikes").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(321.5, cursor.getDouble(0), 0.0)
+            assertEquals(0.0, cursor.getDouble(1), 0.0)
+        }
     }
 
     /**

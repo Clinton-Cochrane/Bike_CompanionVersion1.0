@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import com.clintoncochrane.bikecompanion.R
+import com.clintoncochrane.bikecompanion.data.bike.recordedDistanceKm
 import com.clintoncochrane.bikecompanion.ui.navigation.Screen
 import com.clintoncochrane.bikecompanion.ui.trip.RideReviewDialog
 import com.clintoncochrane.bikecompanion.data.component.ComponentCategory
@@ -397,11 +398,21 @@ fun BikeDetailScreen(
                                 .padding(top = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
-                            BikeStatChip(label = stringResource(R.string.bike_stat_distance), value = stringResource(R.string.bike_stat_km, bike.totalDistanceKm))
+                            BikeStatChip(label = stringResource(R.string.bike_stat_odometer), value = stringResource(R.string.bike_stat_km, bike.totalDistanceKm))
                             BikeStatChip(label = stringResource(R.string.bike_stat_moving_time), value = DurationFormatHelper.formatDurationBreakdownSeconds(bike.totalTimeSeconds))
                             BikeStatChip(label = stringResource(R.string.bike_stat_avg_speed), value = stringResource(R.string.bike_stat_kmh, bike.avgSpeedKmh))
                             BikeStatChip(label = stringResource(R.string.bike_stat_max_speed), value = stringResource(R.string.bike_stat_kmh, bike.maxSpeedKmh))
                         }
+                        Text(
+                            text = stringResource(
+                                R.string.bike_distance_breakdown,
+                                bike.baselineDistanceKm,
+                                bike.recordedDistanceKm,
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
                         if (bike.totalElevGainM > 0 || bike.totalElevLossM > 0) {
                             Text(
                                 stringResource(R.string.bike_stat_elevation, bike.totalElevGainM.toInt(), bike.totalElevLossM.toInt()),

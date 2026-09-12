@@ -1,5 +1,6 @@
 package com.clintoncochrane.bikecompanion.data.ride
 
+import com.clintoncochrane.bikecompanion.data.bike.recordedDistanceKm
 import com.clintoncochrane.bikecompanion.notifications.ComponentAlertNotifier
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -34,8 +35,9 @@ class RideRepository @Inject constructor(
         val durationSeconds = (savedRide.durationMs / 1000).coerceAtLeast(0L)
         val newDistance = bike.totalDistanceKm + savedRide.distanceKm
         val newTimeSeconds = bike.totalTimeSeconds + durationSeconds
+        val newRecordedDistance = bike.recordedDistanceKm + savedRide.distanceKm
         val newAvgSpeed = if (newTimeSeconds > 0) {
-            newDistance / (newTimeSeconds / 3600.0)
+            newRecordedDistance / (newTimeSeconds / 3600.0)
         } else bike.avgSpeedKmh
         val newMaxSpeed = maxOf(bike.maxSpeedKmh, savedRide.maxSpeedKmh)
         bikeDao.update(
