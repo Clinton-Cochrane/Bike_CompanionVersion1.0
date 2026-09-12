@@ -11,7 +11,10 @@ import android.os.Binder
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.clintoncochrane.bikecompanion.data.ride.ActiveRideCheckpointRepository
+import com.clintoncochrane.bikecompanion.di.IoDispatcher
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -20,16 +23,34 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.clintoncochrane.bikecompanion.R
 import com.clintoncochrane.bikecompanion.ui.ride.ActiveRideActivity
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
 /**
  * Single boundary for location intake during an active ride.
  * Location is used only to compute distance and elevation; coordinates are not logged or persisted.
  * See PRIVACY.md for retention.
  */
+@AndroidEntryPoint
 class RideTrackingService : Service() {
+
+    @Inject
+    lateinit var checkpointRepository: ActiveRideCheckpointRepository
+
+    @Inject
+    @IoDispatcher
+    lateinit var ioDispatcher: CoroutineDispatcher
 
     private val binder = LocalBinder()
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -41,11 +62,22 @@ class RideTrackingService : Service() {
     private var lastLatLng: Pair<Double, Double>? = null
     private var lastAltitude: Double? = null
     private var lastMovementTimeMs: Long = 0L
+    private lateinit var serviceScope: CoroutineScope
+    private val checkpointMutex = Mutex()
+    @Volatile
+    private var terminalActionInProgress = false
     private val noMovementCheckHandler = Handler(Looper.getMainLooper())
     private val noMovementCheckRunnable = object : Runnable {
         override fun run() {
             checkNoMovementAndAutoPause()
             noMovementCheckHandler.postDelayed(this, NO_MOVEMENT_CHECK_INTERVAL_MS)
+        }
+    }
+    private val checkpointHandler = Handler(Looper.getMainLooper())
+    private val checkpointRunnable = object : Runnable {
+        override fun run() {
+            persistCheckpoint()
+            checkpointHandler.postDelayed(this, CHECKPOINT_INTERVAL_MS)
         }
     }
 
@@ -57,6 +89,7 @@ class RideTrackingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        serviceScope = CoroutineScope(SupervisorJob() + ioDispatcher)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
     }
 
@@ -77,22 +110,23 @@ class RideTrackingService : Service() {
 
     private fun startTracking(bikeId: Long, hadPlaceholdersAtStart: Boolean = false) {
         createNotificationChannel()
+        terminalActionInProgress = false
         lastLatLng = null
         lastAltitude = null
         val now = System.currentTimeMillis()
         lastMovementTimeMs = now
-        _rideState.value = _rideState.value.copy(
+        _rideState.value = RideState(
             bikeId = bikeId,
             isTracking = true,
-            isPaused = false,
-            wasAutoPausedDueToNoMovement = false,
             startTimeMs = now,
             hadPlaceholdersAtStart = hadPlaceholdersAtStart,
         )
+        persistCheckpoint(now)
         rideActiveBikeId.value = bikeId
         startForeground(NOTIFICATION_ID, createNotification(false))
         requestLocationUpdates()
         scheduleNoMovementCheck()
+        scheduleCheckpoint()
     }
 
     private fun pauseTracking(wasAutoPause: Boolean = false) {
@@ -105,6 +139,7 @@ class RideTrackingService : Service() {
             wasAutoPausedDueToNoMovement = wasAutoPause,
             pausedAtMs = now,
         )
+        persistCheckpoint(now)
         updateNotification()
     }
 
@@ -119,18 +154,40 @@ class RideTrackingService : Service() {
             pausedAtMs = 0L,
             totalPausedDurationMs = state.totalPausedDurationMs + pauseDuration,
         )
+        persistCheckpoint(now)
         requestLocationUpdates()
         updateNotification()
         scheduleNoMovementCheck()
     }
 
     private fun stopTracking() {
+        if (terminalActionInProgress) return
+        terminalActionInProgress = true
         noMovementCheckHandler.removeCallbacks(noMovementCheckRunnable)
+        checkpointHandler.removeCallbacks(checkpointRunnable)
         locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
         locationCallback = null
         rideActiveBikeId.value = -1L
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        _rideState.value = _rideState.value.copy(isTracking = false)
+        serviceScope.launch {
+            checkpointMutex.withLock {
+                runCatching { checkpointRepository.clear() }
+                    .onFailure { Log.e(TAG, "Failed to clear active ride checkpoint", it) }
+            }
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        noMovementCheckHandler.removeCallbacks(noMovementCheckRunnable)
+        checkpointHandler.removeCallbacks(checkpointRunnable)
+        locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
+        locationCallback = null
+        serviceScope.cancel()
+        super.onDestroy()
     }
 
     private fun requestLocationUpdates() {
@@ -258,6 +315,24 @@ class RideTrackingService : Service() {
         noMovementCheckHandler.postDelayed(noMovementCheckRunnable, NO_MOVEMENT_CHECK_INTERVAL_MS)
     }
 
+    private fun scheduleCheckpoint() {
+        checkpointHandler.removeCallbacks(checkpointRunnable)
+        checkpointHandler.postDelayed(checkpointRunnable, CHECKPOINT_INTERVAL_MS)
+    }
+
+    private fun persistCheckpoint(checkpointedAtMs: Long = System.currentTimeMillis()) {
+        val state = _rideState.value
+        if (!state.isTracking || state.startTimeMs <= 0L || terminalActionInProgress) return
+        val checkpoint = state.toActiveRideCheckpoint(checkpointedAtMs)
+        serviceScope.launch {
+            checkpointMutex.withLock {
+                if (terminalActionInProgress) return@withLock
+                runCatching { checkpointRepository.save(checkpoint) }
+                    .onFailure { Log.e(TAG, "Failed to persist active ride checkpoint", it) }
+            }
+        }
+    }
+
     private fun checkNoMovementAndAutoPause() {
         if (!_rideState.value.isTracking || _rideState.value.isPaused) return
         val now = System.currentTimeMillis()
@@ -307,6 +382,8 @@ class RideTrackingService : Service() {
         private const val FASTEST_INTERVAL_MS = 2500L
         private const val NO_MOVEMENT_CHECK_INTERVAL_MS = 60_000L
         private const val NO_MOVEMENT_AUTO_PAUSE_MS = 30 * 60 * 1000L
+        private const val CHECKPOINT_INTERVAL_MS = 30_000L
+        private const val TAG = "RideTrackingService"
 
         /** Reject locations with accuracy radius worse than this (meters). */
         private const val MAX_ACCURACY_M = 50f

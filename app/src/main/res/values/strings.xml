@@ -6,7 +6,6 @@
     <string name="nav_trip">Trip</string>
     <string name="nav_garage">Garage</string>
     <string name="nav_stats">Stats</string>
-    <string name="nav_ai">AI</string>
 
     <!-- Trip screen -->
     <string name="trip_start_button">Start new trip</string>
@@ -97,7 +96,7 @@
     <string name="garage_filter_bike_all">All bikes</string>
     <string name="garage_filter_sort_label">Sort by</string>
     <string name="garage_filter_sort_content_description">Open filter and sort menu</string>
-    <string name="garage_spec_total_distance">Total: %1$.0f km</string>
+    <string name="garage_spec_total_distance">Combined odometers: %1$.0f km</string>
     <string name="garage_no_bikes">No bikes yet. Add your first bike.</string>
     <string name="garage_no_components">No components yet. Add from the + button or via a bike.</string>
     <string name="garage_component_assigned_to">Assigned to: %1$s</string>
@@ -129,7 +128,9 @@
     <string name="add_bike_brake_other">Other</string>
     <string name="garage_bike_health_score">%1$d/100</string>
     <string name="garage_bike_alert_content_description">Bike needs attention</string>
-    <string name="bike_stat_distance">DISTANCE</string>
+    <string name="bike_stat_odometer">ODOMETER</string>
+    <string name="bike_odometer_km">Odometer: %1$.0f km</string>
+    <string name="bike_distance_breakdown">Starting baseline: %1$.0f km · Bike Companion rides: %2$.0f km</string>
     <string name="bike_stat_moving_time">MOVING TIME</string>
     <string name="bike_stat_avg_speed">AVG. SPEED</string>
     <string name="bike_stat_max_speed">MAX SPEED</string>
@@ -160,6 +161,9 @@
     <string name="bike_make">Make</string>
     <string name="bike_model">Model</string>
     <string name="bike_year">Year</string>
+    <string name="bike_starting_odometer">Starting odometer (km)</string>
+    <string name="bike_starting_odometer_help">Distance already on this bike before Bike Companion tracking.</string>
+    <string name="bike_starting_odometer_invalid">Enter a number that is 0 or greater.</string>
     <string name="bike_description">Description</string>
     <string name="bike_notes">Notes</string>
     <string name="bike_save">Save</string>
@@ -269,28 +273,8 @@
     <string name="stats_elevation_gain">Elevation gain: %1$.0f m</string>
     <string name="stats_no_data">No ride data for this bike yet.</string>
 
-    <!-- AI screen -->
-    <string name="ai_title">Bike assistant</string>
-    <string name="ai_hint">Describe a problem, ask about a trip, or attach a photo…</string>
-    <string name="ai_send_content_description">Send message</string>
-    <string name="ai_placeholder">Ask me about bike maintenance, trip readiness, or describe a problem.</string>
-    <string name="ai_thinking">Assistant is thinking…</string>
-    <string name="ai_message_user">Your message: %1$s</string>
-    <string name="ai_message_assistant">Assistant: %1$s</string>
-    <string name="ai_set_api_key_in_settings">Set API key in Settings to use the bike assistant.</string>
-    <string name="ai_open_settings">Open Settings</string>
-
     <!-- Settings -->
     <string name="settings_title">Settings</string>
-    <string name="settings_bike_assistant_section">Bike assistant</string>
-    <string name="settings_api_key_label">Gemini API key</string>
-    <string name="settings_api_key_hint">Enter your API key</string>
-    <string name="settings_api_key_save">Save key</string>
-    <string name="settings_api_key_clear">Clear key</string>
-    <string name="settings_api_key_help">Get a free API key from Google AI Studio. The key is stored securely on this device only.</string>
-    <string name="settings_get_api_key">Get API key</string>
-    <string name="settings_api_key_saved">API key saved</string>
-    <string name="settings_api_key_cleared">API key cleared</string>
 
     <!-- Common -->
     <string name="common_loading">Loading…</string>

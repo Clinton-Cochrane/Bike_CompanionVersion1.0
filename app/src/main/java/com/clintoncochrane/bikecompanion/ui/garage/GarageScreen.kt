@@ -754,7 +754,7 @@ private fun BikeCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = stringResource(R.string.bike_stat_km, bike.totalDistanceKm),
+                    text = stringResource(R.string.bike_odometer_km, bike.totalDistanceKm),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )

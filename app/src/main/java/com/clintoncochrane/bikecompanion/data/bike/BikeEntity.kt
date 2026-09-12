@@ -11,6 +11,9 @@ data class BikeEntity(
     val make: String = "",
     val model: String = "",
     val year: String = "",
+    /** Odometer distance already on the bike before Bike Companion began tracking it. */
+    val baselineDistanceKm: Double = 0.0,
+    /** Starting baseline plus distance recorded by Bike Companion. */
     val totalDistanceKm: Double = 0.0,
     /** Total ride time in seconds, rolled up from completed trips. Denormalized for fast reads. */
     val totalTimeSeconds: Long = 0L,
@@ -39,3 +42,18 @@ data class BikeEntity(
     /** Free-form notes for the bike. */
     val notes: String = "",
 )
+
+/** Distance represented by persisted ride accounting rather than the starting odometer. */
+val BikeEntity.recordedDistanceKm: Double
+    get() = (totalDistanceKm - baselineDistanceKm).coerceAtLeast(0.0)
+
+/** Returns this bike with a corrected baseline while preserving its recorded ride distance. */
+fun BikeEntity.withBaselineDistanceKm(newBaselineDistanceKm: Double): BikeEntity {
+    require(newBaselineDistanceKm.isFinite() && newBaselineDistanceKm >= 0.0) {
+        "Bike baseline distance must be a non-negative finite value"
+    }
+    return copy(
+        baselineDistanceKm = newBaselineDistanceKm,
+        totalDistanceKm = recordedDistanceKm + newBaselineDistanceKm,
+    )
+}

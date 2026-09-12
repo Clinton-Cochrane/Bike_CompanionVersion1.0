@@ -95,6 +95,40 @@ class RideRepositoryTotalsTest {
     }
 
     @Test
+    fun saveRideAndUpdateBikeAndComponents_addsRideToBaselineWithoutInflatingAverageSpeed() = runBlocking {
+        val bikeId = 1L
+        val ride = RideEntity(
+            bikeId = bikeId,
+            distanceKm = 20.0,
+            durationMs = 3_600_000,
+            startedAt = 1000L,
+            endedAt = 3_601_000L,
+        )
+        val bike = BikeEntity(
+            id = bikeId,
+            name = "Used bike",
+            baselineDistanceKm = 1_000.0,
+            totalDistanceKm = 1_050.0,
+            totalTimeSeconds = 3_600L,
+            createdAt = 0L,
+        )
+        coEvery { rideDao.insert(ride) } returns 1L
+        coEvery { bikeDao.getBikeById(bikeId) } returns bike
+        coEvery { bikeDao.update(any()) } coAnswers { }
+        coEvery { componentDao.getComponentsByBikeIdOnce(bikeId) } returns emptyList()
+
+        repository.saveRideAndUpdateBikeAndComponents(ride)
+
+        coVerify {
+            bikeDao.update(match {
+                it.baselineDistanceKm == 1_000.0 &&
+                    it.totalDistanceKm == 1_070.0 &&
+                    it.avgSpeedKmh == 35.0
+            })
+        }
+    }
+
+    @Test
     fun saveRideAndUpdateBikeAndComponents_incrementsComponentTotalTimeSeconds() = runBlocking {
         val bikeId = 1L
         val ride = RideEntity(
