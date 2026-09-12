@@ -147,4 +147,49 @@ class AddEditBikeViewModelTest {
         coVerify { imageRepository.saveBikeImage(1L, any()) }
         coVerify { bikeRepository.updateBike(match { it.thumbnailUri == "/new/path.jpg" }) }
     }
+
+    @Test
+    fun saveBike_editBaseline_preservesRecordedDistance() = runTest(testDispatcher) {
+        val bike = BikeEntity(
+            id = 1L,
+            name = "Test",
+            baselineDistanceKm = 1_000.0,
+            totalDistanceKm = 1_075.0,
+            createdAt = 1000L,
+        )
+        coEvery { bikeRepository.getBikeById(1L) } returns bike
+        coEvery { bikeRepository.updateBike(any()) } coAnswers { }
+        viewModel = AddEditBikeViewModel(
+            SavedStateHandle(mapOf("bikeId" to "1")),
+            bikeRepository,
+            componentRepository,
+            imageRepository,
+        )
+        advanceUntilIdle()
+
+        viewModel.saveBike(bike, "800")
+        advanceUntilIdle()
+
+        coVerify {
+            bikeRepository.updateBike(match {
+                it.baselineDistanceKm == 800.0 && it.totalDistanceKm == 875.0
+            })
+        }
+    }
+
+    @Test
+    fun saveBike_invalidBaseline_doesNotCallRepository() = runTest(testDispatcher) {
+        viewModel = AddEditBikeViewModel(
+            SavedStateHandle(mapOf()),
+            bikeRepository,
+            componentRepository,
+            imageRepository,
+        )
+
+        viewModel.saveBike(BikeEntity(name = "Test", createdAt = 1000L), "-2")
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { bikeRepository.insertBike(any()) }
+        coVerify(exactly = 0) { bikeRepository.updateBike(any()) }
+    }
 }

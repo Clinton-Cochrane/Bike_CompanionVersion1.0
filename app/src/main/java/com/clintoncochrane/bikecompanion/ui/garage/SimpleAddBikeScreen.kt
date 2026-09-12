@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -32,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
@@ -65,6 +67,7 @@ fun SimpleAddBikeScreen(
     var name by remember { mutableStateOf("") }
     var drivetrainType by remember { mutableStateOf("1x") }
     var brakeType by remember { mutableStateOf("disc_mechanical") }
+    var startingOdometerInput by remember { mutableStateOf("0") }
 
     val backContentDesc = stringResource(R.string.common_back_content_description)
     Scaffold(
@@ -97,6 +100,24 @@ fun SimpleAddBikeScreen(
                 value = name,
                 onValueChange = { name = it },
                 label = { Text(stringResource(R.string.bike_name)) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            val startingOdometerKm = parseStartingOdometerKm(startingOdometerInput)
+            OutlinedTextField(
+                value = startingOdometerInput,
+                onValueChange = { startingOdometerInput = it },
+                label = { Text(stringResource(R.string.bike_starting_odometer)) },
+                supportingText = {
+                    Text(
+                        stringResource(
+                            if (startingOdometerKm == null) R.string.bike_starting_odometer_invalid
+                            else R.string.bike_starting_odometer_help,
+                        ),
+                    )
+                },
+                isError = startingOdometerKm == null,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(
@@ -156,10 +177,10 @@ fun SimpleAddBikeScreen(
             )
             Button(
                 onClick = {
-                    viewModel.saveBike(name, drivetrainType, brakeType)
+                    viewModel.saveBike(name, drivetrainType, brakeType, startingOdometerInput)
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = name.trim().isNotEmpty(),
+                enabled = name.trim().isNotEmpty() && startingOdometerKm != null,
             ) {
                 Text(stringResource(R.string.bike_save))
             }

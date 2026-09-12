@@ -97,7 +97,7 @@
     <string name="garage_filter_bike_all">All bikes</string>
     <string name="garage_filter_sort_label">Sort by</string>
     <string name="garage_filter_sort_content_description">Open filter and sort menu</string>
-    <string name="garage_spec_total_distance">Total: %1$.0f km</string>
+    <string name="garage_spec_total_distance">Combined odometers: %1$.0f km</string>
     <string name="garage_no_bikes">No bikes yet. Add your first bike.</string>
     <string name="garage_no_components">No components yet. Add from the + button or via a bike.</string>
     <string name="garage_component_assigned_to">Assigned to: %1$s</string>
@@ -129,7 +129,9 @@
     <string name="add_bike_brake_other">Other</string>
     <string name="garage_bike_health_score">%1$d/100</string>
     <string name="garage_bike_alert_content_description">Bike needs attention</string>
-    <string name="bike_stat_distance">DISTANCE</string>
+    <string name="bike_stat_odometer">ODOMETER</string>
+    <string name="bike_odometer_km">Odometer: %1$.0f km</string>
+    <string name="bike_distance_breakdown">Starting baseline: %1$.0f km · Bike Companion rides: %2$.0f km</string>
     <string name="bike_stat_moving_time">MOVING TIME</string>
     <string name="bike_stat_avg_speed">AVG. SPEED</string>
     <string name="bike_stat_max_speed">MAX SPEED</string>
@@ -160,6 +162,9 @@
     <string name="bike_make">Make</string>
     <string name="bike_model">Model</string>
     <string name="bike_year">Year</string>
+    <string name="bike_starting_odometer">Starting odometer (km)</string>
+    <string name="bike_starting_odometer_help">Distance already on this bike before Bike Companion tracking.</string>
+    <string name="bike_starting_odometer_invalid">Enter a number that is 0 or greater.</string>
     <string name="bike_description">Description</string>
     <string name="bike_notes">Notes</string>
     <string name="bike_save">Save</string>

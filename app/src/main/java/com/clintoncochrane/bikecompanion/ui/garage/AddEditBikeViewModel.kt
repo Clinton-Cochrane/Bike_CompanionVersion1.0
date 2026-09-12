@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
 import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
+import com.clintoncochrane.bikecompanion.data.bike.withBaselineDistanceKm
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
 import com.clintoncochrane.bikecompanion.data.image.ImageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -65,10 +66,14 @@ class AddEditBikeViewModel @Inject constructor(
         }
     }
 
-    fun saveBike(bike: BikeEntity) {
+    fun saveBike(
+        bike: BikeEntity,
+        startingOdometerInput: String = bike.baselineDistanceKm.toString(),
+    ) {
+        val startingOdometerKm = parseStartingOdometerKm(startingOdometerInput) ?: return
         viewModelScope.launch {
             val state = _uiState.value
-            var bikeToSave = bike
+            var bikeToSave = bike.withBaselineDistanceKm(startingOdometerKm)
 
             if (bike.id > 0) {
                 if (state.removeImageRequested) {

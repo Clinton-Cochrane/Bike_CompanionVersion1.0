@@ -46,15 +46,44 @@ class SimpleAddBikeViewModelTest {
         coEvery { componentRepository.seedComponentsForBikeType(any(), any(), any()) } returns Unit
         val viewModel = SimpleAddBikeViewModel(bikeRepository, componentRepository)
 
-        viewModel.saveBike("Commuter", "1x", "disc_hydraulic")
+        viewModel.saveBike("Commuter", "1x", "disc_hydraulic", "850.5")
         testDispatcher.scheduler.advanceUntilIdle()
 
         val bike = bikeSlot.captured
         assertEquals("Commuter", bike.name)
         assertEquals("1x", bike.drivetrainType)
         assertEquals("disc_hydraulic", bike.brakeType)
+        assertEquals(850.5, bike.baselineDistanceKm, 0.0)
+        assertEquals(850.5, bike.totalDistanceKm, 0.0)
         coVerify { bikeRepository.insertBike(any()) }
         coVerify { componentRepository.seedComponentsForBikeType(42L, "1x", "disc_hydraulic") }
+    }
+
+    @Test
+    fun saveBike_invalidStartingOdometer_doesNotCallRepository() = runTest(testDispatcher) {
+        val viewModel = SimpleAddBikeViewModel(bikeRepository, componentRepository)
+
+        listOf("-1", "NaN", "Infinity", "not a number").forEach { invalidValue ->
+            viewModel.saveBike("Bike", "1x", "rim", invalidValue)
+        }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { bikeRepository.insertBike(any()) }
+        coVerify(exactly = 0) { componentRepository.seedComponentsForBikeType(any(), any(), any()) }
+    }
+
+    @Test
+    fun saveBike_zeroStartingOdometer_createsBikeAtZeroWithoutRideHistory() = runTest(testDispatcher) {
+        val bikeSlot = slot<com.clintoncochrane.bikecompanion.data.bike.BikeEntity>()
+        coEvery { bikeRepository.insertBike(capture(bikeSlot)) } returns 1L
+        coEvery { componentRepository.seedComponentsForBikeType(any(), any(), any()) } returns Unit
+        val viewModel = SimpleAddBikeViewModel(bikeRepository, componentRepository)
+
+        viewModel.saveBike("New bike", "1x", "rim", "0")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(0.0, bikeSlot.captured.baselineDistanceKm, 0.0)
+        assertEquals(0.0, bikeSlot.captured.totalDistanceKm, 0.0)
     }
 
     @Test
