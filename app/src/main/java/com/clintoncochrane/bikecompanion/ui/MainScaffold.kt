@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.StackedBarChart
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -91,7 +90,6 @@ fun MainScaffold(modifier: Modifier = Modifier) {
         Screen.Trip to (Icons.Filled.Home to R.string.nav_trip),
         Screen.Garage to (Icons.Filled.DirectionsBike to R.string.nav_garage),
         Screen.Stats to (Icons.Filled.StackedBarChart to R.string.nav_stats),
-        Screen.Ai to (Icons.Filled.Psychology to R.string.nav_ai),
     )
 
     androidx.compose.material3.Scaffold(
