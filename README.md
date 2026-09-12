@@ -19,7 +19,7 @@ Android app for tracking bikes, rides, and component maintenance. Built with Kot
 
 ## Project structure
 
-- `app/src/main/java/com/you/bikecompanion/`
+- `app/src/main/java/com/clintoncochrane/bikecompanion/`
   - **ui/** – Compose screens, ViewModels, theme, navigation
   - **data/** – Room entities, DAOs, repositories (bike, ride, component)
   - **location/** – RideTrackingService (single boundary for location during rides)

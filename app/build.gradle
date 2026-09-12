@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.you.bikecompanion"
+    namespace = "com.clintoncochrane.bikecompanion"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.you.bikecompanion"
+        applicationId = "com.clintoncochrane.bikecompanion"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
