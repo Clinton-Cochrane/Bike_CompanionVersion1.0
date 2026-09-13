@@ -30,6 +30,9 @@ interface ComponentDao {
     @Query("SELECT * FROM components WHERE bikeId = :bikeId")
     suspend fun getComponentsByBikeIdOnce(bikeId: Long): List<ComponentEntity>
 
+    @Query("SELECT * FROM components WHERE id IN (:componentIds)")
+    suspend fun getComponentsByIdsOnce(componentIds: List<Long>): List<ComponentEntity>
+
     @Query("SELECT COUNT(*) FROM components WHERE bikeId = :bikeId")
     suspend fun getComponentCountByBikeId(bikeId: Long): Int
 
