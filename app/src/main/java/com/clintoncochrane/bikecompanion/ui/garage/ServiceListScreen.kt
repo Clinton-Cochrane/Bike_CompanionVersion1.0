@@ -69,10 +69,22 @@ fun ServiceListScreen(
     val viewModel = androidx.hilt.navigation.compose.hiltViewModel<ServiceListViewModel>()
     val uiState by viewModel.uiState.collectAsState()
     var filterMenuExpanded by remember { mutableStateOf(false) }
+    var componentToReplace by remember { mutableStateOf<ComponentEntity?>(null) }
 
     val backContentDesc = stringResource(R.string.common_back_content_description)
     val filterSortContentDesc = stringResource(R.string.garage_filter_sort_content_description)
     val focusManager = LocalFocusManager.current
+
+    componentToReplace?.let { component ->
+        ReplacementComponentDialog(
+            component = component,
+            onDismiss = { componentToReplace = null },
+            onReplace = { replacement ->
+                viewModel.replaceComponent(component, replacement)
+                componentToReplace = null
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -284,7 +296,7 @@ fun ServiceListScreen(
                             item = item,
                             isSelected = item.component.id in uiState.selectedIds,
                             onToggleSelect = { viewModel.toggleSelection(item.component.id) },
-                            onReplace = { viewModel.replaceComponent(item.component.id) },
+                            onReplace = { componentToReplace = item.component },
                             onInspect = item.nextServiceIntervalId?.let { intervalId ->
                                 { viewModel.completeServiceInterval(item.component.id, intervalId) }
                             },
@@ -306,11 +318,6 @@ fun ServiceListScreen(
                         modifier = Modifier.align(Alignment.CenterVertically),
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    OutlinedButton(
-                        onClick = { viewModel.replaceSelected() },
-                    ) {
-                        Text(stringResource(R.string.service_list_replace_selected))
-                    }
                     OutlinedButton(
                         onClick = { viewModel.completeServiceIntervalsSelected() },
                     ) {

@@ -198,24 +198,12 @@ class ServiceListViewModel @Inject constructor(
         _uiState.update { it.copy(selectedIds = emptySet()) }
     }
 
-    fun replaceComponent(componentId: Long) {
+    fun replaceComponent(component: ComponentEntity, replacement: ComponentEntity) {
         viewModelScope.launch {
-            val component = componentRepository.getComponentById(componentId) ?: return@launch
-            componentRepository.markComponentReplaced(component)
+            componentRepository.replaceComponent(component, replacement)
             _uiState.update { state ->
-                state.copy(selectedIds = state.selectedIds - componentId)
+                state.copy(selectedIds = state.selectedIds - component.id)
             }
-        }
-    }
-
-    fun replaceSelected() {
-        viewModelScope.launch {
-            val ids = _uiState.value.selectedIds.toList()
-            ids.forEach { id ->
-                val component = componentRepository.getComponentById(id) ?: return@forEach
-                componentRepository.markComponentReplaced(component)
-            }
-            _uiState.update { it.copy(selectedIds = emptySet()) }
         }
     }
 

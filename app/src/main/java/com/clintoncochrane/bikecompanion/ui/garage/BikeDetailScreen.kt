@@ -32,6 +32,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -65,6 +66,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavBackStackEntry
@@ -76,6 +78,7 @@ import com.clintoncochrane.bikecompanion.ui.trip.RideReviewDialog
 import com.clintoncochrane.bikecompanion.data.component.ComponentCategory
 import com.clintoncochrane.bikecompanion.data.component.ComponentContext
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
+import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.util.DisplayFormatHelper
 import com.clintoncochrane.bikecompanion.util.RideDisplayHelper
 import com.clintoncochrane.bikecompanion.util.componentTypeIcon
@@ -103,6 +106,7 @@ fun BikeDetailScreen(
 ) {
     var showAddComponentDialog by remember { mutableStateOf(false) }
     var componentToAdd by remember { mutableStateOf<DefaultComponentType?>(null) }
+    var componentToReplace by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentIdForInstallPicker by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentForRemoveDialog by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentForDeleteConfirm by remember { mutableStateOf<ComponentEntity?>(null) }
@@ -159,6 +163,17 @@ fun BikeDetailScreen(
                     baselineKm,
                 )
                 componentToAdd = null
+            },
+        )
+    }
+
+    componentToReplace?.let { component ->
+        ReplacementComponentDialog(
+            component = component,
+            onDismiss = { componentToReplace = null },
+            onReplace = { replacement ->
+                viewModel.replaceComponent(component, replacement)
+                componentToReplace = null
             },
         )
     }
@@ -551,7 +566,7 @@ fun BikeDetailScreen(
                                 currentBikeId = bike.id,
                                 componentContextMenuExpanded = componentContextMenuExpanded,
                                 onContextMenuClick = { id -> componentContextMenuExpanded = if (componentContextMenuExpanded == id) null else id },
-                                onMarkReplaced = viewModel::markComponentReplaced,
+                                onMarkReplaced = { componentToReplace = it },
                                 onSnooze = { viewModel.snoozeComponent(it, 500.0) },
                                 onAlertsOff = viewModel::turnOffAlerts,
                                 onInstall = { componentIdForInstallPicker = it },
@@ -819,6 +834,87 @@ private fun ComponentHealthCard(
             }
         }
     }
+}
+
+@Composable
+fun ReplacementComponentDialog(
+    component: ComponentEntity,
+    onDismiss: () -> Unit,
+    onReplace: (ComponentEntity) -> Unit,
+) {
+    var name by remember { mutableStateOf(component.name) }
+    var makeModel by remember { mutableStateOf(component.makeModel) }
+    var lifespanKmText by remember { mutableStateOf(component.lifespanKm.toString()) }
+    var certainty by remember { mutableStateOf(PriorUsageCertainty.UNKNOWN) }
+    var baselineKmText by remember { mutableStateOf("0") }
+    var validationError by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.component_replace_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it; validationError = false },
+                    label = { Text(stringResource(R.string.component_replace_name)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = makeModel,
+                    onValueChange = { makeModel = it },
+                    label = { Text(stringResource(R.string.component_replace_make_model)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = lifespanKmText,
+                    onValueChange = { lifespanKmText = it; validationError = false },
+                    label = { Text(stringResource(R.string.component_replace_lifespan)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                )
+                PriorUsageFields(
+                    certainty = certainty,
+                    baselineKmText = baselineKmText,
+                    onCertaintyChange = { certainty = it; validationError = false },
+                    onBaselineKmChange = { baselineKmText = it; validationError = false },
+                )
+                if (validationError) Text(
+                    stringResource(R.string.component_replace_invalid),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val lifespanKm = lifespanKmText.toDoubleOrNull()
+                val baselineKm = if (certainty == PriorUsageCertainty.UNKNOWN) 0.0 else baselineKmText.toDoubleOrNull()
+                if (name.isBlank() || lifespanKm == null || !lifespanKm.isFinite() || lifespanKm < 0 ||
+                    baselineKm == null || !baselineKm.isFinite() || baselineKm < 0
+                ) {
+                    validationError = true
+                } else {
+                    onReplace(
+                        ComponentEntity(
+                            bikeId = component.bikeId,
+                            type = component.type,
+                            name = name.trim(),
+                            makeModel = makeModel.trim(),
+                            lifespanKm = lifespanKm,
+                            position = component.position,
+                            baselineKm = baselineKm,
+                            priorUsageCertainty = certainty,
+                            installedAt = 0L,
+                        ),
+                    )
+                }
+            }) { Text(stringResource(R.string.component_replace_confirm)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
+    )
 }
 
 @Composable

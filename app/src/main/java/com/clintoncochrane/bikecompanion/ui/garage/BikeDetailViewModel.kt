@@ -135,9 +135,9 @@ class BikeDetailViewModel @Inject constructor(
         }
     }
 
-    fun markComponentReplaced(component: com.clintoncochrane.bikecompanion.data.component.ComponentEntity) {
+    fun replaceComponent(component: ComponentEntity, replacement: ComponentEntity) {
         viewModelScope.launch {
-            componentRepository.markComponentReplaced(component)
+            componentRepository.replaceComponent(component, replacement)
             val bike = bikeRepository.getBikeById(bikeId)
             _uiState.update { it.copy(bike = bike) }
         }
