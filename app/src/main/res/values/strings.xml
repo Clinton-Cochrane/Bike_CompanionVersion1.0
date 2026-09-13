@@ -360,4 +360,30 @@
     <string name="settings_health_alert_slider_content_description">Mild alert threshold, percentage</string>
     <string name="settings_maintenance_estimates_title">About maintenance estimates</string>
     <string name="settings_maintenance_estimates_disclaimer">Maintenance intervals are estimates. Inspect actual component condition and follow manufacturer guidance.</string>
+    <string name="settings_privacy_title">Privacy and data</string>
+    <string name="settings_privacy_subtitle">Review how Bike Companion uses location and Health Connect data.</string>
+
+    <!-- Privacy policy -->
+    <string name="privacy_title">Privacy policy</string>
+    <string name="privacy_effective_date">Effective September 13, 2026</string>
+    <string name="privacy_location_title">Location</string>
+    <string name="privacy_location_body">Bike Companion accesses precise location only during a GPS ride that you start. Tracking may continue while the app is in the background using a foreground service and persistent notification. Coordinates and altitude remain in memory only while calculating distance, speed, and elevation and are not saved as a route or written to logs.</string>
+    <string name="privacy_health_connect_title">Health Connect</string>
+    <string name="privacy_health_connect_body">When you choose Import from Health Connect and grant permission, Bike Companion reads cycling exercise sessions and distance from the previous 30 days. It uses start and end times, duration, distance, and the Health Connect record identifier to review, save, and prevent duplicate imports. It does not write data to Health Connect.</string>
+    <string name="privacy_local_storage_title">Information stored on this device</string>
+    <string name="privacy_local_storage_body">The app stores bike details, descriptions, notes, odometer values and ride statistics; component details, serial numbers, purchase information, notes, service settings and history; ride timestamps, bike assignment and derived statistics; Health Connect record identifiers; app settings; and dismissed or snoozed reminders. An active-ride checkpoint temporarily stores timestamps and derived statistics so an interrupted ride can be recovered. Raw GPS coordinates are not stored.</string>
+    <string name="privacy_sharing_title">Network access and sharing</string>
+    <string name="privacy_sharing_body">Bike Companion has no account, cloud sync, advertising, analytics, crash-reporting service, or application-operated server. The app does not transmit your ride, location, bike, component, or Health Connect data to the developer or other companies. Health Connect and the Android location provider are system services governed by their own settings and policies.</string>
+    <string name="privacy_backup_title">Backups</string>
+    <string name="privacy_backup_body">Android cloud backup and device-to-device transfer are disabled for Bike Companion v1. The application manifest disables backup, and its backup rules exclude every application storage domain on older and current Android versions.</string>
+    <string name="privacy_notifications_title">Notifications</string>
+    <string name="privacy_notifications_body">During an active ride, a persistent notification can show ride status and distance and provide pause, resume and stop controls. Optional maintenance notifications can show component names. Both types are marked private so Android can hide details on a secure lock screen or during screen sharing. You can further control notification visibility in Android settings.</string>
+    <string name="privacy_retention_title">Retention and deletion</string>
+    <string name="privacy_retention_body">Saved records remain until you delete them in the app, clear Bike Companion storage in Android settings, or uninstall the app. Active-ride checkpoints are cleared after a ride is completed or discarded. Revoking Health Connect permission prevents future access but does not delete rides already imported into Bike Companion. Clearing or uninstalling Bike Companion does not delete the source records held by Health Connect.</string>
+    <string name="privacy_security_title">Security</string>
+    <string name="privacy_security_body">Data is kept in Android app-private storage and protected by Android application sandbox and device security. Bike Companion does not add separate database encryption. Avoid sharing an unlocked device with people who should not see your ride or maintenance information.</string>
+    <string name="privacy_control_title">Your choices</string>
+    <string name="privacy_control_body">You can decline or revoke location and Health Connect permissions in Android settings. GPS recording and Health Connect import will not work without their respective permissions, but bike and maintenance tracking remain available.</string>
+    <string name="privacy_contact_title">Questions</string>
+    <string name="privacy_contact_body">For privacy questions, contact the Bike Companion developer through the project issue tracker at github.com/Clinton-Cochrane/Bike_CompanionVersion1.0/issues.</string>
 </resources>

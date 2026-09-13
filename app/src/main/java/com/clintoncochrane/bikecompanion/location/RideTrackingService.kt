@@ -221,7 +221,9 @@ class RideTrackingService : Service() {
         serviceScope.launch {
             checkpointMutex.withLock {
                 runCatching { checkpointRepository.clear() }
-                    .onFailure { Log.e(TAG, "Failed to clear active ride checkpoint", it) }
+                    .onFailure {
+                        Log.e(TAG, "Failed to clear active ride checkpoint (${it.javaClass.simpleName})")
+                    }
             }
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -308,7 +310,10 @@ class RideTrackingService : Service() {
                 Looper.getMainLooper(),
             )
         } catch (error: SecurityException) {
-            Log.w(TAG, "Location permission was revoked before updates could start", error)
+            Log.w(
+                TAG,
+                "Location permission was revoked before updates could start (${error.javaClass.simpleName})",
+            )
             stopTracking()
         }
     }
@@ -350,6 +355,7 @@ class RideTrackingService : Service() {
             .addAction(stopAction.first, stopAction.second, stopAction.third)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .build()
     }
 
@@ -389,7 +395,9 @@ class RideTrackingService : Service() {
             checkpointMutex.withLock {
                 if (terminalActionInProgress) return@withLock
                 runCatching { checkpointRepository.save(checkpoint) }
-                    .onFailure { Log.e(TAG, "Failed to persist active ride checkpoint", it) }
+                    .onFailure {
+                        Log.e(TAG, "Failed to persist active ride checkpoint (${it.javaClass.simpleName})")
+                    }
             }
         }
     }
