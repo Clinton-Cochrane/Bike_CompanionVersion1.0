@@ -43,6 +43,26 @@ class RideRepository @Inject constructor(
         bikeIdForNotification?.let { componentAlertNotifier.notifyIfNeeded(it) }
     }
 
+    /** Saves a recovered ride once, including its normal bike/component accounting. */
+    suspend fun saveRecoveredRideAndUpdateBikeAndComponents(ride: RideEntity): Boolean {
+        require(ride.source == RideSource.APP) { "Recovered rides must be app rides" }
+        require(ride.bikeId != null) { "A recovered ride needs a bike before it can be saved" }
+        require(!ride.recoveryCheckpointId.isNullOrBlank()) { "A recovery checkpoint ID is required" }
+        val bikeIdForNotification = ridePersistenceTransaction.run transaction@{
+            val id = rideDao.insertIgnoringDuplicate(ride)
+            // A prior process may have committed this recovery immediately before dying. The
+            // unique recovery ID makes that case a successful, no-op retry.
+            if (id == -1L) return@transaction -1L
+            val savedRide = ride.copy(id = id)
+            val bikeId = savedRide.bikeId ?: return@transaction null
+            val bike = bikeDao.getBikeById(bikeId) ?: return@transaction null
+            updateBikeAndComponentsForNewRide(savedRide, bike, bikeId)
+            bikeId
+        }
+        bikeIdForNotification?.takeIf { it > 0L }?.let { componentAlertNotifier.notifyIfNeeded(it) }
+        return bikeIdForNotification != null
+    }
+
     /**
      * Saves a Health Connect ride exactly once. The unique record-ID index is checked inside the
      * same transaction as all mileage updates, so repeated scans cannot apply aggregates twice.

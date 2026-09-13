@@ -27,6 +27,9 @@ interface RideDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertIgnoringHealthConnectDuplicate(ride: RideEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIgnoringDuplicate(ride: RideEntity): Long
+
     @Update
     suspend fun update(ride: RideEntity)
 

@@ -106,6 +106,7 @@ class RideTrackingService : Service() {
             ACTION_RESUME -> resumeTracking()
             ACTION_STOP -> stopTracking()
             ACTION_CLEAR_AUTO_PAUSE_FLAG -> clearAutoPauseFlag()
+            ACTION_RESTORE -> restoreTracking()
         }
         // Restoring an interrupted ride is owned by checkpoint recovery. Restarting this service
         // without its in-memory state would otherwise create a phantom tracking session.
@@ -183,6 +184,29 @@ class RideTrackingService : Service() {
         requestLocationUpdates()
         updateNotification()
         scheduleNoMovementCheck()
+    }
+
+    private fun restoreTracking() {
+        if (_rideState.value.isTracking) return
+        serviceScope.launch {
+            val checkpoint = runCatching { checkpointRepository.get() }.getOrNull() ?: return@launch
+            val restoredState = checkpoint.toRideState()
+            _rideState.value = restoredState
+            rideActiveBikeId.value = restoredState.bikeId
+            createNotificationChannel()
+            ServiceCompat.startForeground(
+                this@RideTrackingService,
+                NOTIFICATION_ID,
+                createNotification(restoredState.isPaused),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
+            )
+            if (!restoredState.isPaused && RideLocationPermission.isGranted(this@RideTrackingService)) {
+                lastMovementTimeMs = System.currentTimeMillis()
+                requestLocationUpdates()
+                scheduleNoMovementCheck()
+            }
+            scheduleCheckpoint()
+        }
     }
 
     private fun stopTracking() {
@@ -445,6 +469,7 @@ class RideTrackingService : Service() {
         const val ACTION_RESUME = "resume"
         const val ACTION_STOP = "stop"
         const val ACTION_CLEAR_AUTO_PAUSE_FLAG = "clear_auto_pause_flag"
+        const val ACTION_RESTORE = "restore"
     }
 }
 

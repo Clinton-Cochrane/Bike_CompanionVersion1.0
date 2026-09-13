@@ -28,6 +28,7 @@ enum class RideSource {
     indices = [
         Index("bikeId"),
         Index(value = ["healthConnectRecordId"], unique = true),
+        Index(value = ["recoveryCheckpointId"], unique = true),
     ],
 )
 data class RideEntity(
@@ -48,6 +49,8 @@ data class RideEntity(
      * The unique database index prevents the same Health Connect session from being imported twice.
      */
     val healthConnectRecordId: String? = null,
+    /** Durable identity for an interrupted active ride, preventing duplicate recovery saves. */
+    val recoveryCheckpointId: String? = null,
     /**
      * True when the bike had placeholder components added at ride start (from missing-parts dialog).
      * Used to prompt user to update bike info after the ride.
