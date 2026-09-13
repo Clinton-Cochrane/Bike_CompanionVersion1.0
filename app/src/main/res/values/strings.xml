@@ -223,6 +223,10 @@
     <string name="component_done">Done</string>
     <string name="component_install">Install</string>
     <string name="component_uninstall">Uninstall</string>
+    <string name="component_retire">Retire</string>
+    <string name="component_retired">Retired</string>
+    <string name="component_retire_confirm_title">Retire component?</string>
+    <string name="component_retire_confirm_message">This keeps the component and its history, but removes it from reusable garage components.</string>
     <string name="component_install_picker_title">Install on bike</string>
     <string name="component_install_picker_message">Select a bike to install this component on. It will be moved from the garage to the chosen bike.</string>
     <string name="component_swap_picker_message">Select a bike to move this component to. It will be uninstalled from its current bike and installed on the chosen bike. Bikes that already have this part type are shown but cannot be selected.</string>

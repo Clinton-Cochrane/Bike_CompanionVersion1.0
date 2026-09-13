@@ -225,12 +225,12 @@ fun BikeDetailScreen(
                     Text(DisplayFormatHelper.formatForDisplay(componentToRemove.name))
                     TextButton(
                         onClick = {
-                            componentForDeleteConfirm = componentToRemove
+                            viewModel.retireComponent(componentToRemove)
                             componentForRemoveDialog = null
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(stringResource(R.string.component_remove_forever), color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.component_retire), color = MaterialTheme.colorScheme.error)
                     }
                     TextButton(
                         onClick = {

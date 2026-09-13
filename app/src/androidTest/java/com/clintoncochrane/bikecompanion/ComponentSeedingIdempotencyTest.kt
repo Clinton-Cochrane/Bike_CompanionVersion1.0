@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.clintoncochrane.bikecompanion.data.BikeCompanionDatabase
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
+import com.clintoncochrane.bikecompanion.data.component.ComponentLifecycleTransaction
 import com.clintoncochrane.bikecompanion.data.component.DefaultSeedComponents
 import com.clintoncochrane.bikecompanion.data.image.ImageRepository
 import kotlinx.coroutines.runBlocking
@@ -37,6 +38,7 @@ class ComponentSeedingIdempotencyTest {
             db.componentSwapDao(),
             db.bikeDao(),
             ImageRepository(context.cacheDir.resolve("component-seeding-images")) { null },
+            ComponentLifecycleTransaction(db),
         )
     }
 
