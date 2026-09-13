@@ -115,6 +115,11 @@ class RideTrackingService : Service() {
     private fun startTracking(bikeId: Long, hadPlaceholdersAtStart: Boolean = false) {
         if (!RideTrackingLifecyclePolicy.canStartTracking(_rideState.value)) return
 
+        if (!RideLocationPermission.isGranted(this)) {
+            Log.w(TAG, "Ride start rejected because fine location permission is not granted")
+            stopSelf()
+            return
+        }
         createNotificationChannel()
         terminalActionInProgress = false
         lastLatLng = null
@@ -159,6 +164,11 @@ class RideTrackingService : Service() {
     private fun resumeTracking() {
         if (!RideTrackingLifecyclePolicy.canResumeTracking(_rideState.value)) return
 
+        if (!RideLocationPermission.isGranted(this)) {
+            Log.w(TAG, "Ride resume rejected because fine location permission is not granted")
+            stopTracking()
+            return
+        }
         val now = System.currentTimeMillis()
         val state = _rideState.value
         val pauseDuration = if (state.pausedAtMs > 0) now - state.pausedAtMs else 0L
@@ -206,6 +216,11 @@ class RideTrackingService : Service() {
     }
 
     private fun requestLocationUpdates() {
+        if (!RideLocationPermission.isGranted(this)) {
+            Log.w(TAG, "Location updates rejected because fine location permission is not granted")
+            stopTracking()
+            return
+        }
         if (locationCallback != null) return
 
         val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, UPDATE_INTERVAL_MS).apply {
@@ -268,7 +283,10 @@ class RideTrackingService : Service() {
                 locationCallback!!,
                 Looper.getMainLooper(),
             )
-        } catch (_: SecurityException) { }
+        } catch (error: SecurityException) {
+            Log.w(TAG, "Location permission was revoked before updates could start", error)
+            stopTracking()
+        }
     }
 
     private fun createNotificationChannel() {
