@@ -377,9 +377,9 @@ private fun ServiceListRow(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (item.nextDueText.isNotBlank()) {
+                item.nextDueDescription?.let { description ->
                     Text(
-                        text = item.nextDueText,
+                        text = serviceIntervalDescriptionText(description),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )

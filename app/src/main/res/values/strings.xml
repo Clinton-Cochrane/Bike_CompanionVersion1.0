@@ -127,7 +127,7 @@
     <string name="add_bike_brake_coaster">Coaster</string>
     <string name="add_bike_brake_other">Other</string>
     <string name="garage_bike_health_score">%1$d/100</string>
-    <string name="garage_bike_alert_content_description">Bike needs attention</string>
+    <string name="garage_bike_alert_content_description">Bike has maintenance suggestions</string>
     <string name="bike_stat_odometer">ODOMETER</string>
     <string name="bike_odometer_km">Odometer: %1$.0f km</string>
     <string name="bike_distance_breakdown">Starting baseline: %1$.0f km · Bike Companion rides: %2$.0f km</string>
@@ -138,7 +138,7 @@
     <string name="bike_stat_kmh">%1$.0fkm/h</string>
     <string name="bike_stat_elevation">Elev: +%1$dm / -%2$dm</string>
     <string name="garage_bike_last_ride">Last ride: %1$s</string>
-    <string name="garage_components_attention">%1$d components need attention</string>
+    <string name="garage_components_attention">Service due for %1$d components</string>
     <string name="garage_components">Components</string>
     <string name="component_category_cockpit">Cockpit</string>
     <string name="component_category_frame">Frame</string>
@@ -169,7 +169,7 @@
     <string name="bike_save">Save</string>
     <string name="bike_add_component">Add component</string>
     <string name="bike_component_health">Health: %1$d%%</string>
-    <string name="bike_component_used_km">%1$.0f / %2$.0f km</string>
+    <string name="bike_component_used_km">%1$.0f / %2$.0f km toward expected interval</string>
     <string name="bike_component_total_time">Total ride time: %1$s</string>
     <string name="bike_component_replaced">Mark replaced</string>
     <string name="bike_component_last_replaced">Last replaced: %1$s</string>
@@ -177,7 +177,7 @@
     <string name="bike_component_snooze">Snooze alert</string>
     <string name="bike_component_alerts_off">Alerts off</string>
     <string name="bike_health_alert_mild_content_description">Close to inspection or service</string>
-    <string name="bike_health_alert_danger_content_description">Past service, attention required</string>
+    <string name="bike_health_alert_danger_content_description">Expected service interval reached</string>
 
     <!-- Component context / notes -->
     <string name="component_context_section">Context / Notes</string>
@@ -197,7 +197,7 @@
 
     <!-- Suggested components -->
     <string name="component_suggested_title">Add components for this bike</string>
-    <string name="component_suggested_subtitle">Select the components you want to track. You can edit lifespans later.</string>
+    <string name="component_suggested_subtitle">Select the components you want to track. You can edit expected intervals later.</string>
     <string name="component_type_chain">Chain</string>
     <string name="component_type_cassette">Cassette</string>
     <string name="component_type_chainring">Chainring</string>
@@ -237,7 +237,11 @@
     <string name="component_interval_time_label">Interval time (optional)</string>
     <string name="component_interval_time_hint">e.g. 2 weeks, 50 hours</string>
     <string name="component_interval_edit_title">Edit service interval</string>
-    <string name="component_interval_km">%1$.0fkm of %2$.0fkm left</string>
+    <string name="component_interval_suggestion">Suggested: %1$s</string>
+    <string name="component_interval_expected_reached">Expected interval reached</string>
+    <string name="component_interval_distance_until_expected">%1$d km until expected interval</string>
+    <string name="component_interval_time_until_expected">%1$s until expected interval</string>
+    <string name="component_interval_distance_or_time">%1$s · %2$s</string>
     <string name="bike_chain_recommendation_title">Chain replacement reminder</string>
     <string name="bike_chain_recommendation_message">After %1$d chain replacements, consider inspecting or replacing cassette, freewheel, and chainrings.</string>
     <string name="bike_chain_recommendation_reset">Reset chain count</string>
@@ -312,7 +316,9 @@
     <!-- Settings (general) -->
     <string name="settings_content_description">Open settings</string>
     <string name="settings_health_alert_threshold_title">Mild alert threshold</string>
-    <string name="settings_health_alert_threshold_subtitle">Show a mild (warning) alert when bike health is at or below this percentage. Below 1%% always shows a danger alert. Default: 20%%.</string>
+    <string name="settings_health_alert_threshold_subtitle">Show a mild alert when bike health is at or below this percentage. At 0%%, the app shows that the expected interval was reached. Default: 20%%.</string>
     <string name="settings_health_alert_threshold_value">%1$d%%</string>
     <string name="settings_health_alert_slider_content_description">Mild alert threshold, percentage</string>
+    <string name="settings_maintenance_estimates_title">About maintenance estimates</string>
+    <string name="settings_maintenance_estimates_disclaimer">Maintenance intervals are estimates. Inspect actual component condition and follow manufacturer guidance.</string>
 </resources>

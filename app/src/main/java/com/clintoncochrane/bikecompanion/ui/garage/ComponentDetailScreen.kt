@@ -478,12 +478,7 @@ fun ComponentDetailScreen(
             items(uiState.serviceIntervals, key = { it.id }) { interval ->
                 val healthPercent = ServiceIntervalHelper.healthPercent(interval)
                 val desc = ServiceIntervalHelper.description(interval)
-                val subtitle = when {
-                    desc.kmText != null && desc.timeText != null -> "${desc.kmText}, or ${desc.timeText}"
-                    desc.kmText != null -> desc.kmText
-                    desc.timeText != null -> desc.timeText
-                    else -> ""
-                }
+                val subtitle = serviceIntervalDescriptionText(desc)
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -500,7 +495,10 @@ fun ComponentDetailScreen(
                                 .semantics { contentDescription = "Health $healthPercent%" },
                         )
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(interval.name, style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                stringResource(R.string.component_interval_suggestion, interval.name),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
                             if (subtitle.isNotBlank()) {
                                 Text(
                                     subtitle,
