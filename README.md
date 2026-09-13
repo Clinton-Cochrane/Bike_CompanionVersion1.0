@@ -28,7 +28,9 @@ Android app for tracking bikes, rides, and component maintenance. Built with Kot
 
 ## Privacy
 
-See [PRIVACY.md](PRIVACY.md) for where location and Health Connect data are used, stored, and retained.
+See [PRIVACY.md](PRIVACY.md) for the user-facing policy. Maintainers should also review the
+[v1 privacy data-flow inventory](docs/privacy-data-flow-inventory.md) and
+[privacy release checklist](docs/privacy-release-checklist.md) whenever a data path changes.
 
 ## Internationalization (i18n)
 

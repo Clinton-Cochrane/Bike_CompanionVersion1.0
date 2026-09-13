@@ -1,5 +1,6 @@
 package com.clintoncochrane.bikecompanion.ui.settings
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,6 +27,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -33,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.clintoncochrane.bikecompanion.R
 import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesRepository
+import com.clintoncochrane.bikecompanion.ui.privacy.PrivacyPolicyActivity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,6 +44,7 @@ fun SettingsScreen(
 ) {
     val viewModel: SettingsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     val backContentDesc = stringResource(R.string.common_back_content_description)
     val sliderContentDesc = stringResource(R.string.settings_health_alert_slider_content_description)
     Scaffold(
@@ -126,6 +130,27 @@ fun SettingsScreen(
                     )
                     Text(
                         text = stringResource(R.string.settings_maintenance_estimates_disclaimer),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            }
+            Card(
+                onClick = {
+                    context.startActivity(Intent(context, PrivacyPolicyActivity::class.java))
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.settings_privacy_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_privacy_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp),
