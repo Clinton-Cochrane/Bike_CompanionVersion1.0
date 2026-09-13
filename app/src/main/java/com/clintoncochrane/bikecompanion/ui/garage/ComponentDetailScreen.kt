@@ -79,6 +79,7 @@ import com.clintoncochrane.bikecompanion.R
 import com.clintoncochrane.bikecompanion.data.component.ComponentContext
 import com.clintoncochrane.bikecompanion.data.component.ComponentContextValidation
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
+import com.clintoncochrane.bikecompanion.data.component.ComponentLifecycleStatus
 import com.clintoncochrane.bikecompanion.data.component.ComponentSwapEntity
 import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalEntity
@@ -115,6 +116,7 @@ fun ComponentDetailScreen(
     var showAddIntervalDialog by remember { mutableStateOf(false) }
     var intervalMenuExpanded by remember { mutableStateOf<Long?>(null) }
     var showUninstallConfirm by remember { mutableStateOf(false) }
+    var showRetireConfirm by remember { mutableStateOf(false) }
     var showSwapPicker by remember { mutableStateOf(false) }
     var intervalToEdit by remember { mutableStateOf<ServiceIntervalEntity?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -223,6 +225,30 @@ fun ComponentDetailScreen(
         )
     }
 
+    val componentForRetirement = uiState.component
+    if (showRetireConfirm && componentForRetirement != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showRetireConfirm = false },
+            title = { Text(stringResource(R.string.component_retire_confirm_title)) },
+            text = { Text(stringResource(R.string.component_retire_confirm_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.retireComponent()
+                        showRetireConfirm = false
+                    },
+                ) {
+                    Text(stringResource(R.string.component_retire), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRetireConfirm = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
+    }
+
     uiState.component?.let { component ->
         val isSwapFlow = component.bikeId != null && uiState.bikes.size > 1
         val bikesForPicker = if (isSwapFlow) {
@@ -300,7 +326,9 @@ fun ComponentDetailScreen(
     }
 
     val editContentDesc = stringResource(R.string.common_edit)
-    val screenTitle = uiState.component?.bikeId?.let { bid ->
+    val screenTitle = if (uiState.component?.lifecycleStatus == ComponentLifecycleStatus.RETIRED) {
+        stringResource(R.string.component_retired)
+    } else uiState.component?.bikeId?.let { bid ->
         uiState.bikes.find { it.id == bid }?.name
     } ?: stringResource(R.string.component_in_garage)
     Scaffold(
@@ -375,7 +403,11 @@ fun ComponentDetailScreen(
                                     uiState.bikes.find { it.id == bid }?.name
                                 }
                                 Text(
-                                    bikeName ?: stringResource(R.string.component_in_garage),
+                                    if (component.lifecycleStatus == ComponentLifecycleStatus.RETIRED) {
+                                        stringResource(R.string.component_retired)
+                                    } else {
+                                        bikeName ?: stringResource(R.string.component_in_garage)
+                                    },
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -409,9 +441,17 @@ fun ComponentDetailScreen(
                             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            if (component.bikeId == null) {
+                            if (component.lifecycleStatus == ComponentLifecycleStatus.RETIRED) {
+                                Text(
+                                    stringResource(R.string.component_retired),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            } else if (component.bikeId == null) {
                                 OutlinedButton(onClick = { showInstallPicker = true }) {
                                     Text(stringResource(R.string.component_install))
+                                }
+                                OutlinedButton(onClick = { showRetireConfirm = true }) {
+                                    Text(stringResource(R.string.component_retire))
                                 }
                             } else {
                                 if (uiState.bikes.size > 1) {
@@ -421,6 +461,9 @@ fun ComponentDetailScreen(
                                 }
                                 OutlinedButton(onClick = { showUninstallConfirm = true }) {
                                     Text(stringResource(R.string.component_uninstall))
+                                }
+                                OutlinedButton(onClick = { showRetireConfirm = true }) {
+                                    Text(stringResource(R.string.component_retire))
                                 }
                             }
                         }

@@ -74,7 +74,7 @@ class ComponentContextMigrationTest {
     }
 
     @Test
-    fun migration3ToLatest_preservesTrackedDistanceAndDefaultsPriorUsageToUnknown() {
+    fun migration3ToLatest_preservesTrackedDistanceAndDefaultsInstalledLifecycle() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val sqlite = SQLiteDatabase.openDatabase(dbFile.path, null, SQLiteDatabase.OPEN_READWRITE)
         sqlite.execSQL("INSERT INTO bikes (id, name, createdAt) VALUES (1, 'Bike', 0)")
@@ -93,11 +93,12 @@ class ComponentContextMigrationTest {
             .build()
 
         val cursor = db.openHelper.writableDatabase.query(
-            "SELECT distanceUsedKm, priorUsageCertainty FROM components WHERE id = 1",
+            "SELECT distanceUsedKm, priorUsageCertainty, lifecycleStatus FROM components WHERE id = 1",
         )
         assertTrue(cursor.moveToFirst())
         assertTrue(cursor.getDouble(0) == 42.5)
         assertTrue(cursor.getString(1) == "UNKNOWN")
+        assertTrue(cursor.getString(2) == "INSTALLED")
         cursor.close()
     }
 

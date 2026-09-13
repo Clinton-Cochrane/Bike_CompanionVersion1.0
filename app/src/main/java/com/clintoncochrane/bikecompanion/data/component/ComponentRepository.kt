@@ -14,6 +14,7 @@ class ComponentRepository @Inject constructor(
     private val componentSwapDao: ComponentSwapDao,
     private val bikeDao: BikeDao,
     private val imageRepository: ImageRepository,
+    private val lifecycleTransaction: ComponentLifecycleTransaction,
 ) {
     fun getComponentsByBikeId(bikeId: Long): Flow<List<ComponentEntity>> =
         componentDao.getComponentsByBikeId(bikeId)
@@ -168,27 +169,63 @@ class ComponentRepository @Inject constructor(
     }
 
     suspend fun installComponent(component: ComponentEntity, bikeId: Long) {
-        val currentSwap = componentSwapDao.getCurrentSwap(component.id)
-        currentSwap?.let {
-            componentSwapDao.update(it.copy(uninstalledAt = System.currentTimeMillis()))
+        lifecycleTransaction.run {
+            val persisted = requireNotNull(componentDao.getComponentById(component.id))
+            require(persisted.lifecycleStatus != ComponentLifecycleStatus.RETIRED) {
+                "Retired components cannot be installed"
+            }
+            require(!wouldBeDuplicatePart(persisted, bikeId)) {
+                "A component of this type is already installed on the target bike"
+            }
+            val now = System.currentTimeMillis()
+            componentSwapDao.getCurrentSwap(persisted.id)?.let {
+                componentSwapDao.update(it.copy(uninstalledAt = now))
+            }
+            componentDao.update(
+                persisted.copy(
+                    bikeId = bikeId,
+                    lifecycleStatus = ComponentLifecycleStatus.INSTALLED,
+                    installedAt = now,
+                ),
+            )
+            componentSwapDao.insert(
+                ComponentSwapEntity(componentId = persisted.id, bikeId = bikeId, installedAt = now),
+            )
         }
-        componentDao.update(component.copy(bikeId = bikeId))
-        componentSwapDao.insert(
-            ComponentSwapEntity(
-                componentId = component.id,
-                bikeId = bikeId,
-                installedAt = System.currentTimeMillis(),
-                uninstalledAt = null,
-            ),
-        )
     }
 
     suspend fun uninstallComponent(component: ComponentEntity) {
-        val currentSwap = componentSwapDao.getCurrentSwap(component.id)
-        currentSwap?.let {
-            componentSwapDao.update(it.copy(uninstalledAt = System.currentTimeMillis()))
+        removeToGarage(component)
+    }
+
+    suspend fun removeToGarage(component: ComponentEntity) {
+        lifecycleTransaction.run {
+            val persisted = requireNotNull(componentDao.getComponentById(component.id))
+            require(persisted.lifecycleStatus != ComponentLifecycleStatus.RETIRED) {
+                "Retired components cannot be moved to the garage"
+            }
+            val now = System.currentTimeMillis()
+            componentSwapDao.getCurrentSwap(persisted.id)?.let {
+                componentSwapDao.update(it.copy(uninstalledAt = now))
+            }
+            componentDao.update(
+                persisted.copy(bikeId = null, lifecycleStatus = ComponentLifecycleStatus.IN_GARAGE),
+            )
         }
-        componentDao.update(component.copy(bikeId = null))
+    }
+
+    suspend fun retireComponent(component: ComponentEntity) {
+        lifecycleTransaction.run {
+            val persisted = requireNotNull(componentDao.getComponentById(component.id))
+            if (persisted.lifecycleStatus == ComponentLifecycleStatus.RETIRED) return@run
+            val now = System.currentTimeMillis()
+            componentSwapDao.getCurrentSwap(persisted.id)?.let {
+                componentSwapDao.update(it.copy(uninstalledAt = now))
+            }
+            componentDao.update(
+                persisted.copy(bikeId = null, lifecycleStatus = ComponentLifecycleStatus.RETIRED),
+            )
+        }
     }
 
     /**

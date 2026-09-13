@@ -36,10 +36,10 @@ interface ComponentDao {
     @Query("SELECT COUNT(*) FROM components WHERE bikeId = :bikeId")
     suspend fun getComponentCountByBikeId(bikeId: Long): Int
 
-    @Query("SELECT * FROM components WHERE bikeId IS NULL ORDER BY type, name")
+    @Query("SELECT * FROM components WHERE lifecycleStatus = 'IN_GARAGE' ORDER BY type, name")
     suspend fun getComponentsInGarageOnce(): List<ComponentEntity>
 
-    @Query("SELECT * FROM components WHERE bikeId IS NULL ORDER BY type, name")
+    @Query("SELECT * FROM components WHERE lifecycleStatus = 'IN_GARAGE' ORDER BY type, name")
     fun getComponentsInGarage(): Flow<List<ComponentEntity>>
 
     @Query("SELECT * FROM components")

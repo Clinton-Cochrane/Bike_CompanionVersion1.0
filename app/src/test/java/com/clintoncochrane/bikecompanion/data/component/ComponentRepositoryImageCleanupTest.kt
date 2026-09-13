@@ -34,6 +34,7 @@ class ComponentRepositoryImageCleanupTest {
             componentSwapDao,
             bikeDao,
             imageRepository,
+            mockk(),
         )
     }
 

@@ -23,6 +23,12 @@ data class ComponentEntity(
     val id: Long = 0,
     /** Null when component is in garage (not installed on any bike). */
     val bikeId: Long?,
+    /** Whether the component is installed, reusable in the garage, or retired history. */
+    val lifecycleStatus: ComponentLifecycleStatus = if (bikeId == null) {
+        ComponentLifecycleStatus.IN_GARAGE
+    } else {
+        ComponentLifecycleStatus.INSTALLED
+    },
     /** Component type for display and grouping (e.g. chain, cassette, tires). */
     val type: String,
     val name: String,

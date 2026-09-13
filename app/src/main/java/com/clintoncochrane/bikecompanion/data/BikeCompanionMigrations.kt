@@ -222,9 +222,34 @@ object BikeCompanionMigrations {
         }
     }
 
+    /** Adds explicit lifecycle state and repairs legacy duplicate active swap records. */
+    val MIGRATION_12_13 = object : Migration(12, 13) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            addColumnIfNotExists(
+                db,
+                "components",
+                "lifecycleStatus",
+                "TEXT NOT NULL DEFAULT 'IN_GARAGE'",
+            )
+            db.execSQL(
+                "UPDATE components SET lifecycleStatus = CASE " +
+                    "WHEN bikeId IS NULL THEN 'IN_GARAGE' ELSE 'INSTALLED' END",
+            )
+            db.execSQL(
+                "UPDATE component_swaps SET uninstalledAt = installedAt " +
+                    "WHERE uninstalledAt IS NULL AND id NOT IN (" +
+                    "SELECT MAX(id) FROM component_swaps WHERE uninstalledAt IS NULL GROUP BY componentId)",
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS index_component_swaps_one_active_install " +
+                    "ON component_swaps(componentId) WHERE uninstalledAt IS NULL",
+            )
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
         MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
-        MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
+        MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
     )
 }
