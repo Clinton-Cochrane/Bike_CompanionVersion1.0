@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -57,7 +58,8 @@ fun TripStartSplashScreen(
 
     LaunchedEffect(viewModel.startTripEvents) {
         viewModel.startTripEvents.collectLatest {
-            context.startService(
+            ContextCompat.startForegroundService(
+                context,
                 Intent(context, RideTrackingService::class.java).apply {
                     putExtra(RideTrackingService.ACTION_KEY, RideTrackingService.ACTION_START)
                     putExtra(RideTrackingService.BIKE_ID_KEY, bikeId)
