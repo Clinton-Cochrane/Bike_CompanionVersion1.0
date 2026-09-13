@@ -14,7 +14,6 @@ Android app for tracking bikes, rides, and component maintenance. Built with Kot
 - Hilt, Room (BikeCompanionDatabase), Navigation Compose
 - Fused Location Provider (foreground service for active rides)
 - Health Connect (read cycling sessions)
-- WorkManager (e.g. component health checks)
 
 ## Project structure
 
@@ -32,6 +31,11 @@ See [PRIVACY.md](PRIVACY.md) for the user-facing policy. Maintainers should also
 [v1 privacy data-flow inventory](docs/privacy-data-flow-inventory.md) and
 [privacy release checklist](docs/privacy-release-checklist.md) whenever a data path changes.
 
+## Dependency policy
+
+See the [v1 production dependency audit](docs/dependency-audit.md) for the reviewed build/runtime
+inventory, vulnerability decisions, compatibility pins, and commands to repeat before release.
+
 ## Internationalization (i18n)
 
 - All user-visible strings are in **`app/src/main/res/values/strings.xml`** (English). The app uses `stringResource(R.string.*)` in Compose and does not hardcode UI text in code.
@@ -43,7 +47,7 @@ See [PRIVACY.md](PRIVACY.md) for the user-facing policy. Maintainers should also
 
 ## Building
 
-- **Requirements:** Android SDK 34, JDK 17.
+- **Requirements:** Android SDK 36, JDK 17.
 - Open in Android Studio or run:
   - `./gradlew assembleDebug` – debug APK
   - `./gradlew installDebug` – install on connected device
