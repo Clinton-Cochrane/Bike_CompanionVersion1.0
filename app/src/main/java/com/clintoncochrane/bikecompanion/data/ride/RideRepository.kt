@@ -91,5 +91,106 @@ class RideRepository @Inject constructor(
 
     suspend fun insertRide(ride: RideEntity): Long = rideDao.insert(ride)
 
+    /**
+     * Replaces a completed ride without reassigning it to another bike, then reconciles the
+     * denormalized bike, component, and service interval totals in the same transaction.
+     * Bike reassignment is intentionally handled separately.
+     */
+    suspend fun updateCompletedRideAndReconcileAggregates(
+        oldRide: RideEntity,
+        replacementRide: RideEntity,
+    ) {
+        validateReplacement(oldRide, replacementRide)
+
+        val bikeIdForNotification = ridePersistenceTransaction.run transaction@{
+            val persistedRide = requireNotNull(rideDao.getRideById(oldRide.id)) {
+                "Ride ${oldRide.id} does not exist"
+            }
+            require(persistedRide == oldRide) {
+                "Ride ${oldRide.id} changed before it could be updated"
+            }
+
+            rideDao.update(replacementRide)
+            val bikeId = replacementRide.bikeId ?: return@transaction null
+            val bike = bikeDao.getBikeById(bikeId) ?: return@transaction null
+            val rides = rideDao.getRidesByBikeIdOnce(bikeId)
+            val totalDistanceKm = bike.baselineDistanceKm + rides.sumOf { it.distanceKm }
+            val totalTimeSeconds = rides.sumOf { it.durationMs / 1000L }
+            val maxSpeedKmh = rides.maxOfOrNull { it.maxSpeedKmh } ?: 0.0
+            val lastRideAt = rides.maxOfOrNull { it.endedAt }
+
+            bikeDao.update(
+                bike.copy(
+                    totalDistanceKm = totalDistanceKm,
+                    totalTimeSeconds = totalTimeSeconds,
+                    lastRideAt = lastRideAt,
+                    avgSpeedKmh = averageSpeed(totalDistanceKm - bike.baselineDistanceKm, totalTimeSeconds),
+                    maxSpeedKmh = maxSpeedKmh,
+                    totalElevGainM = rides.sumOf { it.elevGainM },
+                    totalElevLossM = rides.sumOf { it.elevLossM },
+                ),
+            )
+
+            val distanceDeltaKm = replacementRide.distanceKm - persistedRide.distanceKm
+            val timeDeltaSeconds = (replacementRide.durationMs / 1000L) - (persistedRide.durationMs / 1000L)
+            val components = componentDao.getComponentsByBikeIdOnce(bikeId)
+            components.forEach { component ->
+                val componentDistanceKm = component.distanceUsedKm + distanceDeltaKm
+                val componentTimeSeconds = component.totalTimeSeconds + timeDeltaSeconds
+                componentDao.update(
+                    component.copy(
+                        distanceUsedKm = componentDistanceKm,
+                        totalTimeSeconds = componentTimeSeconds,
+                        avgSpeedKmh = averageSpeed(componentDistanceKm, componentTimeSeconds),
+                        maxSpeedKmh = maxSpeedKmh,
+                        maxSpeedBikeId = if (rides.isEmpty()) null else bikeId,
+                    ),
+                )
+                serviceIntervalDao.getIntervalsByComponentIdOnce(component.id).forEach { interval ->
+                    serviceIntervalDao.update(
+                        interval.copy(
+                            trackedKm = interval.trackedKm + distanceDeltaKm,
+                            trackedTimeSeconds = interval.trackedTimeSeconds?.let { it + timeDeltaSeconds },
+                        ),
+                    )
+                }
+            }
+            bikeId
+        }
+        bikeIdForNotification?.let { componentAlertNotifier.notifyIfNeeded(it) }
+    }
+
     suspend fun deleteRide(ride: RideEntity) = rideDao.deleteById(ride.id)
+
+    private fun validateReplacement(oldRide: RideEntity, replacementRide: RideEntity) {
+        require(oldRide.id > 0L && replacementRide.id == oldRide.id) {
+            "A replacement ride must keep the persisted ride id"
+        }
+        require(replacementRide.bikeId == oldRide.bikeId) {
+            "Completed ride reassignment is not supported by this operation"
+        }
+        require(replacementRide.distanceKm.isValidRideValue()) {
+            "Ride distance must be a non-negative finite value"
+        }
+        require(replacementRide.durationMs >= 0L) {
+            "Ride duration must be non-negative"
+        }
+        require(replacementRide.avgSpeedKmh.isValidRideValue()) {
+            "Ride average speed must be a non-negative finite value"
+        }
+        require(replacementRide.maxSpeedKmh.isValidRideValue()) {
+            "Ride maximum speed must be a non-negative finite value"
+        }
+        require(replacementRide.elevGainM.isValidRideValue()) {
+            "Ride elevation gain must be a non-negative finite value"
+        }
+        require(replacementRide.elevLossM.isValidRideValue()) {
+            "Ride elevation loss must be a non-negative finite value"
+        }
+    }
+
+    private fun Double.isValidRideValue(): Boolean = isFinite() && this >= 0.0
+
+    private fun averageSpeed(distanceKm: Double, timeSeconds: Long): Double =
+        if (timeSeconds > 0L) distanceKm / (timeSeconds / 3600.0) else 0.0
 }
