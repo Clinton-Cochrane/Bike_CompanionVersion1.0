@@ -23,6 +23,20 @@ class HealthConnectSessionMapperTest {
     }
 
     @Test
+    fun mapCyclingSessions_recordIdPresent_mapsStableRecordId() = runTest {
+        val session = exerciseSession(
+            startTimeMs = 1_000L,
+            endTimeMs = 3_601_000L,
+            exerciseType = ExerciseSessionRecord.EXERCISE_TYPE_BIKING,
+            recordId = "health-connect-session-1",
+        )
+
+        val result = HealthConnectSessionMapper.mapCyclingSessions(listOf(session)) { Length.kilometers(10.0) }
+
+        assertEquals("health-connect-session-1", result.single().healthConnectRecordId)
+    }
+
+    @Test
     fun mapCyclingSessions_distanceUnavailable_preservesUnavailableState() = runTest {
         val session = bikingSession(startTimeMs = 1_000L, endTimeMs = 3_601_000L)
 
@@ -84,12 +98,13 @@ class HealthConnectSessionMapperTest {
         startTimeMs: Long,
         endTimeMs: Long,
         exerciseType: Int,
+        recordId: String? = null,
     ) = ExerciseSessionRecord(
         startTime = Instant.ofEpochMilli(startTimeMs),
         startZoneOffset = null,
         endTime = Instant.ofEpochMilli(endTimeMs),
         endZoneOffset = null,
-        metadata = Metadata.manualEntry(),
+        metadata = recordId?.let { Metadata.manualEntryWithId(it) } ?: Metadata.manualEntry(),
         exerciseType = exerciseType,
     )
 }

@@ -114,6 +114,7 @@ internal object HealthConnectSessionMapper {
             val startTimeMs = record.startTime.toEpochMilli()
             val endTimeMs = record.endTime.toEpochMilli()
             HealthConnectSession(
+                healthConnectRecordId = record.metadata.id.takeIf { it.isNotBlank() },
                 startTimeMs = startTimeMs,
                 endTimeMs = endTimeMs,
                 durationMs = (endTimeMs - startTimeMs).coerceAtLeast(0L),
@@ -128,4 +129,6 @@ data class HealthConnectSession(
     val durationMs: Long,
     /** Null when Health Connect has no distance data associated with this session. */
     val distanceKm: Double?,
+    /** Durable Health Connect record ID. Null only if the provider did not return one. */
+    val healthConnectRecordId: String? = null,
 )

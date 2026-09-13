@@ -37,62 +37,90 @@ class RideRepository @Inject constructor(
             val savedRide = ride.copy(id = id)
             val bikeId = savedRide.bikeId ?: return@transaction null
             val bike = bikeDao.getBikeById(bikeId) ?: return@transaction null
-            val durationSeconds = (savedRide.durationMs / 1000).coerceAtLeast(0L)
-            val newDistance = bike.totalDistanceKm + savedRide.distanceKm
-            val newTimeSeconds = bike.totalTimeSeconds + durationSeconds
-            val newRecordedDistance = bike.recordedDistanceKm + savedRide.distanceKm
-            val newAvgSpeed = if (newTimeSeconds > 0) {
-                newRecordedDistance / (newTimeSeconds / 3600.0)
-            } else bike.avgSpeedKmh
-            val newMaxSpeed = maxOf(bike.maxSpeedKmh, savedRide.maxSpeedKmh)
-            bikeDao.update(
-                bike.copy(
-                    totalDistanceKm = newDistance,
-                    totalTimeSeconds = newTimeSeconds,
-                    lastRideAt = savedRide.endedAt,
-                    avgSpeedKmh = newAvgSpeed,
-                    maxSpeedKmh = newMaxSpeed,
-                    totalElevGainM = bike.totalElevGainM + savedRide.elevGainM,
-                    totalElevLossM = bike.totalElevLossM + savedRide.elevLossM,
-                ),
-            )
-            val components = componentDao.getComponentsByBikeIdOnce(bikeId)
-            components.forEach { comp ->
-                val compNewDistance = comp.distanceUsedKm + savedRide.distanceKm
-                val compNewTime = comp.totalTimeSeconds + durationSeconds
-                val compNewAvgSpeed = if (compNewTime > 0) {
-                    compNewDistance / (compNewTime / 3600.0)
-                } else comp.avgSpeedKmh
-                val compNewMaxSpeed = maxOf(comp.maxSpeedKmh, savedRide.maxSpeedKmh)
-                val compNewMaxSpeedBikeId = if (savedRide.maxSpeedKmh >= comp.maxSpeedKmh) bikeId else comp.maxSpeedBikeId
-                componentDao.update(
-                    comp.copy(
-                        distanceUsedKm = compNewDistance,
-                        totalTimeSeconds = compNewTime,
-                        avgSpeedKmh = compNewAvgSpeed,
-                        maxSpeedKmh = compNewMaxSpeed,
-                        maxSpeedBikeId = compNewMaxSpeedBikeId,
-                    ),
-                )
-                serviceIntervalDao.getIntervalsByComponentIdOnce(comp.id).forEach { interval ->
-                    serviceIntervalDao.update(
-                        interval.copy(
-                            trackedKm = interval.trackedKm + savedRide.distanceKm,
-                            trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
-                                (interval.trackedTimeSeconds ?: 0L) + durationSeconds
-                            } else {
-                                interval.trackedTimeSeconds
-                            },
-                        ),
-                    )
-                }
-            }
+            updateBikeAndComponentsForNewRide(savedRide, bike, bikeId)
             bikeId
         }
         bikeIdForNotification?.let { componentAlertNotifier.notifyIfNeeded(it) }
     }
 
+    /**
+     * Saves a Health Connect ride exactly once. The unique record-ID index is checked inside the
+     * same transaction as all mileage updates, so repeated scans cannot apply aggregates twice.
+     *
+     * @return true when the session was newly imported; false when it was already imported.
+     */
+    suspend fun saveHealthConnectRideAndUpdateBikeAndComponents(ride: RideEntity): Boolean {
+        require(ride.source == RideSource.HEALTH_CONNECT) {
+            "Only Health Connect rides can use Health Connect duplicate protection"
+        }
+        require(!ride.healthConnectRecordId.isNullOrBlank()) {
+            "A Health Connect ride requires a stable record ID"
+        }
+
+        val bikeIdForNotification = ridePersistenceTransaction.run transaction@{
+            val id = rideDao.insertIgnoringHealthConnectDuplicate(ride)
+            if (id == -1L) return@transaction null
+            val savedRide = ride.copy(id = id)
+            val bikeId = savedRide.bikeId ?: return@transaction null
+            val bike = bikeDao.getBikeById(bikeId) ?: return@transaction null
+            updateBikeAndComponentsForNewRide(savedRide, bike, bikeId)
+            bikeId
+        }
+        bikeIdForNotification?.let { componentAlertNotifier.notifyIfNeeded(it) }
+        return bikeIdForNotification != null
+    }
+
     suspend fun insertRide(ride: RideEntity): Long = rideDao.insert(ride)
+
+    private suspend fun updateBikeAndComponentsForNewRide(
+        ride: RideEntity,
+        bike: com.clintoncochrane.bikecompanion.data.bike.BikeEntity,
+        bikeId: Long,
+    ) {
+        val durationSeconds = (ride.durationMs / 1000).coerceAtLeast(0L)
+        val newDistance = bike.totalDistanceKm + ride.distanceKm
+        val newTimeSeconds = bike.totalTimeSeconds + durationSeconds
+        val newRecordedDistance = bike.recordedDistanceKm + ride.distanceKm
+        val newAvgSpeed = if (newTimeSeconds > 0) {
+            newRecordedDistance / (newTimeSeconds / 3600.0)
+        } else bike.avgSpeedKmh
+        bikeDao.update(
+            bike.copy(
+                totalDistanceKm = newDistance,
+                totalTimeSeconds = newTimeSeconds,
+                lastRideAt = ride.endedAt,
+                avgSpeedKmh = newAvgSpeed,
+                maxSpeedKmh = maxOf(bike.maxSpeedKmh, ride.maxSpeedKmh),
+                totalElevGainM = bike.totalElevGainM + ride.elevGainM,
+                totalElevLossM = bike.totalElevLossM + ride.elevLossM,
+            ),
+        )
+        componentDao.getComponentsByBikeIdOnce(bikeId).forEach { component ->
+            val distanceUsedKm = component.distanceUsedKm + ride.distanceKm
+            val totalTimeSeconds = component.totalTimeSeconds + durationSeconds
+            componentDao.update(
+                component.copy(
+                    distanceUsedKm = distanceUsedKm,
+                    totalTimeSeconds = totalTimeSeconds,
+                    avgSpeedKmh = averageSpeed(distanceUsedKm, totalTimeSeconds),
+                    maxSpeedKmh = maxOf(component.maxSpeedKmh, ride.maxSpeedKmh),
+                    maxSpeedBikeId = if (ride.maxSpeedKmh >= component.maxSpeedKmh) bikeId else component.maxSpeedBikeId,
+                ),
+            )
+            serviceIntervalDao.getIntervalsByComponentIdOnce(component.id).forEach { interval ->
+                serviceIntervalDao.update(
+                    interval.copy(
+                        trackedKm = interval.trackedKm + ride.distanceKm,
+                        trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
+                            (interval.trackedTimeSeconds ?: 0L) + durationSeconds
+                        } else {
+                            interval.trackedTimeSeconds
+                        },
+                    ),
+                )
+            }
+        }
+    }
 
     /**
      * Moves a completed ride to another bike and reconciles all denormalized aggregates in one
