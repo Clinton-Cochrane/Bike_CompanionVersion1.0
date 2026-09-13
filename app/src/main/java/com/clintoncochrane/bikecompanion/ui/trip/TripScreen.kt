@@ -1,9 +1,13 @@
 package com.clintoncochrane.bikecompanion.ui.trip
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.net.toUri
+import androidx.health.connect.client.PermissionController
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -28,8 +32,10 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -58,6 +64,7 @@ import androidx.navigation.NavController
 import com.clintoncochrane.bikecompanion.R
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.ride.RideEntity
+import com.clintoncochrane.bikecompanion.healthconnect.HEALTH_CONNECT_READ_PERMISSIONS
 import com.clintoncochrane.bikecompanion.ui.navigation.Screen
 import com.clintoncochrane.bikecompanion.ui.trip.HealthConnectImportResult
 import com.clintoncochrane.bikecompanion.util.DisplayFormatHelper
@@ -95,24 +102,62 @@ fun TripScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract(),
+    ) { grantedPermissions ->
+        if (grantedPermissions.containsAll(HEALTH_CONNECT_READ_PERMISSIONS)) {
+            viewModel.importFromHealthConnect()
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.healthConnectImportResult.collect { result ->
-            val message = when (result) {
+            when (result) {
                 is HealthConnectImportResult.Success ->
-                    if (result.showDisclaimer) {
-                        context.getString(R.string.trip_import_success_with_disclaimer, result.count)
-                    } else {
-                        context.getString(R.string.trip_import_success, result.count)
-                    }
+                    snackbarHostState.showSnackbar(
+                        if (result.showDisclaimer) {
+                            context.getString(R.string.trip_import_success_with_disclaimer, result.count)
+                        } else {
+                            context.getString(R.string.trip_import_success, result.count)
+                        },
+                    )
                 HealthConnectImportResult.None ->
-                    context.getString(R.string.trip_import_none)
+                    snackbarHostState.showSnackbar(context.getString(R.string.trip_import_none))
                 HealthConnectImportResult.NoBikeSelected ->
-                    context.getString(R.string.trip_no_bike_selected)
-                HealthConnectImportResult.Error ->
-                    context.getString(R.string.trip_import_error)
+                    snackbarHostState.showSnackbar(context.getString(R.string.trip_no_bike_selected))
+                HealthConnectImportResult.Unavailable ->
+                    snackbarHostState.showSnackbar(context.getString(R.string.trip_import_unavailable))
+                HealthConnectImportResult.PermissionRequired -> {
+                    val snackbarResult = snackbarHostState.showSnackbar(
+                        message = context.getString(R.string.trip_import_permission_required),
+                        actionLabel = context.getString(R.string.trip_import_permission_action),
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (snackbarResult == SnackbarResult.ActionPerformed) {
+                        healthConnectPermissionLauncher.launch(HEALTH_CONNECT_READ_PERMISSIONS)
+                    }
+                }
+                HealthConnectImportResult.ProviderUpdateRequired -> {
+                    val snackbarResult = snackbarHostState.showSnackbar(
+                        message = context.getString(R.string.trip_import_provider_update_required),
+                        actionLabel = context.getString(R.string.trip_import_provider_update_action),
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (snackbarResult == SnackbarResult.ActionPerformed) {
+                        openHealthConnectProviderListing(context)
+                    }
+                }
+                HealthConnectImportResult.Error -> {
+                    val snackbarResult = snackbarHostState.showSnackbar(
+                        message = context.getString(R.string.trip_import_error),
+                        actionLabel = context.getString(R.string.trip_import_retry),
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (snackbarResult == SnackbarResult.ActionPerformed) {
+                        viewModel.importFromHealthConnect()
+                    }
+                }
             }
-            snackbarHostState.showSnackbar(message)
         }
     }
 
@@ -242,6 +287,22 @@ fun TripScreen(
         }
     }
 }
+
+private fun openHealthConnectProviderListing(context: Context) {
+    val marketIntent = Intent(
+        Intent.ACTION_VIEW,
+        "market://details?id=$HEALTH_CONNECT_PROVIDER_PACKAGE&url=healthconnect%3A%2F%2Fonboarding".toUri(),
+    ).setPackage("com.android.vending")
+    val browserIntent = Intent(
+        Intent.ACTION_VIEW,
+        "https://play.google.com/store/apps/details?id=$HEALTH_CONNECT_PROVIDER_PACKAGE".toUri(),
+    )
+
+    runCatching { context.startActivity(marketIntent) }
+        .recoverCatching { context.startActivity(browserIntent) }
+}
+
+private const val HEALTH_CONNECT_PROVIDER_PACKAGE = "com.google.android.apps.healthdata"
 
 @Composable
 private fun CurrentRideSection(
@@ -548,4 +609,3 @@ private fun MissingPartsDialog(
         },
     )
 }
-

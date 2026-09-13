@@ -12,7 +12,9 @@ import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesReposito
 import com.clintoncochrane.bikecompanion.data.ride.RideRepository
 import com.clintoncochrane.bikecompanion.data.ride.RideSource
 import com.clintoncochrane.bikecompanion.healthconnect.HealthConnectImporter
+import com.clintoncochrane.bikecompanion.healthconnect.HealthConnectReadResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -37,6 +39,9 @@ sealed class HealthConnectImportResult {
     data class Success(val count: Int, val showDisclaimer: Boolean = false) : HealthConnectImportResult()
     data object None : HealthConnectImportResult()
     data object NoBikeSelected : HealthConnectImportResult()
+    data object Unavailable : HealthConnectImportResult()
+    data object ProviderUpdateRequired : HealthConnectImportResult()
+    data object PermissionRequired : HealthConnectImportResult()
     data object Error : HealthConnectImportResult()
 }
 
@@ -219,7 +224,25 @@ class TripViewModel @Inject constructor(
         }
         viewModelScope.launch {
             try {
-                val sessions = healthConnectImporter.readCyclingSessions()
+                val sessions = when (val result = healthConnectImporter.readCyclingSessions()) {
+                    HealthConnectReadResult.Unavailable -> {
+                        _healthConnectImportResult.emit(HealthConnectImportResult.Unavailable)
+                        return@launch
+                    }
+                    HealthConnectReadResult.ProviderUpdateRequired -> {
+                        _healthConnectImportResult.emit(HealthConnectImportResult.ProviderUpdateRequired)
+                        return@launch
+                    }
+                    HealthConnectReadResult.PermissionRequired -> {
+                        _healthConnectImportResult.emit(HealthConnectImportResult.PermissionRequired)
+                        return@launch
+                    }
+                    HealthConnectReadResult.Failure -> {
+                        _healthConnectImportResult.emit(HealthConnectImportResult.Error)
+                        return@launch
+                    }
+                    is HealthConnectReadResult.Success -> result.sessions
+                }
                 if (sessions.isEmpty()) {
                     _healthConnectImportResult.emit(HealthConnectImportResult.None)
                     return@launch
@@ -244,6 +267,8 @@ class TripViewModel @Inject constructor(
                 _healthConnectImportResult.emit(
                     HealthConnectImportResult.Success(count, showDisclaimer = !hasSeenDisclaimer),
                 )
+            } catch (exception: CancellationException) {
+                throw exception
             } catch (_: Exception) {
                 _healthConnectImportResult.emit(HealthConnectImportResult.Error)
             }
