@@ -14,6 +14,9 @@ interface RideDao {
     @Query("SELECT * FROM rides WHERE bikeId = :bikeId ORDER BY endedAt DESC")
     fun getRidesByBikeId(bikeId: Long): Flow<List<RideEntity>>
 
+    @Query("SELECT * FROM rides WHERE bikeId = :bikeId ORDER BY endedAt DESC")
+    suspend fun getRidesByBikeIdOnce(bikeId: Long): List<RideEntity>
+
     @Query("SELECT * FROM rides WHERE id = :id")
     suspend fun getRideById(id: Long): RideEntity?
 

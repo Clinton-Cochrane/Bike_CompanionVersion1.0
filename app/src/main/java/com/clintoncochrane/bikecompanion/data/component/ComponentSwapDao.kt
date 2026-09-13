@@ -22,4 +22,12 @@ interface ComponentSwapDao {
 
     @Query("SELECT * FROM component_swaps WHERE componentId = :componentId AND uninstalledAt IS NULL LIMIT 1")
     suspend fun getCurrentSwap(componentId: Long): ComponentSwapEntity?
+
+    @Query("""
+        SELECT componentId FROM component_swaps
+        WHERE bikeId = :bikeId
+          AND installedAt <= :rideEndedAt
+          AND (uninstalledAt IS NULL OR uninstalledAt >= :rideEndedAt)
+    """)
+    suspend fun getComponentIdsInstalledOnBikeAt(bikeId: Long, rideEndedAt: Long): List<Long>
 }
