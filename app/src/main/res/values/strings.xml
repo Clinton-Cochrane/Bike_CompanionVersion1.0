@@ -185,6 +185,12 @@
     <string name="bike_component_used_km">%1$.0f / %2$.0f km toward expected interval</string>
     <string name="bike_component_total_time">Total ride time: %1$s</string>
     <string name="bike_component_replaced">Mark replaced</string>
+    <string name="component_replace_title">Replace component</string>
+    <string name="component_replace_name">Replacement name</string>
+    <string name="component_replace_make_model">Replacement make/model</string>
+    <string name="component_replace_lifespan">Expected lifespan (km)</string>
+    <string name="component_replace_invalid">Enter a name and lifespan of 0 km or greater.</string>
+    <string name="component_replace_confirm">Replace</string>
     <string name="bike_component_last_replaced">Last replaced: %1$s</string>
     <string name="bike_component_make_model">Make/model: %1$s</string>
     <string name="bike_component_snooze">Snooze alert</string>

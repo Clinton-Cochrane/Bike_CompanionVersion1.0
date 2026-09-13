@@ -9,7 +9,7 @@ import javax.inject.Singleton
 class ComponentLifecycleTransaction @Inject constructor(
     private val database: BikeCompanionDatabase,
 ) {
-    suspend fun run(block: suspend () -> Unit) = database.withTransaction {
+    suspend fun <T> run(block: suspend () -> T): T = database.withTransaction {
         block()
     }
 }

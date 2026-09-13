@@ -247,32 +247,62 @@ class ComponentRepository @Inject constructor(
             .filter { it.type == type && it.position == position }
     }
 
-    suspend fun markComponentReplaced(component: ComponentEntity) {
-        componentDao.update(
-            component.copy(
+    suspend fun replaceComponent(component: ComponentEntity, replacement: ComponentEntity): Long =
+        lifecycleTransaction.run {
+            val oldComponent = requireNotNull(componentDao.getComponentById(component.id))
+            val bikeId = requireNotNull(oldComponent.bikeId) { "Only installed components can be replaced" }
+            require(oldComponent.lifecycleStatus == ComponentLifecycleStatus.INSTALLED)
+            require(replacement.type == oldComponent.type && replacement.position == oldComponent.position) {
+                "Replacement must use the same component slot"
+            }
+            require(replacement.lifespanKm.isFinite() && replacement.lifespanKm >= 0.0)
+            require(replacement.baselineKm.isFinite() && replacement.baselineKm >= 0.0)
+            require(componentDao.getComponentsByBikeIdOnce(bikeId).none {
+                it.id != oldComponent.id && it.type == oldComponent.type && it.position == oldComponent.position
+            }) { "The bike already has another component in this slot" }
+
+            val now = System.currentTimeMillis()
+            componentSwapDao.getCurrentSwap(oldComponent.id)?.let {
+                componentSwapDao.update(it.copy(uninstalledAt = now))
+            }
+            componentDao.update(oldComponent.copy(bikeId = null, lifecycleStatus = ComponentLifecycleStatus.RETIRED))
+
+            val installedReplacement = replacement.copy(
+                id = 0,
+                bikeId = bikeId,
+                lifecycleStatus = ComponentLifecycleStatus.INSTALLED,
                 distanceUsedKm = 0.0,
-                baselineKm = 0.0,
-                priorUsageCertainty = PriorUsageCertainty.KNOWN,
                 totalTimeSeconds = 0L,
-                installedAt = System.currentTimeMillis(),
-                alertSnoozeUntilKm = null,
-                alertSnoozeUntilTime = null,
-            ),
-        )
-        serviceIntervalDao.getIntervalsByComponentIdOnce(component.id).forEach { interval ->
-            serviceIntervalDao.update(
-                interval.copy(
-                    trackedKm = 0.0,
-                    trackedTimeSeconds = if (interval.intervalTimeSeconds != null) 0L else interval.trackedTimeSeconds,
+                baselineKm = if (replacement.priorUsageCertainty == PriorUsageCertainty.UNKNOWN) {
+                    0.0
+                } else {
+                    replacement.baselineKm
+                },
+                installedAt = now,
+            )
+            val replacementId = componentDao.insert(installedReplacement)
+            insertServiceIntervalsForComponent(
+                replacementId,
+                installedReplacement.type,
+                installedReplacement.lifespanKm,
+                installedReplacement.lifetimeDistanceKm,
+                0L,
+            )
+            componentSwapDao.insert(
+                ComponentSwapEntity(
+                    componentId = replacementId,
+                    bikeId = bikeId,
+                    installedAt = now,
                 ),
             )
+
+            bikeDao.getBikeById(bikeId)?.let { bike ->
+                when (oldComponent.type) {
+                    "chain" -> bikeDao.update(bike.copy(chainReplacementCount = bike.chainReplacementCount + 1))
+                    "cassette", "freewheel", "chainring" -> bikeDao.update(bike.copy(chainReplacementCount = 0))
+                    else -> Unit
+                }
+            }
+            replacementId
         }
-        val bikeId = component.bikeId ?: return
-        val bike = bikeDao.getBikeById(bikeId) ?: return
-        when (component.type) {
-            "chain" -> bikeDao.update(bike.copy(chainReplacementCount = bike.chainReplacementCount + 1))
-            "cassette", "freewheel", "chainring" -> bikeDao.update(bike.copy(chainReplacementCount = 0))
-            else -> { }
-        }
-    }
 }
