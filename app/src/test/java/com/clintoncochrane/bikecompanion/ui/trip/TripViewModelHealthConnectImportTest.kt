@@ -6,6 +6,7 @@ import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
 import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesRepository
 import com.clintoncochrane.bikecompanion.data.ride.RideRepository
 import com.clintoncochrane.bikecompanion.healthconnect.HealthConnectImporter
+import com.clintoncochrane.bikecompanion.healthconnect.HealthConnectReadResult
 import com.clintoncochrane.bikecompanion.healthconnect.HealthConnectSession
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -83,7 +85,7 @@ class TripViewModelHealthConnectImportTest {
 
     @Test
     fun importFromHealthConnect_emptySessions_emitsNone() = runTest(testDispatcher) {
-        coEvery { healthConnectImporter.readCyclingSessions() } returns emptyList()
+        coEvery { healthConnectImporter.readCyclingSessions() } returns HealthConnectReadResult.Success(emptyList())
 
         viewModel = TripViewModel(
             bikeRepository,
@@ -124,7 +126,7 @@ class TripViewModelHealthConnectImportTest {
                 distanceKm = 20.0,
             ),
         )
-        coEvery { healthConnectImporter.readCyclingSessions() } returns sessions
+        coEvery { healthConnectImporter.readCyclingSessions() } returns HealthConnectReadResult.Success(sessions)
         coEvery { appPreferencesRepository.getHasSeenHealthConnectImportDisclaimer() } returns true
         coEvery { rideRepository.saveRideAndUpdateBikeAndComponents(any()) } coAnswers { }
 
@@ -165,7 +167,7 @@ class TripViewModelHealthConnectImportTest {
                 distanceKm = 10.0,
             ),
         )
-        coEvery { healthConnectImporter.readCyclingSessions() } returns sessions
+        coEvery { healthConnectImporter.readCyclingSessions() } returns HealthConnectReadResult.Success(sessions)
         coEvery { appPreferencesRepository.getHasSeenHealthConnectImportDisclaimer() } returns false
         coEvery { appPreferencesRepository.setHasSeenHealthConnectImportDisclaimer() } coAnswers { }
         coEvery { rideRepository.saveRideAndUpdateBikeAndComponents(any()) } coAnswers { }
@@ -196,8 +198,34 @@ class TripViewModelHealthConnectImportTest {
     }
 
     @Test
-    fun importFromHealthConnect_importerThrows_emitsError() = runTest(testDispatcher) {
-        coEvery { healthConnectImporter.readCyclingSessions() } throws RuntimeException("Health Connect unavailable")
+    fun importFromHealthConnect_permissionRequired_emitsPermissionRequired() = runTest(testDispatcher) {
+        coEvery { healthConnectImporter.readCyclingSessions() } returns HealthConnectReadResult.PermissionRequired
+
+        assertImporterResult(HealthConnectImportResult.PermissionRequired)
+    }
+
+    @Test
+    fun importFromHealthConnect_unavailable_emitsUnavailable() = runTest(testDispatcher) {
+        coEvery { healthConnectImporter.readCyclingSessions() } returns HealthConnectReadResult.Unavailable
+
+        assertImporterResult(HealthConnectImportResult.Unavailable)
+    }
+
+    @Test
+    fun importFromHealthConnect_providerUpdateRequired_emitsProviderUpdateRequired() = runTest(testDispatcher) {
+        coEvery { healthConnectImporter.readCyclingSessions() } returns HealthConnectReadResult.ProviderUpdateRequired
+
+        assertImporterResult(HealthConnectImportResult.ProviderUpdateRequired)
+    }
+
+    @Test
+    fun importFromHealthConnect_queryFailure_emitsError() = runTest(testDispatcher) {
+        coEvery { healthConnectImporter.readCyclingSessions() } returns HealthConnectReadResult.Failure
+
+        assertImporterResult(HealthConnectImportResult.Error)
+    }
+
+    private suspend fun TestScope.assertImporterResult(expected: HealthConnectImportResult) {
 
         viewModel = TripViewModel(
             bikeRepository,
@@ -219,6 +247,7 @@ class TripViewModelHealthConnectImportTest {
         advanceUntilIdle()
 
         collectJob.join()
-        assertEquals(HealthConnectImportResult.Error, result)
+        assertEquals(expected, result)
+        coVerify(exactly = 0) { rideRepository.saveRideAndUpdateBikeAndComponents(any()) }
     }
 }
