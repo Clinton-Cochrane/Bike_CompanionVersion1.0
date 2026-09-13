@@ -285,7 +285,9 @@ fun ServiceListScreen(
                             isSelected = item.component.id in uiState.selectedIds,
                             onToggleSelect = { viewModel.toggleSelection(item.component.id) },
                             onReplace = { viewModel.replaceComponent(item.component.id) },
-                            onInspect = { viewModel.completeInspection(item.component.id) },
+                            onInspect = item.nextServiceIntervalId?.let { intervalId ->
+                                { viewModel.completeServiceInterval(item.component.id, intervalId) }
+                            },
                             onRowClick = { navController.navigate(Screen.ComponentDetail.withId(item.component.id)) },
                         )
                     }
@@ -310,7 +312,7 @@ fun ServiceListScreen(
                         Text(stringResource(R.string.service_list_replace_selected))
                     }
                     OutlinedButton(
-                        onClick = { viewModel.completeInspectionSelected() },
+                        onClick = { viewModel.completeServiceIntervalsSelected() },
                     ) {
                         Text(stringResource(R.string.service_list_inspect_selected))
                     }
@@ -326,7 +328,7 @@ private fun ServiceListRow(
     isSelected: Boolean,
     onToggleSelect: () -> Unit,
     onReplace: () -> Unit,
-    onInspect: () -> Unit,
+    onInspect: (() -> Unit)?,
     onRowClick: () -> Unit,
 ) {
     Card(
@@ -399,11 +401,13 @@ private fun ServiceListRow(
                     ) {
                         Text(stringResource(R.string.service_list_replace), style = MaterialTheme.typography.labelSmall)
                     }
-                    OutlinedButton(
-                        onClick = onInspect,
-                        modifier = Modifier.padding(0.dp),
-                    ) {
-                        Text(stringResource(R.string.service_list_inspect), style = MaterialTheme.typography.labelSmall)
+                    if (onInspect != null) {
+                        OutlinedButton(
+                            onClick = onInspect,
+                            modifier = Modifier.padding(0.dp),
+                        ) {
+                            Text(stringResource(R.string.service_list_inspect), style = MaterialTheme.typography.labelSmall)
+                        }
                     }
                 }
             }

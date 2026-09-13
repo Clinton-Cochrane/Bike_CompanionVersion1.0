@@ -24,5 +24,30 @@ class ServiceIntervalRepository @Inject constructor(
     suspend fun updateInterval(interval: ServiceIntervalEntity) =
         serviceIntervalDao.update(interval)
 
+    /**
+     * Completes one inspection or grease/service interval without changing its policy.
+     * Only progress tracked by a configured distance or time basis is reset.
+     */
+    suspend fun completeServiceInterval(intervalId: Long): Boolean {
+        val interval = serviceIntervalDao.getIntervalById(intervalId) ?: return false
+        if (interval.type != SERVICE_INTERVAL_TYPE_INSPECTION &&
+            interval.type != SERVICE_INTERVAL_TYPE_GREASE
+        ) {
+            return false
+        }
+
+        serviceIntervalDao.update(
+            interval.copy(
+                trackedKm = if (interval.intervalKm > 0.0) 0.0 else interval.trackedKm,
+                trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
+                    0L
+                } else {
+                    interval.trackedTimeSeconds
+                },
+            ),
+        )
+        return true
+    }
+
     suspend fun deleteInterval(id: Long) = serviceIntervalDao.deleteById(id)
 }

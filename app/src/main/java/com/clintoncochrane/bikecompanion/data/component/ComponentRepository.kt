@@ -210,24 +210,6 @@ class ComponentRepository @Inject constructor(
             .filter { it.type == type && it.position == position }
     }
 
-    /**
-     * Marks inspection (and grease) intervals complete for a component.
-     * Resets trackedKm and trackedTimeSeconds for intervals of type inspection or grease.
-     * Does not change component distanceUsedKm or totalTimeSeconds.
-     */
-    suspend fun markInspectionComplete(componentId: Long) {
-        serviceIntervalDao.getIntervalsByComponentIdOnce(componentId)
-            .filter { it.type == SERVICE_INTERVAL_TYPE_INSPECTION || it.type == SERVICE_INTERVAL_TYPE_GREASE }
-            .forEach { interval ->
-                serviceIntervalDao.update(
-                    interval.copy(
-                        trackedKm = 0.0,
-                        trackedTimeSeconds = if (interval.intervalTimeSeconds != null) 0L else interval.trackedTimeSeconds,
-                    ),
-                )
-            }
-    }
-
     suspend fun markComponentReplaced(component: ComponentEntity) {
         componentDao.update(
             component.copy(
