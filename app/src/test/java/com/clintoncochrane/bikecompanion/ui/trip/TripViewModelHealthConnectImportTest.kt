@@ -202,6 +202,47 @@ class TripViewModelHealthConnectImportTest {
     }
 
     @Test
+    fun importFromHealthConnect_zeroDistance_savesRideAsExplicitZero() = runTest(testDispatcher) {
+        coEvery { healthConnectImporter.readCyclingSessions() } returns HealthConnectReadResult.Success(
+            listOf(
+                HealthConnectSession(
+                    startTimeMs = 1000L,
+                    endTimeMs = 4600000L,
+                    durationMs = 3600000L,
+                    distanceKm = 0.0,
+                ),
+            ),
+        )
+        coEvery { appPreferencesRepository.getHasSeenHealthConnectImportDisclaimer() } returns true
+        coEvery { rideRepository.saveRideAndUpdateBikeAndComponents(any()) } coAnswers { }
+
+        viewModel = TripViewModel(
+            bikeRepository,
+            rideRepository,
+            componentRepository,
+            healthConnectImporter,
+            appPreferencesRepository,
+        )
+        advanceUntilIdle()
+        viewModel.selectBike(testBike)
+
+        var result: HealthConnectImportResult? = null
+        val collectJob = launch {
+            result = viewModel.healthConnectImportResult.first()
+        }
+        advanceUntilIdle()
+
+        viewModel.importFromHealthConnect()
+        advanceUntilIdle()
+
+        collectJob.join()
+        assertEquals(HealthConnectImportResult.Success(count = 1, showDisclaimer = false), result)
+        coVerify(exactly = 1) {
+            rideRepository.saveRideAndUpdateBikeAndComponents(match { it.distanceKm == 0.0 })
+        }
+    }
+
+    @Test
     fun importFromHealthConnect_firstImport_showsDisclaimerAndSetsFlag() = runTest(testDispatcher) {
         val sessions = listOf(
             HealthConnectSession(
