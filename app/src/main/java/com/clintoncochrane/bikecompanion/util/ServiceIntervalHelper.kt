@@ -9,26 +9,31 @@ import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalEntity
 object ServiceIntervalHelper {
 
     data class IntervalDescription(
-        val kmText: String?,
-        val timeText: String?,
+        val remainingKm: Int?,
+        val remainingTimeSeconds: Long?,
+        val expectedIntervalReached: Boolean,
     )
 
     /**
-     * Builds display description parts for an interval (km and/or time).
-     * - kmText: e.g. "180km of 250km left"
-     * - timeText: e.g. "2w" (remaining time, human-readable)
+     * Builds localized-display inputs without treating the estimate as guaranteed life remaining.
      */
     fun description(interval: ServiceIntervalEntity): IntervalDescription {
-        val kmText = if (interval.intervalKm > 0) {
-            val remaining = (interval.intervalKm - interval.trackedKm).coerceAtLeast(0.0)
-            "${remaining.toInt()}km of ${interval.intervalKm.toInt()}km left"
+        val remainingKm = if (interval.intervalKm > 0) {
+            (interval.intervalKm - interval.trackedKm).coerceAtLeast(0.0).toInt()
         } else null
-        val timeText = if (interval.intervalTimeSeconds != null && interval.intervalTimeSeconds > 0) {
+        val remainingTimeSeconds = if (interval.intervalTimeSeconds != null && interval.intervalTimeSeconds > 0) {
             val tracked = interval.trackedTimeSeconds ?: 0L
-            val remaining = (interval.intervalTimeSeconds - tracked).coerceAtLeast(0L)
-            IntervalTimeConstants.formatRemainingSeconds(remaining) + " left"
+            (interval.intervalTimeSeconds - tracked).coerceAtLeast(0L)
         } else null
-        return IntervalDescription(kmText, timeText)
+        val distanceIntervalReached = interval.intervalKm > 0 && interval.trackedKm >= interval.intervalKm
+        val timeIntervalReached = interval.intervalTimeSeconds != null &&
+            interval.intervalTimeSeconds > 0 &&
+            (interval.trackedTimeSeconds ?: 0L) >= interval.intervalTimeSeconds
+        return IntervalDescription(
+            remainingKm = remainingKm,
+            remainingTimeSeconds = remainingTimeSeconds,
+            expectedIntervalReached = distanceIntervalReached || timeIntervalReached,
+        )
     }
 
     /**

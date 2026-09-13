@@ -24,13 +24,13 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * A component due for service, with bike name, health, and next due interval text.
+ * A component due for service, with bike name, health, and next due interval details.
  */
 data class DueServiceItem(
     val component: ComponentEntity,
     val bikeName: String,
     val healthPercent: Int,
-    val nextDueText: String,
+    val nextDueDescription: ServiceIntervalHelper.IntervalDescription?,
     val nextServiceIntervalId: Long?,
 )
 
@@ -110,15 +110,11 @@ class ServiceListViewModel @Inject constructor(
                     it.type == SERVICE_INTERVAL_TYPE_INSPECTION ||
                         it.type == SERVICE_INTERVAL_TYPE_GREASE
                 }
-                val nextDueText = nextDue?.let { ServiceIntervalHelper.description(it) }
-                    ?.let { desc ->
-                        listOfNotNull(desc.kmText, desc.timeText).joinToString(" · ")
-                    } ?: ""
                 DueServiceItem(
                     component = component,
                     bikeName = bikeName,
                     healthPercent = health,
-                    nextDueText = nextDueText,
+                    nextDueDescription = nextDue?.let(ServiceIntervalHelper::description),
                     nextServiceIntervalId = nextServiceInterval?.id,
                 )
             }
