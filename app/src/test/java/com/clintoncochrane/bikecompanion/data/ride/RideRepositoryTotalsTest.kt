@@ -4,6 +4,7 @@ import com.clintoncochrane.bikecompanion.data.bike.BikeDao
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentDao
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
+import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalDao
 import com.clintoncochrane.bikecompanion.notifications.ComponentAlertNotifier
 import io.mockk.coEvery
@@ -213,5 +214,49 @@ class RideRepositoryTotalsTest {
         coVerify(exactly = 0) { bikeDao.update(any()) }
         coVerify(exactly = 0) { componentDao.update(any()) }
         coVerify(exactly = 0) { componentAlertNotifier.notifyIfNeeded(any()) }
+    }
+
+    @Test
+    fun saveRideAndUpdateBikeAndComponents_allPriorUsageStates_incrementOnlyTrackedDistance() = runBlocking {
+        PriorUsageCertainty.entries.forEachIndexed { index, certainty ->
+            val bikeId = index.toLong() + 1L
+            val ride = RideEntity(
+                bikeId = bikeId,
+                distanceKm = 5.0,
+                durationMs = 60_000,
+                startedAt = 1_000L,
+                endedAt = 61_000L,
+            )
+            val bike = BikeEntity(id = bikeId, name = "Bike", createdAt = 0L)
+            val baselineKm = if (certainty == PriorUsageCertainty.UNKNOWN) 0.0 else 100.0
+            val component = ComponentEntity(
+                id = bikeId,
+                bikeId = bikeId,
+                type = "chain",
+                name = "Chain",
+                lifespanKm = 3_000.0,
+                baselineKm = baselineKm,
+                distanceUsedKm = 10.0,
+                priorUsageCertainty = certainty,
+                installedAt = 0L,
+            )
+
+            coEvery { rideDao.insert(ride) } returns bikeId
+            coEvery { bikeDao.getBikeById(bikeId) } returns bike
+            coEvery { bikeDao.update(any()) } coAnswers { }
+            coEvery { componentDao.getComponentsByBikeIdOnce(bikeId) } returns listOf(component)
+            coEvery { componentDao.update(any()) } coAnswers { }
+
+            repository.saveRideAndUpdateBikeAndComponents(ride)
+
+            coVerify {
+                componentDao.update(match { updated ->
+                    updated.id == component.id &&
+                        updated.distanceUsedKm == 15.0 &&
+                        updated.baselineKm == baselineKm &&
+                        updated.priorUsageCertainty == certainty
+                })
+            }
+        }
     }
 }

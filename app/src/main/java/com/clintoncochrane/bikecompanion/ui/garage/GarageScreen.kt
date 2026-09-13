@@ -68,6 +68,7 @@ import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentCategory
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.component.DefaultComponentTypes
+import com.clintoncochrane.bikecompanion.data.component.DefaultComponentType
 import com.clintoncochrane.bikecompanion.ui.navigation.Screen
 import com.clintoncochrane.bikecompanion.util.ComponentSortOrder
 import com.clintoncochrane.bikecompanion.util.componentHealthPercent
@@ -84,6 +85,7 @@ fun GarageScreen(
     val viewModel = androidx.hilt.navigation.compose.hiltViewModel<GarageViewModel>()
     val uiState by viewModel.uiState.collectAsState()
     var showAddComponentDialog by remember { mutableStateOf(false) }
+    var componentToAdd by remember { mutableStateOf<DefaultComponentType?>(null) }
 
     val fabContentDesc = when (uiState.selectedTab) {
         GarageTab.Bikes -> stringResource(R.string.garage_add_bike_content_description)
@@ -103,11 +105,7 @@ fun GarageScreen(
                     DefaultComponentTypes.SUGGESTED.forEach { suggested ->
                         TextButton(
                             onClick = {
-                                viewModel.addComponentToGarage(
-                                    suggested.type,
-                                    suggested.displayName,
-                                    suggested.defaultLifespanKm,
-                                )
+                                componentToAdd = suggested
                                 showAddComponentDialog = false
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -123,6 +121,23 @@ fun GarageScreen(
                 TextButton(onClick = { showAddComponentDialog = false }) {
                     Text(stringResource(R.string.component_done))
                 }
+            },
+        )
+    }
+
+    componentToAdd?.let { component ->
+        PriorUsageDialog(
+            componentName = component.displayName,
+            onDismiss = { componentToAdd = null },
+            onSave = { certainty, baselineKm ->
+                viewModel.addComponentToGarage(
+                    component.type,
+                    component.displayName,
+                    component.defaultLifespanKm,
+                    certainty,
+                    baselineKm,
+                )
+                componentToAdd = null
             },
         )
     }
@@ -660,7 +675,7 @@ private fun GarageComponentCard(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = stringResource(R.string.bike_stat_km, component.distanceUsedKm),
+                    text = stringResource(R.string.bike_stat_km, component.lifetimeDistanceKm),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )

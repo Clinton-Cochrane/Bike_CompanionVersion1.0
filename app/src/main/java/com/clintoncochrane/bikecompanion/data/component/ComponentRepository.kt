@@ -22,7 +22,7 @@ class ComponentRepository @Inject constructor(
 
     suspend fun insertComponent(component: ComponentEntity): Long {
         val id = componentDao.insert(component)
-        insertServiceIntervalsForComponent(id, component.type, component.lifespanKm, component.distanceUsedKm, component.totalTimeSeconds)
+        insertServiceIntervalsForComponent(id, component.type, component.lifespanKm, component.lifetimeDistanceKm, component.totalTimeSeconds)
         return id
     }
 
@@ -232,6 +232,8 @@ class ComponentRepository @Inject constructor(
         componentDao.update(
             component.copy(
                 distanceUsedKm = 0.0,
+                baselineKm = 0.0,
+                priorUsageCertainty = PriorUsageCertainty.KNOWN,
                 totalTimeSeconds = 0L,
                 installedAt = System.currentTimeMillis(),
                 alertSnoozeUntilKm = null,

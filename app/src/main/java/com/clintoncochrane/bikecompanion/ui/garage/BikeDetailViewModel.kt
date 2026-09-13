@@ -8,6 +8,7 @@ import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalRepository
+import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesRepository
 import com.clintoncochrane.bikecompanion.data.ride.RideEntity
 import com.clintoncochrane.bikecompanion.data.ride.RideRepository
@@ -111,7 +112,13 @@ class BikeDetailViewModel @Inject constructor(
         }
     }
 
-    fun addComponent(type: String, name: String, lifespanKm: Double) {
+    fun addComponent(
+        type: String,
+        name: String,
+        lifespanKm: Double,
+        priorUsageCertainty: PriorUsageCertainty,
+        baselineKm: Double,
+    ) {
         if (bikeId <= 0) return
         viewModelScope.launch {
             componentRepository.insertComponent(
@@ -120,6 +127,8 @@ class BikeDetailViewModel @Inject constructor(
                     type = type,
                     name = name,
                     lifespanKm = lifespanKm,
+                    baselineKm = baselineKm,
+                    priorUsageCertainty = priorUsageCertainty,
                     installedAt = System.currentTimeMillis(),
                 ),
             )
@@ -146,7 +155,7 @@ class BikeDetailViewModel @Inject constructor(
     fun snoozeComponent(component: com.clintoncochrane.bikecompanion.data.component.ComponentEntity, snoozeKm: Double) {
         viewModelScope.launch {
             componentRepository.updateComponent(
-                component.copy(alertSnoozeUntilKm = component.distanceUsedKm + snoozeKm),
+                component.copy(alertSnoozeUntilKm = component.lifetimeDistanceKm + snoozeKm),
             )
         }
     }

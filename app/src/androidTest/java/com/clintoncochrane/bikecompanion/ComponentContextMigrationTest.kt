@@ -73,6 +73,34 @@ class ComponentContextMigrationTest {
         }
     }
 
+    @Test
+    fun migration3ToLatest_preservesTrackedDistanceAndDefaultsPriorUsageToUnknown() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val sqlite = SQLiteDatabase.openDatabase(dbFile.path, null, SQLiteDatabase.OPEN_READWRITE)
+        sqlite.execSQL("INSERT INTO bikes (id, name, createdAt) VALUES (1, 'Bike', 0)")
+        sqlite.execSQL(
+            """
+            INSERT INTO components (
+                id, bikeId, type, name, lifespanKm, distanceUsedKm, installedAt
+            ) VALUES (1, 1, 'chain', 'Chain', 3000.0, 42.5, 0)
+            """.trimIndent(),
+        )
+        sqlite.close()
+
+        db = Room.databaseBuilder(context, BikeCompanionDatabase::class.java, MIGRATION_TEST_DB_NAME)
+            .addMigrations(*BikeCompanionMigrations.ALL)
+            .allowMainThreadQueries()
+            .build()
+
+        val cursor = db.openHelper.writableDatabase.query(
+            "SELECT distanceUsedKm, priorUsageCertainty FROM components WHERE id = 1",
+        )
+        assertTrue(cursor.moveToFirst())
+        assertTrue(cursor.getDouble(0) == 42.5)
+        assertTrue(cursor.getString(1) == "UNKNOWN")
+        cursor.close()
+    }
+
     /**
      * Creates a database file at version 3 with bikes, rides, and components tables
      * so that opening it with Room triggers migration 3→4 and schema validation.

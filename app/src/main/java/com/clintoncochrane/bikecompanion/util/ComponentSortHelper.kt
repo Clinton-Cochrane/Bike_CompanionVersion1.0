@@ -51,6 +51,6 @@ fun sortComponents(
  */
 fun componentHealthPercent(component: ComponentEntity): Int {
     if (component.lifespanKm <= 0) return 100
-    val usedPercent = (component.distanceUsedKm / component.lifespanKm) * 100
+    val usedPercent = (component.lifetimeDistanceKm / component.lifespanKm) * 100
     return (100 - usedPercent).toInt().coerceIn(0, 100)
 }

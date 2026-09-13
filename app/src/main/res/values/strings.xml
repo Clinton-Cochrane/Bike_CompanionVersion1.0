@@ -250,7 +250,7 @@
     <string name="component_edit_title_format">Edit %1$s</string>
     <string name="component_edit_display_name">Display name</string>
     <string name="component_edit_display_name_hint">e.g. Chain 1</string>
-    <string name="component_edit_mileage">Mileage (km)</string>
+    <string name="component_edit_mileage">Bike Companion tracked mileage (km)</string>
     <string name="component_edit_mileage_hint">0</string>
     <string name="component_edit_time">Total ride time</string>
     <string name="component_edit_time_hint">0:00:00 (hours:minutes:seconds)</string>
@@ -262,6 +262,13 @@
     <string name="component_edit_validation_name_empty">Display name is required</string>
     <string name="component_edit_validation_mileage_invalid">Mileage must be 0 or greater</string>
     <string name="component_edit_validation_time_invalid">Time must be in format H:MM:SS or M:SS</string>
+    <string name="component_prior_usage_title">Prior usage for %1$s</string>
+    <string name="component_prior_usage_prompt">How certain are the kilometers from before Bike Companion started tracking?</string>
+    <string name="component_prior_usage_known">Known</string>
+    <string name="component_prior_usage_approximate">Approximate</string>
+    <string name="component_prior_usage_unknown">Unknown</string>
+    <string name="component_prior_usage_km">Prior usage (km)</string>
+    <string name="component_prior_usage_invalid">Enter a finite number of 0 or greater</string>
 
     <!-- Stats screen -->
     <string name="stats_title">Stats</string>

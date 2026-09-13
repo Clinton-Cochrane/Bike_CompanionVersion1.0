@@ -29,7 +29,7 @@ data class ComponentEntity(
     val makeModel: String = "",
     /** Expected lifespan in km. Used to compute health %. */
     val lifespanKm: Double,
-    /** Distance used since install (or since last replacement). */
+    /** Distance tracked by Bike Companion since this component was added. */
     val distanceUsedKm: Double = 0.0,
     /** Total ride time in seconds on this bike, rolled up from completed trips. Denormalized for fast reads. */
     val totalTimeSeconds: Long = 0L,
@@ -38,8 +38,10 @@ data class ComponentEntity(
      * Used for paired components (tires, brake pads, etc.).
      */
     val position: String = "none",
-    /** Odometer/kilometer reading when component was installed (for future use). */
+    /** Prior component usage entered when tracking began; zero when prior usage is unknown. */
     val baselineKm: Double = 0.0,
+    /** Certainty of the prior usage stored in [baselineKm]. */
+    val priorUsageCertainty: PriorUsageCertainty = PriorUsageCertainty.UNKNOWN,
     /** Time-based baseline when component was installed, in seconds (for future use). */
     val baselineTimeSeconds: Long = 0L,
     /** Alert when remaining % is at or below this (e.g. 10 = alert when 90% used). */
@@ -57,4 +59,8 @@ data class ComponentEntity(
     val maxSpeedKmh: Double = 0.0,
     /** Bike id that achieved max speed; null if none. */
     val maxSpeedBikeId: Long? = null,
-)
+) {
+    /** Best available lifetime distance: prior usage, when provided, plus app-tracked usage. */
+    val lifetimeDistanceKm: Double
+        get() = distanceUsedKm + if (priorUsageCertainty == PriorUsageCertainty.UNKNOWN) 0.0 else baselineKm
+}
