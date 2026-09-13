@@ -249,9 +249,10 @@ class TripViewModel @Inject constructor(
                 }
                 var count = 0
                 sessions.forEach { session ->
+                    val distanceKm = session.distanceKm ?: return@forEach
                     val ride = RideEntity(
                         bikeId = bikeId,
-                        distanceKm = session.distanceKm,
+                        distanceKm = distanceKm,
                         durationMs = session.durationMs,
                         startedAt = session.startTimeMs,
                         endedAt = session.endTimeMs,
@@ -259,6 +260,10 @@ class TripViewModel @Inject constructor(
                     )
                     rideRepository.saveRideAndUpdateBikeAndComponents(ride)
                     count++
+                }
+                if (count == 0) {
+                    _healthConnectImportResult.emit(HealthConnectImportResult.None)
+                    return@launch
                 }
                 val hasSeenDisclaimer = appPreferencesRepository.getHasSeenHealthConnectImportDisclaimer()
                 if (!hasSeenDisclaimer) {

@@ -4,9 +4,12 @@ import android.content.Context
 import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import androidx.health.connect.client.units.Length
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -15,7 +18,7 @@ import java.time.Instant
 import javax.inject.Inject
 
 /**
- * Reads cycling sessions from Health Connect and maps them to ride data.
+ * Reads cycling sessions from Health Connect, including distance when available.
  * Availability and permission failures are returned as explicit results.
  */
 class HealthConnectImporter @Inject constructor(
@@ -23,6 +26,7 @@ class HealthConnectImporter @Inject constructor(
 ) {
     /**
      * Reads cycling sessions from the last 30 days.
+     * Requires Health Connect READ_EXERCISE and READ_DISTANCE permissions to be granted.
      */
     suspend fun readCyclingSessions(): HealthConnectReadResult = withContext(Dispatchers.IO) {
         val client by lazy(LazyThreadSafetyMode.NONE) { HealthConnectClient.getOrCreate(context) }
@@ -38,16 +42,14 @@ class HealthConnectImporter @Inject constructor(
                     timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
                 )
                 val response = client.readRecords(request)
-                response.records.map { record ->
-                    val startMs = record.startTime.toEpochMilli()
-                    val endMs = record.endTime.toEpochMilli()
-                    val durationMs = (endMs - startMs).coerceAtLeast(0L)
-                    HealthConnectSession(
-                        startTimeMs = startMs,
-                        endTimeMs = endMs,
-                        durationMs = durationMs,
-                        distanceKm = 0.0,
-                    )
+                HealthConnectSessionMapper.mapCyclingSessions(response.records) { record ->
+                    client.aggregate(
+                        AggregateRequest(
+                            metrics = setOf(DistanceRecord.DISTANCE_TOTAL),
+                            timeRangeFilter = TimeRangeFilter.between(record.startTime, record.endTime),
+                            dataOriginFilter = setOf(record.metadata.dataOrigin),
+                        ),
+                    )[DistanceRecord.DISTANCE_TOTAL]
                 }
             },
             logFailure = { message -> Log.e(TAG, message) },
@@ -61,6 +63,7 @@ class HealthConnectImporter @Inject constructor(
 
 val HEALTH_CONNECT_READ_PERMISSIONS: Set<String> = setOf(
     HealthPermission.getReadPermission(ExerciseSessionRecord::class),
+    HealthPermission.getReadPermission(DistanceRecord::class),
 )
 
 sealed interface HealthConnectReadResult {
@@ -101,9 +104,28 @@ internal suspend fun readHealthConnectSessions(
     HealthConnectReadResult.Failure
 }
 
+internal object HealthConnectSessionMapper {
+    suspend fun mapCyclingSessions(
+        records: List<ExerciseSessionRecord>,
+        distanceForSession: suspend (ExerciseSessionRecord) -> Length?,
+    ): List<HealthConnectSession> = records
+        .filter { it.exerciseType == ExerciseSessionRecord.EXERCISE_TYPE_BIKING }
+        .map { record ->
+            val startTimeMs = record.startTime.toEpochMilli()
+            val endTimeMs = record.endTime.toEpochMilli()
+            HealthConnectSession(
+                startTimeMs = startTimeMs,
+                endTimeMs = endTimeMs,
+                durationMs = (endTimeMs - startTimeMs).coerceAtLeast(0L),
+                distanceKm = distanceForSession(record)?.inKilometers,
+            )
+        }
+}
+
 data class HealthConnectSession(
     val startTimeMs: Long,
     val endTimeMs: Long,
     val durationMs: Long,
-    val distanceKm: Double,
+    /** Null when Health Connect has no distance data associated with this session. */
+    val distanceKm: Double?,
 )

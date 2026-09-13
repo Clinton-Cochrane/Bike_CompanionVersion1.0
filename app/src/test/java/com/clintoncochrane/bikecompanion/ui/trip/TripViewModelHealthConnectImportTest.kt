@@ -155,6 +155,50 @@ class TripViewModelHealthConnectImportTest {
         assertEquals(false, success.showDisclaimer)
 
         coVerify(exactly = 2) { rideRepository.saveRideAndUpdateBikeAndComponents(any()) }
+        coVerify(exactly = 1) {
+            rideRepository.saveRideAndUpdateBikeAndComponents(match { it.distanceKm == 15.5 })
+        }
+        coVerify(exactly = 1) {
+            rideRepository.saveRideAndUpdateBikeAndComponents(match { it.distanceKm == 20.0 })
+        }
+    }
+
+    @Test
+    fun importFromHealthConnect_distanceUnavailable_doesNotSaveRide() = runTest(testDispatcher) {
+        coEvery { healthConnectImporter.readCyclingSessions() } returns HealthConnectReadResult.Success(
+            listOf(
+                HealthConnectSession(
+                    startTimeMs = 1000L,
+                    endTimeMs = 4600000L,
+                    durationMs = 3600000L,
+                    distanceKm = null,
+                ),
+            ),
+        )
+
+        viewModel = TripViewModel(
+            bikeRepository,
+            rideRepository,
+            componentRepository,
+            healthConnectImporter,
+            appPreferencesRepository,
+        )
+        advanceUntilIdle()
+        viewModel.selectBike(testBike)
+
+        var result: HealthConnectImportResult? = null
+        val collectJob = launch {
+            result = viewModel.healthConnectImportResult.first()
+        }
+        advanceUntilIdle()
+
+        viewModel.importFromHealthConnect()
+        advanceUntilIdle()
+
+        collectJob.join()
+        assertEquals(HealthConnectImportResult.None, result)
+        coVerify(exactly = 0) { rideRepository.saveRideAndUpdateBikeAndComponents(any()) }
+        coVerify(exactly = 0) { appPreferencesRepository.setHasSeenHealthConnectImportDisclaimer() }
     }
 
     @Test
