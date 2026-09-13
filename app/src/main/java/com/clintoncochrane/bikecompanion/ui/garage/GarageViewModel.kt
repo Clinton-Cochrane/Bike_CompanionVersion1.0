@@ -6,6 +6,7 @@ import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
 import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
+import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalRepository
 import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesRepository
 import com.clintoncochrane.bikecompanion.util.ComponentSortOrder
@@ -164,7 +165,13 @@ class GarageViewModel @Inject constructor(
         _uiState.update { it.copy(componentBikeFilter = bikeId) }
     }
 
-    fun addComponentToGarage(type: String, name: String, lifespanKm: Double) {
+    fun addComponentToGarage(
+        type: String,
+        name: String,
+        lifespanKm: Double,
+        priorUsageCertainty: PriorUsageCertainty,
+        baselineKm: Double,
+    ) {
         viewModelScope.launch {
             componentRepository.insertComponent(
                 ComponentEntity(
@@ -172,6 +179,8 @@ class GarageViewModel @Inject constructor(
                     type = type,
                     name = name,
                     lifespanKm = lifespanKm,
+                    baselineKm = baselineKm,
+                    priorUsageCertainty = priorUsageCertainty,
                     installedAt = System.currentTimeMillis(),
                 ),
             )

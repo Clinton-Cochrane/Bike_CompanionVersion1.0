@@ -12,6 +12,7 @@ import com.clintoncochrane.bikecompanion.data.component.ComponentContextValidati
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
 import com.clintoncochrane.bikecompanion.data.component.ComponentSwapEntity
+import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.data.component.ComponentSwapRepository
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalEntity
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalRepository
@@ -140,7 +141,7 @@ class ComponentDetailViewModel @Inject constructor(
                     componentId = componentId,
                     name = name,
                     intervalKm = intervalKm,
-                    trackedKm = component.distanceUsedKm,
+                    trackedKm = component.lifetimeDistanceKm,
                     type = type,
                     intervalTimeSeconds = intervalTimeSeconds,
                     trackedTimeSeconds = if (intervalTimeSeconds != null) component.totalTimeSeconds else null,
@@ -176,12 +177,16 @@ class ComponentDetailViewModel @Inject constructor(
     fun updateComponent(
         name: String,
         distanceUsedKm: Double,
+        priorUsageCertainty: PriorUsageCertainty,
+        baselineKm: Double,
         totalTimeSeconds: Long,
         resetAvgMaxSpeed: Boolean,
         pickedImageUri: Uri? = null,
         removeImage: Boolean = false,
     ) {
         val component = _uiState.value.component ?: return
+        if (!distanceUsedKm.isFinite() || distanceUsedKm < 0.0) return
+        if (!baselineKm.isFinite() || baselineKm < 0.0) return
         viewModelScope.launch {
             var thumbnailUri = component.thumbnailUri
             if (removeImage) {
@@ -198,6 +203,8 @@ class ComponentDetailViewModel @Inject constructor(
             val updated = component.copy(
                 name = name.trim(),
                 distanceUsedKm = distanceUsedKm.coerceAtLeast(0.0),
+                baselineKm = if (priorUsageCertainty == PriorUsageCertainty.UNKNOWN) 0.0 else baselineKm,
+                priorUsageCertainty = priorUsageCertainty,
                 totalTimeSeconds = totalTimeSeconds.coerceAtLeast(0L),
                 avgSpeedKmh = if (resetAvgMaxSpeed) 0.0 else component.avgSpeedKmh,
                 maxSpeedKmh = if (resetAvgMaxSpeed) 0.0 else component.maxSpeedKmh,

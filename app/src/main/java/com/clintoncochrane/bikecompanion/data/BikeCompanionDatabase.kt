@@ -13,6 +13,7 @@ import com.clintoncochrane.bikecompanion.data.component.ComponentSwapDao
 import com.clintoncochrane.bikecompanion.data.component.ComponentSwapEntity
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalDao
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalEntity
+import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertaintyConverters
 import com.clintoncochrane.bikecompanion.data.ride.RideDao
 import com.clintoncochrane.bikecompanion.data.ride.RideEntity
 import com.clintoncochrane.bikecompanion.data.ride.RideSourceConverters
@@ -30,10 +31,10 @@ import com.clintoncochrane.bikecompanion.data.ride.RideSourceConverters
         ComponentSwapEntity::class,
         ServiceIntervalEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = false,
 )
-@TypeConverters(RideSourceConverters::class)
+@TypeConverters(RideSourceConverters::class, PriorUsageCertaintyConverters::class)
 abstract class BikeCompanionDatabase : RoomDatabase() {
     abstract fun bikeDao(): BikeDao
     abstract fun rideDao(): RideDao

@@ -80,6 +80,7 @@ import com.clintoncochrane.bikecompanion.data.component.ComponentContext
 import com.clintoncochrane.bikecompanion.data.component.ComponentContextValidation
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentSwapEntity
+import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalEntity
 import com.clintoncochrane.bikecompanion.util.DisplayFormatHelper
 import com.clintoncochrane.bikecompanion.util.DurationFormatHelper
@@ -131,21 +132,29 @@ fun ComponentDetailScreen(
                 showComponentEdit = false
                 componentEditValidationError = null
             },
-            onSave = { name, mileageStr, timeStr, resetSpeeds, pickedImageUri, removeImage ->
+            onSave = { name, mileageStr, certainty, baselineKmStr, timeStr, resetSpeeds, pickedImageUri, removeImage ->
                 componentEditValidationError = null
                 val nameTrimmed = name.trim()
                 val mileage = mileageStr.trim().toDoubleOrNull()
+                val baselineKm = if (certainty == PriorUsageCertainty.UNKNOWN) {
+                    0.0
+                } else {
+                    baselineKmStr.trim().toDoubleOrNull()
+                }
                 val timeSeconds = timeStr.trim().let { t ->
                     if (t.isEmpty()) 0L else DurationFormatHelper.parseDurationToSeconds(t)
                 }
                 when {
                     nameTrimmed.isBlank() -> componentEditValidationError = nameEmptyMsg
-                    mileage == null || mileage < 0 -> componentEditValidationError = mileageInvalidMsg
+                    mileage == null || !mileage.isFinite() || mileage < 0 -> componentEditValidationError = mileageInvalidMsg
+                    baselineKm == null || !baselineKm.isFinite() || baselineKm < 0 -> componentEditValidationError = mileageInvalidMsg
                     timeStr.isNotBlank() && timeSeconds == null -> componentEditValidationError = timeInvalidMsg
                     else -> {
                         viewModel.updateComponent(
                             nameTrimmed,
                             mileage ?: 0.0,
+                            certainty,
+                            baselineKm ?: 0.0,
                             timeSeconds ?: 0L,
                             resetSpeeds,
                             pickedImageUri,
@@ -391,7 +400,7 @@ fun ComponentDetailScreen(
                                 .padding(top = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
-                            Text(stringResource(R.string.bike_stat_km, component.distanceUsedKm), style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.bike_stat_km, component.lifetimeDistanceKm), style = MaterialTheme.typography.labelMedium)
                             Text(DurationFormatHelper.formatDurationBreakdownSeconds(component.totalTimeSeconds), style = MaterialTheme.typography.labelMedium)
                             Text(stringResource(R.string.bike_stat_kmh, component.avgSpeedKmh), style = MaterialTheme.typography.labelMedium)
                             Text(stringResource(R.string.bike_stat_kmh, component.maxSpeedKmh), style = MaterialTheme.typography.labelMedium)
@@ -695,10 +704,21 @@ private fun ComponentEditDialog(
     component: ComponentEntity,
     validationError: String?,
     onDismiss: () -> Unit,
-    onSave: (name: String, mileageStr: String, timeStr: String, resetAvgMaxSpeed: Boolean, pickedImageUri: Uri?, removeImage: Boolean) -> Unit,
+    onSave: (
+        name: String,
+        mileageStr: String,
+        priorUsageCertainty: PriorUsageCertainty,
+        baselineKmStr: String,
+        timeStr: String,
+        resetAvgMaxSpeed: Boolean,
+        pickedImageUri: Uri?,
+        removeImage: Boolean,
+    ) -> Unit,
 ) {
     var name by remember(component.id) { mutableStateOf(component.name) }
     var mileageStr by remember(component.id) { mutableStateOf(component.distanceUsedKm.toString()) }
+    var priorUsageCertainty by remember(component.id) { mutableStateOf(component.priorUsageCertainty) }
+    var baselineKmStr by remember(component.id) { mutableStateOf(component.baselineKm.toString()) }
     var timeStr by remember(component.id) {
         mutableStateOf(DurationFormatHelper.formatDurationSeconds(component.totalTimeSeconds))
     }
@@ -804,6 +824,12 @@ private fun ComponentEditDialog(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 )
+                PriorUsageFields(
+                    certainty = priorUsageCertainty,
+                    baselineKmText = baselineKmStr,
+                    onCertaintyChange = { priorUsageCertainty = it },
+                    onBaselineKmChange = { baselineKmStr = it },
+                )
                 OutlinedTextField(
                     value = timeStr,
                     onValueChange = { timeStr = it },
@@ -833,7 +859,18 @@ private fun ComponentEditDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(name, mileageStr, timeStr, resetSpeeds, pickedImageUri, removeImageRequested) }) {
+            TextButton(onClick = {
+                onSave(
+                    name,
+                    mileageStr,
+                    priorUsageCertainty,
+                    baselineKmStr,
+                    timeStr,
+                    resetSpeeds,
+                    pickedImageUri,
+                    removeImageRequested,
+                )
+            }) {
                 Text(stringResource(R.string.component_context_save))
             }
         },
@@ -844,4 +881,3 @@ private fun ComponentEditDialog(
         },
     )
 }
-

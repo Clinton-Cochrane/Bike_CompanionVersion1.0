@@ -43,13 +43,13 @@ class ComponentAlertNotifier @Inject constructor(
     }
 
     private fun isSnoozed(c: ComponentEntity): Boolean {
-        if (c.alertSnoozeUntilKm != null) return c.distanceUsedKm < c.alertSnoozeUntilKm
+        if (c.alertSnoozeUntilKm != null) return c.lifetimeDistanceKm < c.alertSnoozeUntilKm
         if (c.alertSnoozeUntilTime != null) return System.currentTimeMillis() < c.alertSnoozeUntilTime
         return false
     }
 
     private fun healthPercent(c: ComponentEntity): Int =
-        (100.0 - (c.distanceUsedKm / c.lifespanKm).coerceIn(0.0, 1.0) * 100).toInt().coerceIn(0, 100)
+        (100.0 - (c.lifetimeDistanceKm / c.lifespanKm).coerceIn(0.0, 1.0) * 100).toInt().coerceIn(0, 100)
 
     private fun ensureChannel() {
         val channel = NotificationChannel(

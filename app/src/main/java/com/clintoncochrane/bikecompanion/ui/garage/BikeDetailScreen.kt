@@ -80,6 +80,7 @@ import com.clintoncochrane.bikecompanion.util.DisplayFormatHelper
 import com.clintoncochrane.bikecompanion.util.RideDisplayHelper
 import com.clintoncochrane.bikecompanion.util.componentTypeIcon
 import com.clintoncochrane.bikecompanion.data.component.DefaultComponentTypes
+import com.clintoncochrane.bikecompanion.data.component.DefaultComponentType
 import com.clintoncochrane.bikecompanion.util.ComponentSortOrder
 import com.clintoncochrane.bikecompanion.util.componentHealthPercent
 import com.clintoncochrane.bikecompanion.ui.garage.ThumbnailAvatar
@@ -101,6 +102,7 @@ fun BikeDetailScreen(
     backStackEntry: NavBackStackEntry,
 ) {
     var showAddComponentDialog by remember { mutableStateOf(false) }
+    var componentToAdd by remember { mutableStateOf<DefaultComponentType?>(null) }
     var componentIdForInstallPicker by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentForRemoveDialog by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentForDeleteConfirm by remember { mutableStateOf<ComponentEntity?>(null) }
@@ -124,11 +126,7 @@ fun BikeDetailScreen(
                     DefaultComponentTypes.SUGGESTED.forEach { suggested ->
                         TextButton(
                             onClick = {
-                                viewModel.addComponent(
-                                    suggested.type,
-                                    suggested.displayName,
-                                    suggested.defaultLifespanKm,
-                                )
+                                componentToAdd = suggested
                                 showAddComponentDialog = false
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -144,6 +142,23 @@ fun BikeDetailScreen(
                 TextButton(onClick = { showAddComponentDialog = false }) {
                     Text(stringResource(R.string.component_done))
                 }
+            },
+        )
+    }
+
+    componentToAdd?.let { component ->
+        PriorUsageDialog(
+            componentName = component.displayName,
+            onDismiss = { componentToAdd = null },
+            onSave = { certainty, baselineKm ->
+                viewModel.addComponent(
+                    component.type,
+                    component.displayName,
+                    component.defaultLifespanKm,
+                    certainty,
+                    baselineKm,
+                )
+                componentToAdd = null
             },
         )
     }
@@ -689,7 +704,7 @@ private fun ComponentHealthCard(
     contextMenuExpanded: Boolean,
     onContextMenuClick: () -> Unit,
 ) {
-    val healthPercent = (100.0 - (component.distanceUsedKm / component.lifespanKm).coerceIn(0.0, 1.0) * 100).toInt().coerceIn(0, 100)
+    val healthPercent = (100.0 - (component.lifetimeDistanceKm / component.lifespanKm).coerceIn(0.0, 1.0) * 100).toInt().coerceIn(0, 100)
     val healthDesc = stringResource(R.string.bike_component_health, healthPercent)
     val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
     val isInGarage = component.bikeId == null
@@ -787,7 +802,7 @@ private fun ComponentHealthCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = stringResource(R.string.bike_component_used_km, component.distanceUsedKm, component.lifespanKm),
+                    text = stringResource(R.string.bike_component_used_km, component.lifetimeDistanceKm, component.lifespanKm),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 LinearProgressIndicator(
