@@ -6,6 +6,8 @@ import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
 import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
+import com.clintoncochrane.bikecompanion.data.component.SERVICE_INTERVAL_TYPE_GREASE
+import com.clintoncochrane.bikecompanion.data.component.SERVICE_INTERVAL_TYPE_INSPECTION
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalEntity
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalRepository
 import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesRepository
@@ -29,6 +31,7 @@ data class DueServiceItem(
     val bikeName: String,
     val healthPercent: Int,
     val nextDueText: String,
+    val nextServiceIntervalId: Long?,
 )
 
 data class ServiceListUiState(
@@ -103,6 +106,10 @@ class ServiceListViewModel @Inject constructor(
                 val intervalHealth = intervals.minOfOrNull { ServiceIntervalHelper.healthPercent(it) } ?: 100
                 val health = minOf(componentHealth, intervalHealth)
                 val nextDue = intervals.minByOrNull { ServiceIntervalHelper.healthPercent(it) }
+                val nextServiceInterval = nextDue?.takeIf {
+                    it.type == SERVICE_INTERVAL_TYPE_INSPECTION ||
+                        it.type == SERVICE_INTERVAL_TYPE_GREASE
+                }
                 val nextDueText = nextDue?.let { ServiceIntervalHelper.description(it) }
                     ?.let { desc ->
                         listOfNotNull(desc.kmText, desc.timeText).joinToString(" · ")
@@ -112,6 +119,7 @@ class ServiceListViewModel @Inject constructor(
                     bikeName = bikeName,
                     healthPercent = health,
                     nextDueText = nextDueText,
+                    nextServiceIntervalId = nextServiceInterval?.id,
                 )
             }
     }
@@ -215,19 +223,23 @@ class ServiceListViewModel @Inject constructor(
         }
     }
 
-    fun completeInspection(componentId: Long) {
+    fun completeServiceInterval(componentId: Long, intervalId: Long) {
         viewModelScope.launch {
-            componentRepository.markInspectionComplete(componentId)
-            _uiState.update { state ->
-                state.copy(selectedIds = state.selectedIds - componentId)
+            if (serviceIntervalRepository.completeServiceInterval(intervalId)) {
+                _uiState.update { state ->
+                    state.copy(selectedIds = state.selectedIds - componentId)
+                }
             }
         }
     }
 
-    fun completeInspectionSelected() {
+    fun completeServiceIntervalsSelected() {
         viewModelScope.launch {
-            val ids = _uiState.value.selectedIds.toList()
-            ids.forEach { componentRepository.markInspectionComplete(it) }
+            val state = _uiState.value
+            state.dueItems
+                .filter { it.component.id in state.selectedIds }
+                .mapNotNull { it.nextServiceIntervalId }
+                .forEach { serviceIntervalRepository.completeServiceInterval(it) }
             _uiState.update { it.copy(selectedIds = emptySet()) }
         }
     }
