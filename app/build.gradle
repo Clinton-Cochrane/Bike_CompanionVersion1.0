@@ -42,6 +42,9 @@ android {
     buildFeatures {
         compose = true
     }
+    sourceSets {
+        androidTest.assets.srcDir("$projectDir/schemas")
+    }
 }
 
 dependencies {
@@ -87,12 +90,16 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.10")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation("androidx.room:room-testing:2.7.0")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.02.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 }
 
 kapt {
     correctErrorTypes = true
+    arguments {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
 }
 
 // Force okio to version compatible with Kotlin 2.0 metadata (okio 3.16+ uses Kotlin 2.2)

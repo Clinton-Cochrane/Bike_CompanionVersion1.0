@@ -32,7 +32,7 @@ import com.clintoncochrane.bikecompanion.data.ride.RideSourceConverters
         ServiceIntervalEntity::class,
     ],
     version = 12,
-    exportSchema = false,
+    exportSchema = true,
 )
 @TypeConverters(RideSourceConverters::class, PriorUsageCertaintyConverters::class)
 abstract class BikeCompanionDatabase : RoomDatabase() {
