@@ -25,7 +25,13 @@
     <string name="trip_import_success_with_disclaimer">Imported %1$d ride(s). Elevation and max speed may not be available for imported rides.</string>
     <string name="ride_stat_unavailable">—</string>
     <string name="trip_import_none">No cycling sessions found in Health Connect</string>
-    <string name="trip_import_error">Could not read Health Connect. Check that Health Connect is installed and permission is granted.</string>
+    <string name="trip_import_permission_required">Allow access to exercise data to import rides</string>
+    <string name="trip_import_permission_action">Grant access</string>
+    <string name="trip_import_unavailable">Health Connect is not supported on this device</string>
+    <string name="trip_import_provider_update_required">Install or update Health Connect to import rides</string>
+    <string name="trip_import_provider_update_action">Install/update</string>
+    <string name="trip_import_error">Could not import rides from Health Connect</string>
+    <string name="trip_import_retry">Retry</string>
     <string name="trip_missing_parts_title">Missing parts</string>
     <string name="trip_missing_parts_message">This bike is missing some expected components. You can add placeholders to track them, install parts from your garage, or start the ride anyway and fix later.</string>
     <string name="trip_add_placeholder">Add placeholder</string>
