@@ -18,3 +18,19 @@ internal fun RideState.toActiveRideCheckpoint(checkpointedAtMs: Long): ActiveRid
         totalPausedDurationMs = totalPausedDurationMs,
         checkpointedAtMs = checkpointedAtMs,
     )
+
+internal fun ActiveRideCheckpoint.toRideState(): RideState = RideState(
+    bikeId = bikeId ?: -1L,
+    hadPlaceholdersAtStart = hadPlaceholdersAtStart,
+    isTracking = true,
+    isPaused = isPaused,
+    pausedAtMs = pausedAtMs,
+    totalPausedDurationMs = totalPausedDurationMs,
+    startTimeMs = startTimeMs,
+    distanceKm = distanceKm,
+    avgSpeedKmh = avgSpeedKmh,
+    maxSpeedKmh = maxSpeedKmh,
+    elevGainM = elevGainM,
+    elevLossM = elevLossM,
+    locationUpdateCount = locationUpdateCount,
+)
