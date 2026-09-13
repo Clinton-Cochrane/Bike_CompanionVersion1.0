@@ -95,6 +95,42 @@ class RideRepository @Inject constructor(
     suspend fun insertRide(ride: RideEntity): Long = rideDao.insert(ride)
 
     /**
+     * Moves a completed ride to another bike and reconciles all denormalized aggregates in one
+     * transaction. Components are selected from their install history at the ride end time.
+     */
+    suspend fun reassignCompletedRide(rideId: Long, newBikeId: Long) {
+        require(rideId > 0L) { "A completed ride id is required" }
+
+        val bikeIdForNotification = ridePersistenceTransaction.run transaction@{
+            val savedRide = requireNotNull(rideDao.getRideById(rideId)) {
+                "Ride $rideId does not exist"
+            }
+            val oldBikeId = requireNotNull(savedRide.bikeId) {
+                "Ride $rideId is not assigned to a bike"
+            }
+            if (oldBikeId == newBikeId) return@transaction null
+
+            val oldBike = requireNotNull(bikeDao.getBikeById(oldBikeId)) {
+                "Bike $oldBikeId does not exist"
+            }
+            val newBike = requireNotNull(bikeDao.getBikeById(newBikeId)) {
+                "Bike $newBikeId does not exist"
+            }
+            val reassignedRide = savedRide.copy(bikeId = newBikeId)
+
+            rideDao.update(reassignedRide)
+            val oldBikeRides = rideDao.getRidesByBikeIdOnce(oldBikeId)
+            val newBikeRides = rideDao.getRidesByBikeIdOnce(newBikeId)
+            updateBikeFromRides(oldBike, oldBikeRides)
+            updateBikeFromRides(newBike, newBikeRides)
+            updateComponentsForDeletedRide(savedRide, oldBikeRides)
+            updateComponentsForAssignedRide(reassignedRide, newBikeId)
+            newBikeId
+        }
+        bikeIdForNotification?.let { componentAlertNotifier.notifyIfNeeded(it) }
+    }
+
+    /**
      * Deletes a completed ride and reconciles every denormalized value that ride updated.
      *
      * Bike totals are rebuilt from authoritative ride history. Component and service usage are
@@ -151,17 +187,54 @@ class RideRepository @Inject constructor(
         remainingRides: List<RideEntity>,
     ) {
         val bikeId = deletedRide.bikeId ?: return
-        val historicalComponentIds = componentSwapDao.getComponentIdsInstalledOnBikeAt(bikeId, deletedRide.endedAt)
+        componentsInstalledOnBikeAt(bikeId, deletedRide.endedAt).forEach { component ->
+            updateComponentForDeletedRide(component, deletedRide, remainingRides, bikeId)
+        }
+    }
+
+    private suspend fun updateComponentsForAssignedRide(assignedRide: RideEntity, bikeId: Long) {
+        val durationSeconds = (assignedRide.durationMs / 1000L).coerceAtLeast(0L)
+        componentsInstalledOnBikeAt(bikeId, assignedRide.endedAt).forEach { component ->
+            val distanceUsedKm = component.distanceUsedKm + assignedRide.distanceKm
+            val totalTimeSeconds = component.totalTimeSeconds + durationSeconds
+            componentDao.update(
+                component.copy(
+                    distanceUsedKm = distanceUsedKm,
+                    totalTimeSeconds = totalTimeSeconds,
+                    avgSpeedKmh = if (totalTimeSeconds > 0L) {
+                        distanceUsedKm / (totalTimeSeconds / 3600.0)
+                    } else {
+                        0.0
+                    },
+                    maxSpeedKmh = maxOf(component.maxSpeedKmh, assignedRide.maxSpeedKmh),
+                    maxSpeedBikeId = if (assignedRide.maxSpeedKmh >= component.maxSpeedKmh) bikeId else component.maxSpeedBikeId,
+                ),
+            )
+            serviceIntervalDao.getIntervalsByComponentIdOnce(component.id).forEach { interval ->
+                serviceIntervalDao.update(
+                    interval.copy(
+                        trackedKm = interval.trackedKm + assignedRide.distanceKm,
+                        trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
+                            (interval.trackedTimeSeconds ?: 0L) + durationSeconds
+                        } else {
+                            interval.trackedTimeSeconds
+                        },
+                    ),
+                )
+            }
+        }
+    }
+
+    private suspend fun componentsInstalledOnBikeAt(bikeId: Long, rideEndedAt: Long): List<ComponentEntity> {
+        val historicalComponentIds = componentSwapDao.getComponentIdsInstalledOnBikeAt(bikeId, rideEndedAt)
         val historicalComponents = if (historicalComponentIds.isEmpty()) {
             emptyList()
         } else {
             componentDao.getComponentsByIdsOnce(historicalComponentIds)
         }
         val legacyInstalledComponents = componentDao.getComponentsByBikeIdOnce(bikeId)
-            .filter { it.installedAt <= deletedRide.endedAt }
-        (historicalComponents + legacyInstalledComponents)
-            .distinctBy { it.id }
-            .forEach { component -> updateComponentForDeletedRide(component, deletedRide, remainingRides, bikeId) }
+            .filter { it.installedAt <= rideEndedAt }
+        return (historicalComponents + legacyInstalledComponents).distinctBy { it.id }
     }
 
     private suspend fun updateComponentForDeletedRide(
