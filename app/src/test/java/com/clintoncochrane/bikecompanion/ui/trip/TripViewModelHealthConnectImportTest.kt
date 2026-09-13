@@ -114,12 +114,14 @@ class TripViewModelHealthConnectImportTest {
     fun importFromHealthConnect_sessionsImported_emitsSuccessAndSavesRides() = runTest(testDispatcher) {
         val sessions = listOf(
             HealthConnectSession(
+                healthConnectRecordId = "session-1",
                 startTimeMs = 1000L,
                 endTimeMs = 4600000L,
                 durationMs = 3600000L,
                 distanceKm = 15.5,
             ),
             HealthConnectSession(
+                healthConnectRecordId = "session-2",
                 startTimeMs = 5000000L,
                 endTimeMs = 8600000L,
                 durationMs = 3600000L,
@@ -128,7 +130,7 @@ class TripViewModelHealthConnectImportTest {
         )
         coEvery { healthConnectImporter.readCyclingSessions() } returns HealthConnectReadResult.Success(sessions)
         coEvery { appPreferencesRepository.getHasSeenHealthConnectImportDisclaimer() } returns true
-        coEvery { rideRepository.saveRideAndUpdateBikeAndComponents(any()) } coAnswers { }
+        coEvery { rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(any()) } returns true
 
         viewModel = TripViewModel(
             bikeRepository,
@@ -154,12 +156,12 @@ class TripViewModelHealthConnectImportTest {
         assertEquals(2, success.count)
         assertEquals(false, success.showDisclaimer)
 
-        coVerify(exactly = 2) { rideRepository.saveRideAndUpdateBikeAndComponents(any()) }
+        coVerify(exactly = 2) { rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(any()) }
         coVerify(exactly = 1) {
-            rideRepository.saveRideAndUpdateBikeAndComponents(match { it.distanceKm == 15.5 })
+            rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(match { it.distanceKm == 15.5 && it.healthConnectRecordId == "session-1" })
         }
         coVerify(exactly = 1) {
-            rideRepository.saveRideAndUpdateBikeAndComponents(match { it.distanceKm == 20.0 })
+            rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(match { it.distanceKm == 20.0 && it.healthConnectRecordId == "session-2" })
         }
     }
 
@@ -197,7 +199,7 @@ class TripViewModelHealthConnectImportTest {
 
         collectJob.join()
         assertEquals(HealthConnectImportResult.None, result)
-        coVerify(exactly = 0) { rideRepository.saveRideAndUpdateBikeAndComponents(any()) }
+        coVerify(exactly = 0) { rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(any()) }
         coVerify(exactly = 0) { appPreferencesRepository.setHasSeenHealthConnectImportDisclaimer() }
     }
 
@@ -206,6 +208,7 @@ class TripViewModelHealthConnectImportTest {
         coEvery { healthConnectImporter.readCyclingSessions() } returns HealthConnectReadResult.Success(
             listOf(
                 HealthConnectSession(
+                    healthConnectRecordId = "session-1",
                     startTimeMs = 1000L,
                     endTimeMs = 4600000L,
                     durationMs = 3600000L,
@@ -214,7 +217,7 @@ class TripViewModelHealthConnectImportTest {
             ),
         )
         coEvery { appPreferencesRepository.getHasSeenHealthConnectImportDisclaimer() } returns true
-        coEvery { rideRepository.saveRideAndUpdateBikeAndComponents(any()) } coAnswers { }
+        coEvery { rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(any()) } returns true
 
         viewModel = TripViewModel(
             bikeRepository,
@@ -238,7 +241,7 @@ class TripViewModelHealthConnectImportTest {
         collectJob.join()
         assertEquals(HealthConnectImportResult.Success(count = 1, showDisclaimer = false), result)
         coVerify(exactly = 1) {
-            rideRepository.saveRideAndUpdateBikeAndComponents(match { it.distanceKm == 0.0 })
+            rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(match { it.distanceKm == 0.0 && it.healthConnectRecordId == "session-1" })
         }
     }
 
@@ -246,6 +249,7 @@ class TripViewModelHealthConnectImportTest {
     fun importFromHealthConnect_firstImport_showsDisclaimerAndSetsFlag() = runTest(testDispatcher) {
         val sessions = listOf(
             HealthConnectSession(
+                healthConnectRecordId = "session-1",
                 startTimeMs = 1000L,
                 endTimeMs = 4600000L,
                 durationMs = 3600000L,
@@ -255,7 +259,7 @@ class TripViewModelHealthConnectImportTest {
         coEvery { healthConnectImporter.readCyclingSessions() } returns HealthConnectReadResult.Success(sessions)
         coEvery { appPreferencesRepository.getHasSeenHealthConnectImportDisclaimer() } returns false
         coEvery { appPreferencesRepository.setHasSeenHealthConnectImportDisclaimer() } coAnswers { }
-        coEvery { rideRepository.saveRideAndUpdateBikeAndComponents(any()) } coAnswers { }
+        coEvery { rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(any()) } returns true
 
         viewModel = TripViewModel(
             bikeRepository,
@@ -333,6 +337,6 @@ class TripViewModelHealthConnectImportTest {
 
         collectJob.join()
         assertEquals(expected, result)
-        coVerify(exactly = 0) { rideRepository.saveRideAndUpdateBikeAndComponents(any()) }
+        coVerify(exactly = 0) { rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(any()) }
     }
 }

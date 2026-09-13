@@ -25,7 +25,10 @@ enum class RideSource {
             onDelete = ForeignKey.SET_NULL,
         ),
     ],
-    indices = [Index("bikeId")],
+    indices = [
+        Index("bikeId"),
+        Index(value = ["healthConnectRecordId"], unique = true),
+    ],
 )
 data class RideEntity(
     @PrimaryKey(autoGenerate = true)
@@ -40,6 +43,11 @@ data class RideEntity(
     val startedAt: Long,
     val endedAt: Long,
     val source: RideSource = RideSource.APP,
+    /**
+     * Health Connect's durable record ID for imported sessions. Null for rides created elsewhere.
+     * The unique database index prevents the same Health Connect session from being imported twice.
+     */
+    val healthConnectRecordId: String? = null,
     /**
      * True when the bike had placeholder components added at ride start (from missing-parts dialog).
      * Used to prompt user to update bike info after the ride.
