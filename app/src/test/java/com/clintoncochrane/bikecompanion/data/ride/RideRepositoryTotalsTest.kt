@@ -4,6 +4,7 @@ import com.clintoncochrane.bikecompanion.data.bike.BikeDao
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentDao
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
+import com.clintoncochrane.bikecompanion.data.component.ComponentSwapDao
 import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalDao
 import com.clintoncochrane.bikecompanion.notifications.ComponentAlertNotifier
@@ -26,6 +27,7 @@ class RideRepositoryTotalsTest {
     private lateinit var bikeDao: BikeDao
     private lateinit var componentDao: ComponentDao
     private lateinit var serviceIntervalDao: ServiceIntervalDao
+    private lateinit var componentSwapDao: ComponentSwapDao
     private lateinit var componentAlertNotifier: ComponentAlertNotifier
     private lateinit var ridePersistenceTransaction: RidePersistenceTransaction
     private lateinit var repository: RideRepository
@@ -36,6 +38,7 @@ class RideRepositoryTotalsTest {
         bikeDao = mockk()
         componentDao = mockk()
         serviceIntervalDao = mockk(relaxed = true)
+        componentSwapDao = mockk(relaxed = true)
         coEvery { serviceIntervalDao.getIntervalsByComponentIdOnce(any()) } returns emptyList()
         componentAlertNotifier = mockk(relaxed = true)
         ridePersistenceTransaction = mockk()
@@ -47,6 +50,7 @@ class RideRepositoryTotalsTest {
             bikeDao,
             componentDao,
             serviceIntervalDao,
+            componentSwapDao,
             componentAlertNotifier,
             ridePersistenceTransaction,
         )

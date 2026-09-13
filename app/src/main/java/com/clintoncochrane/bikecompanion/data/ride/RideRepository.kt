@@ -1,6 +1,8 @@
 package com.clintoncochrane.bikecompanion.data.ride
 
 import com.clintoncochrane.bikecompanion.data.bike.recordedDistanceKm
+import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
+import com.clintoncochrane.bikecompanion.data.component.ComponentSwapDao
 import com.clintoncochrane.bikecompanion.notifications.ComponentAlertNotifier
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -12,6 +14,7 @@ class RideRepository @Inject constructor(
     private val bikeDao: com.clintoncochrane.bikecompanion.data.bike.BikeDao,
     private val componentDao: com.clintoncochrane.bikecompanion.data.component.ComponentDao,
     private val serviceIntervalDao: com.clintoncochrane.bikecompanion.data.component.ServiceIntervalDao,
+    private val componentSwapDao: ComponentSwapDao,
     private val componentAlertNotifier: ComponentAlertNotifier,
     private val ridePersistenceTransaction: RidePersistenceTransaction,
 ) {
@@ -92,9 +95,44 @@ class RideRepository @Inject constructor(
     suspend fun insertRide(ride: RideEntity): Long = rideDao.insert(ride)
 
     /**
-     * Replaces a completed ride without reassigning it to another bike, then reconciles the
-     * denormalized bike, component, and service interval totals in the same transaction.
-     * Bike reassignment is intentionally handled separately.
+     * Moves a completed ride to another bike and reconciles all denormalized aggregates in one
+     * transaction. Components are selected from their install history at the ride end time.
+     */
+    suspend fun reassignCompletedRide(rideId: Long, newBikeId: Long) {
+        require(rideId > 0L) { "A completed ride id is required" }
+
+        val bikeIdForNotification = ridePersistenceTransaction.run transaction@{
+            val savedRide = requireNotNull(rideDao.getRideById(rideId)) {
+                "Ride $rideId does not exist"
+            }
+            val oldBikeId = requireNotNull(savedRide.bikeId) {
+                "Ride $rideId is not assigned to a bike"
+            }
+            if (oldBikeId == newBikeId) return@transaction null
+
+            val oldBike = requireNotNull(bikeDao.getBikeById(oldBikeId)) {
+                "Bike $oldBikeId does not exist"
+            }
+            val newBike = requireNotNull(bikeDao.getBikeById(newBikeId)) {
+                "Bike $newBikeId does not exist"
+            }
+            val reassignedRide = savedRide.copy(bikeId = newBikeId)
+
+            rideDao.update(reassignedRide)
+            val oldBikeRides = rideDao.getRidesByBikeIdOnce(oldBikeId)
+            val newBikeRides = rideDao.getRidesByBikeIdOnce(newBikeId)
+            updateBikeFromRides(oldBike, oldBikeRides)
+            updateBikeFromRides(newBike, newBikeRides)
+            updateComponentsForDeletedRide(savedRide, oldBikeRides)
+            updateComponentsForAssignedRide(reassignedRide, newBikeId)
+            newBikeId
+        }
+        bikeIdForNotification?.let { componentAlertNotifier.notifyIfNeeded(it) }
+    }
+
+    /**
+     * Replaces a completed ride without changing its bike, then reconciles every aggregate that
+     * the original completed ride affected. Bike reassignment remains owned by [reassignCompletedRide].
      */
     suspend fun updateCompletedRideAndReconcileAggregates(
         oldRide: RideEntity,
@@ -114,53 +152,202 @@ class RideRepository @Inject constructor(
             val bikeId = replacementRide.bikeId ?: return@transaction null
             val bike = bikeDao.getBikeById(bikeId) ?: return@transaction null
             val rides = rideDao.getRidesByBikeIdOnce(bikeId)
-            val totalDistanceKm = bike.baselineDistanceKm + rides.sumOf { it.distanceKm }
-            val totalTimeSeconds = rides.sumOf { it.durationMs / 1000L }
-            val maxSpeedKmh = rides.maxOfOrNull { it.maxSpeedKmh } ?: 0.0
-            val lastRideAt = rides.maxOfOrNull { it.endedAt }
-
-            bikeDao.update(
-                bike.copy(
-                    totalDistanceKm = totalDistanceKm,
-                    totalTimeSeconds = totalTimeSeconds,
-                    lastRideAt = lastRideAt,
-                    avgSpeedKmh = averageSpeed(totalDistanceKm - bike.baselineDistanceKm, totalTimeSeconds),
-                    maxSpeedKmh = maxSpeedKmh,
-                    totalElevGainM = rides.sumOf { it.elevGainM },
-                    totalElevLossM = rides.sumOf { it.elevLossM },
-                ),
-            )
-
-            val distanceDeltaKm = replacementRide.distanceKm - persistedRide.distanceKm
-            val timeDeltaSeconds = (replacementRide.durationMs / 1000L) - (persistedRide.durationMs / 1000L)
-            val components = componentDao.getComponentsByBikeIdOnce(bikeId)
-            components.forEach { component ->
-                val componentDistanceKm = component.distanceUsedKm + distanceDeltaKm
-                val componentTimeSeconds = component.totalTimeSeconds + timeDeltaSeconds
-                componentDao.update(
-                    component.copy(
-                        distanceUsedKm = componentDistanceKm,
-                        totalTimeSeconds = componentTimeSeconds,
-                        avgSpeedKmh = averageSpeed(componentDistanceKm, componentTimeSeconds),
-                        maxSpeedKmh = maxSpeedKmh,
-                        maxSpeedBikeId = if (rides.isEmpty()) null else bikeId,
-                    ),
-                )
-                serviceIntervalDao.getIntervalsByComponentIdOnce(component.id).forEach { interval ->
-                    serviceIntervalDao.update(
-                        interval.copy(
-                            trackedKm = interval.trackedKm + distanceDeltaKm,
-                            trackedTimeSeconds = interval.trackedTimeSeconds?.let { it + timeDeltaSeconds },
-                        ),
-                    )
-                }
-            }
+            updateBikeFromRides(bike, rides)
+            updateComponentsForEditedRide(persistedRide, replacementRide, rides)
             bikeId
         }
         bikeIdForNotification?.let { componentAlertNotifier.notifyIfNeeded(it) }
     }
 
-    suspend fun deleteRide(ride: RideEntity) = rideDao.deleteById(ride.id)
+    /**
+     * Deletes a completed ride and reconciles every denormalized value that ride updated.
+     *
+     * Bike totals are rebuilt from authoritative ride history. Component and service usage are
+     * safely decremented only for components installed when the deleted ride ended; component
+     * swaps provide that history, while [ComponentEntity.installedAt] covers legacy components
+     * that predate swap records.
+     */
+    suspend fun deleteRide(ride: RideEntity) {
+        ridePersistenceTransaction.run transaction@{
+            val savedRide = rideDao.getRideById(ride.id) ?: return@transaction null
+            val bikeId = savedRide.bikeId ?: run {
+                rideDao.deleteById(savedRide.id)
+                return@transaction null
+            }
+            val bike = bikeDao.getBikeById(bikeId) ?: run {
+                rideDao.deleteById(savedRide.id)
+                return@transaction null
+            }
+
+            rideDao.deleteById(savedRide.id)
+            val remainingRides = rideDao.getRidesByBikeIdOnce(bikeId)
+            updateBikeFromRides(bike, remainingRides)
+            updateComponentsForDeletedRide(savedRide, remainingRides)
+            savedRide.id
+        }
+    }
+
+    private suspend fun updateBikeFromRides(
+        bike: com.clintoncochrane.bikecompanion.data.bike.BikeEntity,
+        rides: List<RideEntity>,
+    ) {
+        val recordedDistanceKm = rides.sumOf { it.distanceKm }.coerceAtLeast(0.0)
+        val totalTimeSeconds = rides.sumOf { it.durationMs / 1000 }.coerceAtLeast(0L)
+        val avgSpeedKmh = if (totalTimeSeconds > 0L) {
+            recordedDistanceKm / (totalTimeSeconds / 3600.0)
+        } else {
+            0.0
+        }
+        bikeDao.update(
+            bike.copy(
+                totalDistanceKm = bike.baselineDistanceKm + recordedDistanceKm,
+                totalTimeSeconds = totalTimeSeconds,
+                lastRideAt = rides.maxOfOrNull { it.endedAt },
+                avgSpeedKmh = avgSpeedKmh,
+                maxSpeedKmh = rides.maxOfOrNull { it.maxSpeedKmh } ?: 0.0,
+                totalElevGainM = rides.sumOf { it.elevGainM }.coerceAtLeast(0.0),
+                totalElevLossM = rides.sumOf { it.elevLossM }.coerceAtLeast(0.0),
+            ),
+        )
+    }
+
+    private suspend fun updateComponentsForDeletedRide(
+        deletedRide: RideEntity,
+        remainingRides: List<RideEntity>,
+    ) {
+        val bikeId = deletedRide.bikeId ?: return
+        componentsInstalledOnBikeAt(bikeId, deletedRide.endedAt).forEach { component ->
+            updateComponentForDeletedRide(component, deletedRide, remainingRides, bikeId)
+        }
+    }
+
+    private suspend fun updateComponentsForEditedRide(
+        oldRide: RideEntity,
+        replacementRide: RideEntity,
+        rides: List<RideEntity>,
+    ) {
+        val bikeId = oldRide.bikeId ?: return
+        val distanceDeltaKm = replacementRide.distanceKm - oldRide.distanceKm
+        val timeDeltaSeconds = (replacementRide.durationMs / 1000L) - (oldRide.durationMs / 1000L)
+        componentsInstalledOnBikeAt(bikeId, oldRide.endedAt).forEach { component ->
+            val distanceUsedKm = (component.distanceUsedKm + distanceDeltaKm).coerceAtLeast(0.0)
+            val totalTimeSeconds = (component.totalTimeSeconds + timeDeltaSeconds).coerceAtLeast(0L)
+            val maxSpeedKmh = when {
+                replacementRide.maxSpeedKmh >= component.maxSpeedKmh -> replacementRide.maxSpeedKmh
+                oldRide.maxSpeedKmh >= component.maxSpeedKmh -> rides
+                    .filter { it.endedAt >= component.installedAt }
+                    .maxOfOrNull { it.maxSpeedKmh }
+                    ?: 0.0
+                else -> component.maxSpeedKmh
+            }
+            componentDao.update(
+                component.copy(
+                    distanceUsedKm = distanceUsedKm,
+                    totalTimeSeconds = totalTimeSeconds,
+                    avgSpeedKmh = averageSpeed(distanceUsedKm, totalTimeSeconds),
+                    maxSpeedKmh = maxSpeedKmh,
+                    maxSpeedBikeId = if (maxSpeedKmh > 0.0) bikeId else null,
+                ),
+            )
+            serviceIntervalDao.getIntervalsByComponentIdOnce(component.id).forEach { interval ->
+                serviceIntervalDao.update(
+                    interval.copy(
+                        trackedKm = (interval.trackedKm + distanceDeltaKm).coerceAtLeast(0.0),
+                        trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
+                            ((interval.trackedTimeSeconds ?: 0L) + timeDeltaSeconds).coerceAtLeast(0L)
+                        } else {
+                            interval.trackedTimeSeconds
+                        },
+                    ),
+                )
+            }
+        }
+    }
+
+    private suspend fun updateComponentsForAssignedRide(assignedRide: RideEntity, bikeId: Long) {
+        val durationSeconds = (assignedRide.durationMs / 1000L).coerceAtLeast(0L)
+        componentsInstalledOnBikeAt(bikeId, assignedRide.endedAt).forEach { component ->
+            val distanceUsedKm = component.distanceUsedKm + assignedRide.distanceKm
+            val totalTimeSeconds = component.totalTimeSeconds + durationSeconds
+            componentDao.update(
+                component.copy(
+                    distanceUsedKm = distanceUsedKm,
+                    totalTimeSeconds = totalTimeSeconds,
+                    avgSpeedKmh = if (totalTimeSeconds > 0L) {
+                        distanceUsedKm / (totalTimeSeconds / 3600.0)
+                    } else {
+                        0.0
+                    },
+                    maxSpeedKmh = maxOf(component.maxSpeedKmh, assignedRide.maxSpeedKmh),
+                    maxSpeedBikeId = if (assignedRide.maxSpeedKmh >= component.maxSpeedKmh) bikeId else component.maxSpeedBikeId,
+                ),
+            )
+            serviceIntervalDao.getIntervalsByComponentIdOnce(component.id).forEach { interval ->
+                serviceIntervalDao.update(
+                    interval.copy(
+                        trackedKm = interval.trackedKm + assignedRide.distanceKm,
+                        trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
+                            (interval.trackedTimeSeconds ?: 0L) + durationSeconds
+                        } else {
+                            interval.trackedTimeSeconds
+                        },
+                    ),
+                )
+            }
+        }
+    }
+
+    private suspend fun componentsInstalledOnBikeAt(bikeId: Long, rideEndedAt: Long): List<ComponentEntity> {
+        val historicalComponentIds = componentSwapDao.getComponentIdsInstalledOnBikeAt(bikeId, rideEndedAt)
+        val historicalComponents = if (historicalComponentIds.isEmpty()) {
+            emptyList()
+        } else {
+            componentDao.getComponentsByIdsOnce(historicalComponentIds)
+        }
+        val legacyInstalledComponents = componentDao.getComponentsByBikeIdOnce(bikeId)
+            .filter { it.installedAt <= rideEndedAt }
+        return (historicalComponents + legacyInstalledComponents).distinctBy { it.id }
+    }
+
+    private suspend fun updateComponentForDeletedRide(
+        component: ComponentEntity,
+        deletedRide: RideEntity,
+        remainingRides: List<RideEntity>,
+        bikeId: Long,
+    ) {
+        val durationSeconds = (deletedRide.durationMs / 1000).coerceAtLeast(0L)
+        val distanceUsedKm = (component.distanceUsedKm - deletedRide.distanceKm).coerceAtLeast(0.0)
+        val totalTimeSeconds = (component.totalTimeSeconds - durationSeconds).coerceAtLeast(0L)
+        val remainingMaxSpeedKmh = if (deletedRide.maxSpeedKmh >= component.maxSpeedKmh) {
+            remainingRides
+                .filter { it.endedAt >= component.installedAt }
+                .maxOfOrNull { it.maxSpeedKmh }
+                ?: 0.0
+        } else {
+            component.maxSpeedKmh
+        }
+        componentDao.update(
+            component.copy(
+                distanceUsedKm = distanceUsedKm,
+                totalTimeSeconds = totalTimeSeconds,
+                avgSpeedKmh = if (totalTimeSeconds > 0L) distanceUsedKm / (totalTimeSeconds / 3600.0) else 0.0,
+                maxSpeedKmh = remainingMaxSpeedKmh,
+                maxSpeedBikeId = if (remainingMaxSpeedKmh > 0.0) bikeId else null,
+            ),
+        )
+        serviceIntervalDao.getIntervalsByComponentIdOnce(component.id).forEach { interval ->
+            serviceIntervalDao.update(
+                interval.copy(
+                    trackedKm = (interval.trackedKm - deletedRide.distanceKm).coerceAtLeast(0.0),
+                    trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
+                        ((interval.trackedTimeSeconds ?: 0L) - durationSeconds).coerceAtLeast(0L)
+                    } else {
+                        interval.trackedTimeSeconds
+                    },
+                ),
+            )
+        }
+    }
 
     private fun validateReplacement(oldRide: RideEntity, replacementRide: RideEntity) {
         require(oldRide.id > 0L && replacementRide.id == oldRide.id) {

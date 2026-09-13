@@ -36,6 +36,7 @@ class RideRepositoryEditTransactionTest {
             database.bikeDao(),
             database.componentDao(),
             database.serviceIntervalDao(),
+            database.componentSwapDao(),
             ComponentAlertNotifier(context, database.componentDao()),
             RidePersistenceTransaction(database),
         )
