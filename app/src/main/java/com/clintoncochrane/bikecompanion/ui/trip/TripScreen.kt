@@ -1,9 +1,12 @@
 package com.clintoncochrane.bikecompanion.ui.trip
 
-import android.Manifest
-import android.os.Build
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.ActivityCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -41,6 +44,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -64,6 +68,8 @@ import com.clintoncochrane.bikecompanion.util.DisplayFormatHelper
 import com.clintoncochrane.bikecompanion.util.DurationFormatHelper
 import com.clintoncochrane.bikecompanion.util.RideDisplayHelper
 import com.clintoncochrane.bikecompanion.location.RideTrackingService
+import com.clintoncochrane.bikecompanion.location.RideLocationPermission
+import com.clintoncochrane.bikecompanion.location.RideLocationPermissionAction
 import com.clintoncochrane.bikecompanion.ui.ride.ActiveRideActivity
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -77,24 +83,51 @@ fun TripScreen(
     val viewModel = androidx.hilt.navigation.compose.hiltViewModel<TripViewModel>()
     val uiState by viewModel.uiState.collectAsState()
     val rideActiveBikeId by RideTrackingService.rideActiveBikeId.collectAsState(initial = -1L)
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var hasRequestedLocationPermission by rememberSaveable { mutableStateOf(false) }
+    var showLocationRationale by rememberSaveable { mutableStateOf(false) }
+    var showLocationSettings by rememberSaveable { mutableStateOf(false) }
+
+    fun beginRide() {
+        val bikeId = uiState.selectedBike?.id ?: -1L
+        if (bikeId < 0) return
+        val hadPlaceholders = uiState.placeholdersAddedThisSession
+        navController.navigate(Screen.TripStartSplash.withId(bikeId, hadPlaceholders))
+        viewModel.onRideStarted()
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { grants ->
-        if (grants.values.any { it }) {
-            val bikeId = uiState.selectedBike?.id ?: -1L
-            if (bikeId >= 0) {
-                val hadPlaceholders = uiState.placeholdersAddedThisSession
-                navController.navigate(
-                    Screen.TripStartSplash.withId(bikeId, hadPlaceholders),
-                )
-                viewModel.onRideStarted()
+        if (RideLocationPermission.isFineLocationGranted(grants)) {
+            beginRide()
+        } else {
+            scope.launch {
+                snackbarHostState.showSnackbar(context.getString(R.string.trip_location_permission_denied))
             }
         }
     }
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    fun continueWithLocationPermission() {
+        val shouldShowRationale = (context as? Activity)?.let { activity ->
+            ActivityCompat.shouldShowRequestPermissionRationale(
+                activity,
+                RideLocationPermission.REQUIRED_PERMISSION,
+            )
+        } ?: false
+        when (
+            RideLocationPermission.nextAction(
+                isGranted = RideLocationPermission.isGranted(context),
+                hasRequestedPermission = hasRequestedLocationPermission,
+                shouldShowRationale = shouldShowRationale,
+            )
+        ) {
+            RideLocationPermissionAction.START_RIDE -> beginRide()
+            RideLocationPermissionAction.SHOW_RATIONALE -> showLocationRationale = true
+            RideLocationPermissionAction.OPEN_SETTINGS -> showLocationSettings = true
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.healthConnectImportResult.collect { result ->
@@ -122,24 +155,64 @@ fun TripScreen(
         scope.launch {
             val okToProceed = viewModel.checkMissingPartsBeforeStart()
             if (!okToProceed) return@launch
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                permissionLauncher.launch(
-                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.POST_NOTIFICATIONS)
-                )
-            } else {
-                permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
-            }
+            continueWithLocationPermission()
         }
     }
 
     fun continueWithPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissionLauncher.launch(
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.POST_NOTIFICATIONS)
-            )
-        } else {
-            permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
-        }
+        continueWithLocationPermission()
+    }
+
+    if (showLocationRationale) {
+        AlertDialog(
+            onDismissRequest = { showLocationRationale = false },
+            title = { Text(stringResource(R.string.trip_location_permission_title)) },
+            text = { Text(stringResource(R.string.trip_location_permission_rationale)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLocationRationale = false
+                        hasRequestedLocationPermission = true
+                        permissionLauncher.launch(RideLocationPermission.REQUEST_PERMISSIONS)
+                    },
+                ) {
+                    Text(stringResource(R.string.trip_location_permission_continue))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLocationRationale = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
+    }
+
+    if (showLocationSettings) {
+        AlertDialog(
+            onDismissRequest = { showLocationSettings = false },
+            title = { Text(stringResource(R.string.trip_location_permission_title)) },
+            text = { Text(stringResource(R.string.trip_location_permission_settings)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLocationSettings = false
+                        context.startActivity(
+                            Intent(
+                                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.parse("package:${context.packageName}"),
+                            ),
+                        )
+                    },
+                ) {
+                    Text(stringResource(R.string.trip_location_permission_open_settings))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLocationSettings = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
     }
 
     val missingParts = uiState.missingParts
@@ -548,4 +621,3 @@ private fun MissingPartsDialog(
         },
     )
 }
-

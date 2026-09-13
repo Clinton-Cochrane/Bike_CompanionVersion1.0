@@ -22,6 +22,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -35,6 +38,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.clintoncochrane.bikecompanion.R
 import com.clintoncochrane.bikecompanion.location.RideTrackingService
+import com.clintoncochrane.bikecompanion.location.RideLocationPermission
 import com.clintoncochrane.bikecompanion.ui.navigation.Screen
 import com.clintoncochrane.bikecompanion.ui.ride.ActiveRideActivity
 import kotlinx.coroutines.flow.collectLatest
@@ -49,6 +53,7 @@ fun TripStartSplashScreen(
     val viewModel: TripStartSplashViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    var showPermissionLostDialog by remember { mutableStateOf(false) }
 
     if (bikeId < 0) {
         LaunchedEffect(Unit) { navController.popBackStack() }
@@ -57,6 +62,10 @@ fun TripStartSplashScreen(
 
     LaunchedEffect(viewModel.startTripEvents) {
         viewModel.startTripEvents.collectLatest {
+            if (!RideLocationPermission.isGranted(context)) {
+                showPermissionLostDialog = true
+                return@collectLatest
+            }
             context.startService(
                 Intent(context, RideTrackingService::class.java).apply {
                     putExtra(RideTrackingService.ACTION_KEY, RideTrackingService.ACTION_START)
@@ -67,6 +76,24 @@ fun TripStartSplashScreen(
             ActiveRideActivity.start(context, bikeId, hadPlaceholdersAtStart)
             navController.popBackStack()
         }
+    }
+
+    if (showPermissionLostDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { },
+            title = { Text(stringResource(R.string.trip_location_permission_title)) },
+            text = { Text(stringResource(R.string.trip_location_permission_lost)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showPermissionLostDialog = false
+                        navController.popBackStack()
+                    },
+                ) {
+                    Text(stringResource(R.string.common_back))
+                }
+            },
+        )
     }
 
     val cancelContentDesc = stringResource(R.string.trip_splash_cancel_content_description)

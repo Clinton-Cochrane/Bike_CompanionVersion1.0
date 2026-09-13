@@ -11,6 +11,13 @@
     <string name="trip_start_button">Start new trip</string>
     <string name="trip_view_current_trip">View current trip</string>
     <string name="trip_start_button_content_description">Start a new bike trip</string>
+    <string name="trip_location_permission_title">Allow location for ride tracking</string>
+    <string name="trip_location_permission_rationale">Bike Companion uses your precise location only during a ride you start to calculate distance, speed, and elevation. It does not track rides passively.</string>
+    <string name="trip_location_permission_continue">Continue</string>
+    <string name="trip_location_permission_denied">Location permission was not granted. Your ride did not start.</string>
+    <string name="trip_location_permission_settings">Location permission is blocked. Allow precise location in app settings, then return and start the ride again.</string>
+    <string name="trip_location_permission_open_settings">Open settings</string>
+    <string name="trip_location_permission_lost">Location permission is no longer available, so the ride did not start. Return to the Trip screen to try again.</string>
     <string name="trip_past_rides">Past rides</string>
     <string name="trip_no_rides">No rides yet. Start a trip to record your first ride.</string>
     <string name="trip_ride_distance">%1$.1f km</string>
