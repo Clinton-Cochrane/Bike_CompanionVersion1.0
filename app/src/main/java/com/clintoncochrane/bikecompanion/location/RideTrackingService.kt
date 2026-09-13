@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.location.Location
 import android.os.Binder
 import android.os.Handler
@@ -13,6 +14,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
 import com.clintoncochrane.bikecompanion.data.ride.ActiveRideCheckpointRepository
 import com.clintoncochrane.bikecompanion.di.IoDispatcher
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -105,10 +107,14 @@ class RideTrackingService : Service() {
             ACTION_STOP -> stopTracking()
             ACTION_CLEAR_AUTO_PAUSE_FLAG -> clearAutoPauseFlag()
         }
-        return START_STICKY
+        // Restoring an interrupted ride is owned by checkpoint recovery. Restarting this service
+        // without its in-memory state would otherwise create a phantom tracking session.
+        return START_NOT_STICKY
     }
 
     private fun startTracking(bikeId: Long, hadPlaceholdersAtStart: Boolean = false) {
+        if (!RideTrackingLifecyclePolicy.canStartTracking(_rideState.value)) return
+
         if (!RideLocationPermission.isGranted(this)) {
             Log.w(TAG, "Ride start rejected because fine location permission is not granted")
             stopSelf()
@@ -126,15 +132,22 @@ class RideTrackingService : Service() {
             startTimeMs = now,
             hadPlaceholdersAtStart = hadPlaceholdersAtStart,
         )
-        persistCheckpoint(now)
         rideActiveBikeId.value = bikeId
-        startForeground(NOTIFICATION_ID, createNotification(false))
+        ServiceCompat.startForeground(
+            this,
+            NOTIFICATION_ID,
+            createNotification(false),
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
+        )
+        persistCheckpoint(now)
         requestLocationUpdates()
         scheduleNoMovementCheck()
         scheduleCheckpoint()
     }
 
     private fun pauseTracking(wasAutoPause: Boolean = false) {
+        if (!RideTrackingLifecyclePolicy.canPauseTracking(_rideState.value)) return
+
         noMovementCheckHandler.removeCallbacks(noMovementCheckRunnable)
         locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
         locationCallback = null
@@ -149,6 +162,8 @@ class RideTrackingService : Service() {
     }
 
     private fun resumeTracking() {
+        if (!RideTrackingLifecyclePolicy.canResumeTracking(_rideState.value)) return
+
         if (!RideLocationPermission.isGranted(this)) {
             Log.w(TAG, "Ride resume rejected because fine location permission is not granted")
             stopTracking()
@@ -206,6 +221,8 @@ class RideTrackingService : Service() {
             stopTracking()
             return
         }
+        if (locationCallback != null) return
+
         val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, UPDATE_INTERVAL_MS).apply {
             setMinUpdateIntervalMillis(FASTEST_INTERVAL_MS)
             setMinUpdateDistanceMeters(MIN_UPDATE_DISTANCE_M)
@@ -324,6 +341,8 @@ class RideTrackingService : Service() {
     }
 
     private fun updateNotification() {
+        if (!_rideState.value.isTracking) return
+
         (getSystemService(NOTIFICATION_SERVICE) as NotificationManager)
             .notify(NOTIFICATION_ID, createNotification(_rideState.value.isPaused))
     }
@@ -360,6 +379,8 @@ class RideTrackingService : Service() {
     }
 
     private fun clearAutoPauseFlag() {
+        if (!_rideState.value.isTracking) return
+
         _rideState.value = _rideState.value.copy(wasAutoPausedDueToNoMovement = false)
         updateNotification()
     }
@@ -425,6 +446,18 @@ class RideTrackingService : Service() {
         const val ACTION_STOP = "stop"
         const val ACTION_CLEAR_AUTO_PAUSE_FLAG = "clear_auto_pause_flag"
     }
+}
+
+/**
+ * Guards service commands so duplicate UI taps or notification deliveries cannot create duplicate
+ * location callback streams or reset an active ride.
+ */
+internal object RideTrackingLifecyclePolicy {
+    fun canStartTracking(state: RideState): Boolean = !state.isTracking
+
+    fun canPauseTracking(state: RideState): Boolean = state.isTracking && !state.isPaused
+
+    fun canResumeTracking(state: RideState): Boolean = state.isTracking && state.isPaused
 }
 
 data class RideState(
