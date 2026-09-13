@@ -1,6 +1,7 @@
 package com.clintoncochrane.bikecompanion.util
 
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
+import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalEntity
 
 /**
@@ -40,17 +41,31 @@ fun sortComponents(
                 ServiceIntervalHelper.minHealthForSort(intervals)
             }
         ComponentSortOrder.HEALTH ->
-            components.sortedBy { component ->
-                componentHealthPercent(component)
-            }
+            components.sortedWith(
+                compareBy<ComponentEntity, Int?>(nullsLast()) { component ->
+                    componentHealthPercent(component)
+                },
+            )
     }
 }
 
 /**
- * Computes health percent from remaining lifespan. 100 = new, 0 = end of life.
+ * Computes health percent from remaining lifespan. 100 = new, 0 = expected interval reached.
+ * Returns null when prior usage is unknown because a percentage would imply false precision.
  */
-fun componentHealthPercent(component: ComponentEntity): Int {
+fun componentHealthPercent(component: ComponentEntity): Int? {
+    if (component.priorUsageCertainty == PriorUsageCertainty.UNKNOWN) return null
     if (component.lifespanKm <= 0) return 100
     val usedPercent = (component.lifetimeDistanceKm / component.lifespanKm) * 100
     return (100 - usedPercent).toInt().coerceIn(0, 100)
+}
+
+/**
+ * Returns the lowest component health only when every component has a trustworthy baseline.
+ */
+fun minimumComponentHealthPercent(components: List<ComponentEntity>): Int? {
+    if (components.isEmpty()) return 100
+    val healthPercentages = components.map(::componentHealthPercent)
+    if (healthPercentages.any { it == null }) return null
+    return healthPercentages.filterNotNull().minOrNull()
 }

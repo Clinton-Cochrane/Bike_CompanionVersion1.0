@@ -86,6 +86,7 @@ import com.clintoncochrane.bikecompanion.data.component.DefaultComponentTypes
 import com.clintoncochrane.bikecompanion.data.component.DefaultComponentType
 import com.clintoncochrane.bikecompanion.util.ComponentSortOrder
 import com.clintoncochrane.bikecompanion.util.componentHealthPercent
+import com.clintoncochrane.bikecompanion.util.minimumComponentHealthPercent
 import com.clintoncochrane.bikecompanion.ui.garage.ThumbnailAvatar
 import com.clintoncochrane.bikecompanion.data.ride.RideEntity
 import com.clintoncochrane.bikecompanion.util.DurationFormatHelper
@@ -351,18 +352,17 @@ fun BikeDetailScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         val bikeHealthPercent = remember(uiState.components) {
-                            if (uiState.components.isEmpty()) 100
-                            else {
-                                val byCategory = uiState.components.groupBy { ComponentCategory.fromComponentType(it.type) }
-                                byCategory.values.minOf { comps -> comps.minOf { componentHealthPercent(it) } }
-                            }
+                            minimumComponentHealthPercent(uiState.components)
+                        }
+                        val lowestKnownHealthPercent = remember(uiState.components) {
+                            uiState.components.mapNotNull(::componentHealthPercent).minOrNull()
                         }
                         val closeToServiceThreshold = uiState.closeToServiceHealthThreshold
-                        val bikeAlertLevel = remember(bikeHealthPercent, uiState.components, closeToServiceThreshold) {
+                        val bikeAlertLevel = remember(lowestKnownHealthPercent, uiState.components, closeToServiceThreshold) {
                             when {
                                 uiState.components.isEmpty() -> BikeAlertLevel.NONE
-                                bikeHealthPercent == 0 -> BikeAlertLevel.DANGER
-                                bikeHealthPercent <= closeToServiceThreshold -> BikeAlertLevel.MILD
+                                lowestKnownHealthPercent == 0 -> BikeAlertLevel.DANGER
+                                lowestKnownHealthPercent != null && lowestKnownHealthPercent <= closeToServiceThreshold -> BikeAlertLevel.MILD
                                 else -> BikeAlertLevel.NONE
                             }
                         }
@@ -413,15 +413,24 @@ fun BikeDetailScreen(
                                 }
                             }
                         }
-                        val healthProgressDesc = stringResource(R.string.bike_component_health, bikeHealthPercent)
-                        LinearProgressIndicator(
-                            progress = { bikeHealthPercent / 100f },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 12.dp)
-                                .semantics { contentDescription = healthProgressDesc },
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        )
+                        if (bikeHealthPercent == null) {
+                            Text(
+                                text = stringResource(R.string.component_health_unavailable),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 12.dp),
+                            )
+                        } else {
+                            val healthProgressDesc = stringResource(R.string.bike_component_health, bikeHealthPercent)
+                            LinearProgressIndicator(
+                                progress = { bikeHealthPercent / 100f },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 12.dp)
+                                    .semantics { contentDescription = healthProgressDesc },
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                            )
+                        }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -549,7 +558,7 @@ fun BikeDetailScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         categoriesToShow.forEach { category ->
                             val categoryComponents = componentsByCategory[category] ?: emptyList()
-                            val minHealth = categoryComponents.minOfOrNull { componentHealthPercent(it) } ?: 100
+                            val minHealth = minimumComponentHealthPercent(categoryComponents)
                             val isExpanded = category in expandedCategories
                             ComponentCategorySection(
                                 category = category,
@@ -601,7 +610,7 @@ fun BikeDetailScreen(
 private fun ComponentCategorySection(
     category: ComponentCategory,
     components: List<ComponentEntity>,
-    minHealth: Int,
+    minHealth: Int?,
     isExpanded: Boolean,
     onToggleExpanded: () -> Unit,
     currentBikeId: Long,
@@ -652,19 +661,21 @@ private fun ComponentCategorySection(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = stringResource(R.string.bike_component_health, minHealth),
+                        text = minHealth?.let { stringResource(R.string.bike_component_health, it) }
+                            ?: stringResource(R.string.component_health_unavailable_short),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                LinearProgressIndicator(
-                    progress = { minHealth / 100f },
-                    modifier = Modifier
-                        .size(32.dp, 32.dp)
-                        .semantics {
-                            contentDescription = "Min health $minHealth%"
-                        },
-                )
+                if (minHealth != null) {
+                    val healthDescription = stringResource(R.string.bike_component_health, minHealth)
+                    LinearProgressIndicator(
+                        progress = { minHealth / 100f },
+                        modifier = Modifier
+                            .size(32.dp, 32.dp)
+                            .semantics { contentDescription = healthDescription },
+                    )
+                }
             }
             AnimatedVisibility(
                 visible = isExpanded,
@@ -719,8 +730,6 @@ private fun ComponentHealthCard(
     contextMenuExpanded: Boolean,
     onContextMenuClick: () -> Unit,
 ) {
-    val healthPercent = (100.0 - (component.lifetimeDistanceKm / component.lifespanKm).coerceIn(0.0, 1.0) * 100).toInt().coerceIn(0, 100)
-    val healthDesc = stringResource(R.string.bike_component_health, healthPercent)
     val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
     val isInGarage = component.bikeId == null
     val isOnCurrentBike = component.bikeId == currentBikeId
@@ -816,21 +825,7 @@ private fun ComponentHealthCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(
-                    text = stringResource(R.string.bike_component_used_km, component.lifetimeDistanceKm, component.lifespanKm),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                LinearProgressIndicator(
-                    progress = { healthPercent / 100f },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .semantics { contentDescription = healthDesc },
-                )
-                Text(
-                    text = healthDesc,
-                    style = MaterialTheme.typography.labelSmall,
-                )
+                ComponentHealthSummary(component = component)
             }
         }
     }

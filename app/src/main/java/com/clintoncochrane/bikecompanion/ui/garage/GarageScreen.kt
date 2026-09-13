@@ -69,9 +69,10 @@ import com.clintoncochrane.bikecompanion.data.component.ComponentCategory
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.component.DefaultComponentTypes
 import com.clintoncochrane.bikecompanion.data.component.DefaultComponentType
+import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.ui.navigation.Screen
 import com.clintoncochrane.bikecompanion.util.ComponentSortOrder
-import com.clintoncochrane.bikecompanion.util.componentHealthPercent
+import com.clintoncochrane.bikecompanion.util.minimumComponentHealthPercent
 import com.clintoncochrane.bikecompanion.util.componentTypeIcon
 import com.clintoncochrane.bikecompanion.util.DisplayFormatHelper
 import com.clintoncochrane.bikecompanion.util.DurationFormatHelper
@@ -254,7 +255,7 @@ fun GarageScreen(
 @Composable
 private fun BikesContent(
     bikes: List<BikeEntity>,
-    bikeHealth: Map<Long, Int>,
+    bikeHealth: Map<Long, Int?>,
     bikeHasAlert: Set<Long>,
     totalDistanceKm: Double,
     lastRiddenBikeId: Long?,
@@ -291,7 +292,7 @@ private fun BikesContent(
             items(bikes, key = { it.id }) { bike ->
                 BikeCard(
                     bike = bike,
-                    healthPercent = bikeHealth[bike.id] ?: 100,
+                    healthPercent = bikeHealth[bike.id],
                     hasAlert = bike.id in bikeHasAlert,
                     isLastRidden = bike.id == lastRiddenBikeId,
                     onClick = { navController.navigate(Screen.BikeDetail.withId(bike.id)) },
@@ -520,7 +521,7 @@ private fun ComponentsContent(
             ) {
                 items(categoriesWithComponents, key = { it.name }) { category ->
                     val categoryComponents = componentsByCategory[category] ?: emptyList()
-                    val minHealth = categoryComponents.minOfOrNull { componentHealthPercent(it) } ?: 100
+                    val minHealth = minimumComponentHealthPercent(categoryComponents)
                     val isExpanded = category in expandedCategories
                     GarageCategorySection(
                         category = category,
@@ -548,7 +549,7 @@ private fun GarageCategorySection(
     category: ComponentCategory,
     components: List<ComponentEntity>,
     bikes: List<BikeEntity>,
-    minHealth: Int,
+    minHealth: Int?,
     isExpanded: Boolean,
     onToggleExpanded: () -> Unit,
     onComponentClick: (ComponentEntity) -> Unit,
@@ -590,15 +591,21 @@ private fun GarageCategorySection(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = stringResource(R.string.bike_component_health, minHealth),
+                        text = minHealth?.let { stringResource(R.string.bike_component_health, it) }
+                            ?: stringResource(R.string.component_health_unavailable_short),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                androidx.compose.material3.LinearProgressIndicator(
-                    progress = { minHealth / 100f },
-                    modifier = Modifier.size(32.dp, 32.dp),
-                )
+                if (minHealth != null) {
+                    val healthDescription = stringResource(R.string.bike_component_health, minHealth)
+                    androidx.compose.material3.LinearProgressIndicator(
+                        progress = { minHealth / 100f },
+                        modifier = Modifier
+                            .size(32.dp, 32.dp)
+                            .semantics { contentDescription = healthDescription },
+                    )
+                }
             }
             androidx.compose.animation.AnimatedVisibility(
                 visible = isExpanded,
@@ -672,10 +679,21 @@ private fun GarageComponentCard(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (component.priorUsageCertainty == PriorUsageCertainty.UNKNOWN) {
+                    Text(
+                        text = stringResource(R.string.component_health_unavailable),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = stringResource(R.string.bike_stat_km, component.lifetimeDistanceKm),
+                    text = if (component.priorUsageCertainty == PriorUsageCertainty.UNKNOWN) {
+                        stringResource(R.string.component_tracked_distance, component.distanceUsedKm)
+                    } else {
+                        stringResource(R.string.bike_stat_km, component.lifetimeDistanceKm)
+                    },
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -692,7 +710,7 @@ private fun GarageComponentCard(
 @Composable
 private fun BikeCard(
     bike: BikeEntity,
-    healthPercent: Int,
+    healthPercent: Int?,
     hasAlert: Boolean,
     isLastRidden: Boolean,
     onClick: () -> Unit,
@@ -784,7 +802,8 @@ private fun BikeCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = stringResource(R.string.garage_bike_health_score, healthPercent),
+                    text = healthPercent?.let { stringResource(R.string.garage_bike_health_score, it) }
+                        ?: stringResource(R.string.component_health_unavailable_short),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

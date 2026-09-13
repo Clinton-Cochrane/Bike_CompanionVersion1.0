@@ -391,10 +391,18 @@ private fun ServiceListRow(
                         color = MaterialTheme.colorScheme.primary,
                     )
                 }
+                if (item.healthPercent == null) {
+                    Text(
+                        text = stringResource(R.string.component_health_unavailable),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = stringResource(R.string.bike_component_health, item.healthPercent),
+                    text = item.healthPercent?.let { stringResource(R.string.bike_component_health, it) }
+                        ?: stringResource(R.string.component_tracked_distance, item.component.distanceUsedKm),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )

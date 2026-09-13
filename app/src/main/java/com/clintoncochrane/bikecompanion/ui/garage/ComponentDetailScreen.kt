@@ -432,10 +432,25 @@ fun ComponentDetailScreen(
                                 .padding(top = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
-                            Text(stringResource(R.string.bike_stat_km, component.lifetimeDistanceKm), style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                text = if (component.priorUsageCertainty == PriorUsageCertainty.UNKNOWN) {
+                                    stringResource(R.string.component_tracked_distance, component.distanceUsedKm)
+                                } else {
+                                    stringResource(R.string.bike_stat_km, component.lifetimeDistanceKm)
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                            )
                             Text(DurationFormatHelper.formatDurationBreakdownSeconds(component.totalTimeSeconds), style = MaterialTheme.typography.labelMedium)
                             Text(stringResource(R.string.bike_stat_kmh, component.avgSpeedKmh), style = MaterialTheme.typography.labelMedium)
                             Text(stringResource(R.string.bike_stat_kmh, component.maxSpeedKmh), style = MaterialTheme.typography.labelMedium)
+                        }
+                        if (component.priorUsageCertainty == PriorUsageCertainty.UNKNOWN) {
+                            Text(
+                                text = stringResource(R.string.component_health_unavailable),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -531,12 +546,15 @@ fun ComponentDetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        LinearProgressIndicator(
-                            progress = { healthPercent / 100f },
-                            modifier = Modifier
-                                .size(40.dp, 40.dp)
-                                .semantics { contentDescription = "Health $healthPercent%" },
-                        )
+                        if (component.priorUsageCertainty != PriorUsageCertainty.UNKNOWN) {
+                            val healthDescription = stringResource(R.string.bike_component_health, healthPercent)
+                            LinearProgressIndicator(
+                                progress = { healthPercent / 100f },
+                                modifier = Modifier
+                                    .size(40.dp, 40.dp)
+                                    .semantics { contentDescription = healthDescription },
+                            )
+                        }
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 stringResource(R.string.component_interval_suggestion, interval.name),

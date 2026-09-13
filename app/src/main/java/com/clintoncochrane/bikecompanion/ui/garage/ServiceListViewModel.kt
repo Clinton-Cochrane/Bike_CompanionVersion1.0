@@ -29,7 +29,7 @@ import javax.inject.Inject
 data class DueServiceItem(
     val component: ComponentEntity,
     val bikeName: String,
-    val healthPercent: Int,
+    val healthPercent: Int?,
     val nextDueDescription: ServiceIntervalHelper.IntervalDescription?,
     val nextServiceIntervalId: Long?,
 )
@@ -90,12 +90,13 @@ class ServiceListViewModel @Inject constructor(
         val threshold = _uiState.value.closeToServiceThreshold
         return components
             .filter { component ->
-                val componentHealth = componentHealthPercent(component)
                 val intervalHealth = intervalsByComponentId[component.id]
                     ?.minOfOrNull { ServiceIntervalHelper.healthPercent(it) }
                     ?: 100
-                val minHealth = minOf(componentHealth, intervalHealth)
-                minHealth <= threshold
+                val dueHealth = componentHealthPercent(component)?.let { componentHealth ->
+                    minOf(componentHealth, intervalHealth)
+                } ?: intervalHealth
+                dueHealth <= threshold
             }
             .map { component ->
                 val bikeName = component.bikeId?.let { bid ->
@@ -104,7 +105,7 @@ class ServiceListViewModel @Inject constructor(
                 val componentHealth = componentHealthPercent(component)
                 val intervals = intervalsByComponentId[component.id] ?: emptyList()
                 val intervalHealth = intervals.minOfOrNull { ServiceIntervalHelper.healthPercent(it) } ?: 100
-                val health = minOf(componentHealth, intervalHealth)
+                val health = componentHealth?.let { minOf(it, intervalHealth) }
                 val nextDue = intervals.minByOrNull { ServiceIntervalHelper.healthPercent(it) }
                 val nextServiceInterval = nextDue?.takeIf {
                     it.type == SERVICE_INTERVAL_TYPE_INSPECTION ||
@@ -140,8 +141,12 @@ class ServiceListViewModel @Inject constructor(
             }
         }
         return when (state.sortOrder) {
-            ComponentSortOrder.NEXT_SERVICE -> filtered.sortedBy { it.healthPercent }
-            ComponentSortOrder.HEALTH -> filtered.sortedBy { it.healthPercent }
+            ComponentSortOrder.NEXT_SERVICE -> filtered.sortedWith(
+                compareBy<DueServiceItem, Int?>(nullsLast()) { it.healthPercent },
+            )
+            ComponentSortOrder.HEALTH -> filtered.sortedWith(
+                compareBy<DueServiceItem, Int?>(nullsLast()) { it.healthPercent },
+            )
             ComponentSortOrder.TYPE_AZ -> filtered.sortedWith(
                 compareBy(String.CASE_INSENSITIVE_ORDER) { item: DueServiceItem -> item.component.type }
                     .thenBy(String.CASE_INSENSITIVE_ORDER) { item: DueServiceItem -> item.component.name },

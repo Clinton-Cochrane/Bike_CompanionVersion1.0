@@ -183,6 +183,9 @@
     <string name="bike_add_component">Add component</string>
     <string name="bike_component_health">Health: %1$d%%</string>
     <string name="bike_component_used_km">%1$.0f / %2$.0f km toward expected interval</string>
+    <string name="component_tracked_distance">Tracked by Bike Companion: %1$.0f km</string>
+    <string name="component_health_unavailable">Prior usage unknown; percentage cannot be calculated reliably.</string>
+    <string name="component_health_unavailable_short">Prior usage unknown</string>
     <string name="bike_component_total_time">Total ride time: %1$s</string>
     <string name="bike_component_replaced">Mark replaced</string>
     <string name="component_replace_title">Replace component</string>
