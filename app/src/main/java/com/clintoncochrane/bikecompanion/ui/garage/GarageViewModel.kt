@@ -12,6 +12,7 @@ import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesReposito
 import com.clintoncochrane.bikecompanion.util.ComponentSortOrder
 import com.clintoncochrane.bikecompanion.util.GarageSpecHelper
 import com.clintoncochrane.bikecompanion.util.componentHealthPercent
+import com.clintoncochrane.bikecompanion.util.minimumComponentHealthPercent
 import com.clintoncochrane.bikecompanion.util.sortComponents
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,8 +32,8 @@ data class GarageUiState(
     val selectedTab: GarageTab = GarageTab.Bikes,
     val bikes: List<BikeEntity> = emptyList(),
     val garageComponents: List<ComponentEntity> = emptyList(),
-    /** Per-bike health 0–100 from components; default 100 when bike has no components. */
-    val bikeHealth: Map<Long, Int> = emptyMap(),
+    /** Per-bike health from components; null when any installed component has unknown prior usage. */
+    val bikeHealth: Map<Long, Int?> = emptyMap(),
     /** Bike IDs that have an alert (health at or below close-to-service threshold). */
     val bikeHasAlert: Set<Long> = emptySet(),
     /** Health % threshold below which to show alert; from [AppPreferencesRepository]. */
@@ -68,7 +69,7 @@ class GarageViewModel @Inject constructor(
                     state.copy(
                         bikes = sorted,
                         bikeHealth = health,
-                        bikeHasAlert = computeBikeAlerts(state.garageComponents, sorted, health, state.closeToServiceThreshold),
+                        bikeHasAlert = computeBikeAlerts(state.garageComponents, sorted, state.closeToServiceThreshold),
                         totalDistanceKm = GarageSpecHelper.computeTotalDistanceKm(sorted),
                         lastRiddenBikeId = GarageSpecHelper.getLastRiddenBikeId(sorted),
                     )
@@ -91,7 +92,7 @@ class GarageViewModel @Inject constructor(
                     it.copy(
                         garageComponents = sorted,
                         bikeHealth = health,
-                        bikeHasAlert = computeBikeAlerts(sorted, bikes, health, threshold),
+                        bikeHasAlert = computeBikeAlerts(sorted, bikes, threshold),
                     )
                 }
             }
@@ -104,7 +105,6 @@ class GarageViewModel @Inject constructor(
                         bikeHasAlert = computeBikeAlerts(
                             state.garageComponents,
                             state.bikes,
-                            state.bikeHealth,
                             threshold,
                         ),
                     )
@@ -113,28 +113,26 @@ class GarageViewModel @Inject constructor(
         }
     }
 
-    private fun computeBikeHealth(components: List<ComponentEntity>, bikes: List<BikeEntity>): Map<Long, Int> {
+    private fun computeBikeHealth(components: List<ComponentEntity>, bikes: List<BikeEntity>): Map<Long, Int?> {
         val byBike = components.filter { it.bikeId != null }.groupBy { it.bikeId!! }
         return bikes.associate { bike ->
             val comps = byBike[bike.id].orEmpty()
-            val health = if (comps.isEmpty()) 100
-            else comps.minOf { componentHealthPercent(it) }
-            bike.id to health
+            bike.id to minimumComponentHealthPercent(comps)
         }
     }
 
     private fun computeBikeAlerts(
         components: List<ComponentEntity>,
         bikes: List<BikeEntity>,
-        bikeHealth: Map<Long, Int>,
         threshold: Int,
     ): Set<Long> {
         val byBike = components.filter { it.bikeId != null }.groupBy { it.bikeId!! }
         return bikes.filter { bike ->
             val comps = byBike[bike.id].orEmpty()
             if (comps.isEmpty()) return@filter false
-            val health = bikeHealth[bike.id] ?: 100
-            health <= threshold
+            comps.any { component ->
+                componentHealthPercent(component)?.let { it <= threshold } == true
+            }
         }.map { it.id }.toSet()
     }
 

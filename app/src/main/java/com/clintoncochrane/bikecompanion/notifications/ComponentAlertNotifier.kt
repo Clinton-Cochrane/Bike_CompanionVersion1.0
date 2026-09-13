@@ -8,6 +8,7 @@ import com.clintoncochrane.bikecompanion.R
 import com.clintoncochrane.bikecompanion.data.component.ComponentDao
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.util.DisplayFormatHelper
+import com.clintoncochrane.bikecompanion.util.componentHealthPercent
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,10 +24,9 @@ class ComponentAlertNotifier @Inject constructor(
 ) {
     suspend fun notifyIfNeeded(bikeId: Long) = withContext(Dispatchers.IO) {
         val components = componentDao.getComponentsByBikeIdOnce(bikeId)
+        val nowMillis = System.currentTimeMillis()
         val needAlert = components.filter { component ->
-            component.alertsEnabled &&
-                !isSnoozed(component) &&
-                healthPercent(component) <= component.alertThresholdPercent
+            shouldNotifyForComponent(component, nowMillis)
         }
         if (needAlert.isEmpty()) return@withContext
         ensureChannel()
@@ -42,15 +42,6 @@ class ComponentAlertNotifier @Inject constructor(
             .notify(NOTIFICATION_ID, notification)
     }
 
-    private fun isSnoozed(c: ComponentEntity): Boolean {
-        if (c.alertSnoozeUntilKm != null) return c.lifetimeDistanceKm < c.alertSnoozeUntilKm
-        if (c.alertSnoozeUntilTime != null) return System.currentTimeMillis() < c.alertSnoozeUntilTime
-        return false
-    }
-
-    private fun healthPercent(c: ComponentEntity): Int =
-        (100.0 - (c.lifetimeDistanceKm / c.lifespanKm).coerceIn(0.0, 1.0) * 100).toInt().coerceIn(0, 100)
-
     private fun ensureChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
@@ -65,4 +56,13 @@ class ComponentAlertNotifier @Inject constructor(
         private const val CHANNEL_ID = "component_alerts"
         private const val NOTIFICATION_ID = 4002
     }
+}
+
+internal fun shouldNotifyForComponent(component: ComponentEntity, nowMillis: Long): Boolean {
+    if (!component.alertsEnabled) return false
+    if (component.alertSnoozeUntilKm?.let { component.lifetimeDistanceKm < it } == true) return false
+    if (component.alertSnoozeUntilTime?.let { nowMillis < it } == true) return false
+    return componentHealthPercent(component)?.let { health ->
+        health <= component.alertThresholdPercent
+    } == true
 }
