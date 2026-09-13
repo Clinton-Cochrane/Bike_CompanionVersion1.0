@@ -13,6 +13,7 @@ import com.clintoncochrane.bikecompanion.data.ride.RideRepository
 import com.clintoncochrane.bikecompanion.data.ride.RideSource
 import com.clintoncochrane.bikecompanion.healthconnect.HealthConnectImporter
 import com.clintoncochrane.bikecompanion.healthconnect.HealthConnectReadResult
+import com.clintoncochrane.bikecompanion.healthconnect.HealthConnectSession
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -66,6 +67,15 @@ data class TripUiState(
     val snoozedPlaceholderReminderUntilMs: Long? = null,
     /** True when user added placeholder components this session (before starting ride). */
     val placeholdersAddedThisSession: Boolean = false,
+    /** Health Connect sessions awaiting an explicit bike assignment before they can be saved. */
+    val healthConnectImportReviews: List<HealthConnectImportReview> = emptyList(),
+    /** Prevents duplicate accounting while reviewed sessions are being saved. */
+    val isSavingHealthConnectImports: Boolean = false,
+)
+
+data class HealthConnectImportReview(
+    val session: HealthConnectSession,
+    val bikeId: Long? = null,
 )
 
 @HiltViewModel
@@ -217,8 +227,7 @@ class TripViewModel @Inject constructor(
     }
 
     fun importFromHealthConnect() {
-        val bikeId = _uiState.value.selectedBike?.id ?: -1L
-        if (bikeId < 0) {
+        if (_uiState.value.bikes.isEmpty()) {
             viewModelScope.launch { _healthConnectImportResult.emit(HealthConnectImportResult.NoBikeSelected) }
             return
         }
@@ -247,38 +256,77 @@ class TripViewModel @Inject constructor(
                     _healthConnectImportResult.emit(HealthConnectImportResult.None)
                     return@launch
                 }
+                val reviewSessions = sessions.filter {
+                    it.distanceKm != null && it.healthConnectRecordId != null
+                }
+                if (reviewSessions.isEmpty()) {
+                    _healthConnectImportResult.emit(HealthConnectImportResult.None)
+                    return@launch
+                }
+                _uiState.update {
+                    it.copy(healthConnectImportReviews = reviewSessions.map(::HealthConnectImportReview))
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                _healthConnectImportResult.emit(HealthConnectImportResult.Error)
+            }
+        }
+    }
+
+    fun assignBikeToHealthConnectImport(recordId: String, bikeId: Long) {
+        _uiState.update { state ->
+            state.copy(
+                healthConnectImportReviews = state.healthConnectImportReviews.map { review ->
+                    if (review.session.healthConnectRecordId == recordId) review.copy(bikeId = bikeId) else review
+                },
+            )
+        }
+    }
+
+    fun cancelHealthConnectImportReview() {
+        _uiState.update { it.copy(healthConnectImportReviews = emptyList()) }
+    }
+
+    fun saveReviewedHealthConnectImports() {
+        val reviews = _uiState.value.healthConnectImportReviews
+        if (reviews.isEmpty() || _uiState.value.isSavingHealthConnectImports) return
+        if (reviews.any { it.bikeId == null }) {
+            viewModelScope.launch { _healthConnectImportResult.emit(HealthConnectImportResult.NoBikeSelected) }
+            return
+        }
+
+        _uiState.update { it.copy(isSavingHealthConnectImports = true) }
+        viewModelScope.launch {
+            try {
                 var count = 0
-                sessions.forEach { session ->
-                    val distanceKm = session.distanceKm ?: return@forEach
-                    val recordId = session.healthConnectRecordId ?: return@forEach
+                reviews.forEach { review ->
+                    val session = review.session
                     val ride = RideEntity(
-                        bikeId = bikeId,
-                        distanceKm = distanceKm,
+                        bikeId = requireNotNull(review.bikeId),
+                        distanceKm = requireNotNull(session.distanceKm),
                         durationMs = session.durationMs,
                         startedAt = session.startTimeMs,
                         endedAt = session.endTimeMs,
                         source = RideSource.HEALTH_CONNECT,
-                        healthConnectRecordId = recordId,
+                        healthConnectRecordId = requireNotNull(session.healthConnectRecordId),
                     )
-                    if (rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(ride)) {
-                        count++
-                    }
+                    if (rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(ride)) count++
                 }
+                _uiState.update { it.copy(healthConnectImportReviews = emptyList()) }
                 if (count == 0) {
                     _healthConnectImportResult.emit(HealthConnectImportResult.None)
                     return@launch
                 }
                 val hasSeenDisclaimer = appPreferencesRepository.getHasSeenHealthConnectImportDisclaimer()
-                if (!hasSeenDisclaimer) {
-                    appPreferencesRepository.setHasSeenHealthConnectImportDisclaimer()
-                }
-                _healthConnectImportResult.emit(
-                    HealthConnectImportResult.Success(count, showDisclaimer = !hasSeenDisclaimer),
-                )
+                if (!hasSeenDisclaimer) appPreferencesRepository.setHasSeenHealthConnectImportDisclaimer()
+                _healthConnectImportResult.emit(HealthConnectImportResult.Success(count, !hasSeenDisclaimer))
             } catch (exception: CancellationException) {
                 throw exception
             } catch (_: Exception) {
                 _healthConnectImportResult.emit(HealthConnectImportResult.Error)
+            } finally {
+                _uiState.update { it.copy(isSavingHealthConnectImports = false) }
             }
         }
     }

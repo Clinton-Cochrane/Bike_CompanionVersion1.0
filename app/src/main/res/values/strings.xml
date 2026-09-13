@@ -39,6 +39,11 @@
     <string name="trip_import_provider_update_action">Install/update</string>
     <string name="trip_import_error">Could not import rides from Health Connect</string>
     <string name="trip_import_retry">Retry</string>
+    <string name="trip_import_review_title">Review imported rides</string>
+    <string name="trip_import_review_message">Choose a bike for every ride before saving.</string>
+    <string name="trip_import_review_ride">%1$s · %2$.1f km</string>
+    <string name="trip_import_review_assign_bike">Assign to %1$s</string>
+    <string name="trip_import_review_save">Save rides</string>
     <string name="trip_missing_parts_title">Missing parts</string>
     <string name="trip_missing_parts_message">This bike is missing some expected components. You can add placeholders to track them, install parts from your garage, or start the ride anyway and fix later.</string>
     <string name="trip_add_placeholder">Add placeholder</string>

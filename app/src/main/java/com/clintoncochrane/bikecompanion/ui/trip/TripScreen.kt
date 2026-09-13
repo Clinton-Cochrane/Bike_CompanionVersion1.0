@@ -277,6 +277,17 @@ fun TripScreen(
         )
     }
 
+    if (uiState.healthConnectImportReviews.isNotEmpty()) {
+        HealthConnectImportReviewDialog(
+            reviews = uiState.healthConnectImportReviews,
+            bikes = uiState.bikes,
+            isSaving = uiState.isSavingHealthConnectImports,
+            onAssignBike = viewModel::assignBikeToHealthConnectImport,
+            onSave = viewModel::saveReviewedHealthConnectImports,
+            onCancel = viewModel::cancelHealthConnectImportReview,
+        )
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -458,7 +469,7 @@ private fun StartTripSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        if (bikes.isNotEmpty() && selectedBike != null) {
+        if (bikes.isNotEmpty()) {
             TextButton(
                 onClick = onImportFromHealthConnect,
                 modifier = Modifier.semantics { contentDescription = importDesc },
@@ -467,6 +478,61 @@ private fun StartTripSection(
             }
         }
     }
+}
+
+@Composable
+private fun HealthConnectImportReviewDialog(
+    reviews: List<HealthConnectImportReview>,
+    bikes: List<com.clintoncochrane.bikecompanion.data.bike.BikeEntity>,
+    isSaving: Boolean,
+    onAssignBike: (String, Long) -> Unit,
+    onSave: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    val dateFormat = remember { SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault()) }
+    AlertDialog(
+        onDismissRequest = { if (!isSaving) onCancel() },
+        title = { Text(stringResource(R.string.trip_import_review_title)) },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
+                Text(stringResource(R.string.trip_import_review_message))
+                reviews.forEach { review ->
+                    val session = review.session
+                    val recordId = requireNotNull(session.healthConnectRecordId)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            stringResource(
+                                R.string.trip_import_review_ride,
+                                dateFormat.format(Date(session.startTimeMs)),
+                                requireNotNull(session.distanceKm),
+                            ),
+                        )
+                        bikes.forEach { bike ->
+                            FilterChip(
+                                selected = review.bikeId == bike.id,
+                                onClick = { onAssignBike(recordId, bike.id) },
+                                label = { Text(stringResource(R.string.trip_import_review_assign_bike, bike.name)) },
+                                enabled = !isSaving,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onSave, enabled = !isSaving) {
+                Text(stringResource(R.string.trip_import_review_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel, enabled = !isSaving) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
+    )
 }
 
 @Composable
