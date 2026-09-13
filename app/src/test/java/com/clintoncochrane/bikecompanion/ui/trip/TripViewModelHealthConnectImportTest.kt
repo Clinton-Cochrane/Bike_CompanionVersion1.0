@@ -5,6 +5,7 @@ import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
 import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesRepository
 import com.clintoncochrane.bikecompanion.data.ride.RideRepository
+import com.clintoncochrane.bikecompanion.data.ride.RideSource
 import com.clintoncochrane.bikecompanion.healthconnect.HealthConnectImporter
 import com.clintoncochrane.bikecompanion.healthconnect.HealthConnectReadResult
 import com.clintoncochrane.bikecompanion.healthconnect.HealthConnectSession
@@ -111,7 +112,7 @@ class TripViewModelHealthConnectImportTest {
     }
 
     @Test
-    fun importFromHealthConnect_sessionsImported_emitsSuccessAndSavesRides() = runTest(testDispatcher) {
+    fun saveReviewedHealthConnectImports_assignedSessions_emitsSuccessAndSavesRides() = runTest(testDispatcher) {
         val sessions = listOf(
             HealthConnectSession(
                 healthConnectRecordId = "session-1",
@@ -142,15 +143,19 @@ class TripViewModelHealthConnectImportTest {
         advanceUntilIdle()
         viewModel.selectBike(testBike)
 
-        var result: HealthConnectImportResult? = null
-        val collectJob = launch {
-            result = viewModel.healthConnectImportResult.first()
-        }
-        advanceUntilIdle()
-
         viewModel.importFromHealthConnect()
         advanceUntilIdle()
 
+        assertEquals(2, viewModel.uiState.value.healthConnectImportReviews.size)
+        assertEquals(null, viewModel.uiState.value.healthConnectImportReviews[0].bikeId)
+        viewModel.assignBikeToHealthConnectImport("session-1", testBike.id)
+        viewModel.assignBikeToHealthConnectImport("session-2", testBike.id)
+
+        var result: HealthConnectImportResult? = null
+        val collectJob = launch { result = viewModel.healthConnectImportResult.first() }
+        advanceUntilIdle()
+        viewModel.saveReviewedHealthConnectImports()
+        advanceUntilIdle()
         collectJob.join()
         val success = result as HealthConnectImportResult.Success
         assertEquals(2, success.count)
@@ -158,7 +163,14 @@ class TripViewModelHealthConnectImportTest {
 
         coVerify(exactly = 2) { rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(any()) }
         coVerify(exactly = 1) {
-            rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(match { it.distanceKm == 15.5 && it.healthConnectRecordId == "session-1" })
+            rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(
+                match {
+                    it.bikeId == testBike.id &&
+                        it.distanceKm == 15.5 &&
+                        it.healthConnectRecordId == "session-1" &&
+                        it.source == RideSource.HEALTH_CONNECT
+                },
+            )
         }
         coVerify(exactly = 1) {
             rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(match { it.distanceKm == 20.0 && it.healthConnectRecordId == "session-2" })
@@ -204,7 +216,7 @@ class TripViewModelHealthConnectImportTest {
     }
 
     @Test
-    fun importFromHealthConnect_zeroDistance_savesRideAsExplicitZero() = runTest(testDispatcher) {
+    fun saveReviewedHealthConnectImports_zeroDistance_savesRideAsExplicitZero() = runTest(testDispatcher) {
         coEvery { healthConnectImporter.readCyclingSessions() } returns HealthConnectReadResult.Success(
             listOf(
                 HealthConnectSession(
@@ -229,15 +241,15 @@ class TripViewModelHealthConnectImportTest {
         advanceUntilIdle()
         viewModel.selectBike(testBike)
 
-        var result: HealthConnectImportResult? = null
-        val collectJob = launch {
-            result = viewModel.healthConnectImportResult.first()
-        }
-        advanceUntilIdle()
-
         viewModel.importFromHealthConnect()
         advanceUntilIdle()
 
+        viewModel.assignBikeToHealthConnectImport("session-1", testBike.id)
+        var result: HealthConnectImportResult? = null
+        val collectJob = launch { result = viewModel.healthConnectImportResult.first() }
+        advanceUntilIdle()
+        viewModel.saveReviewedHealthConnectImports()
+        advanceUntilIdle()
         collectJob.join()
         assertEquals(HealthConnectImportResult.Success(count = 1, showDisclaimer = false), result)
         coVerify(exactly = 1) {
@@ -246,7 +258,7 @@ class TripViewModelHealthConnectImportTest {
     }
 
     @Test
-    fun importFromHealthConnect_firstImport_showsDisclaimerAndSetsFlag() = runTest(testDispatcher) {
+    fun saveReviewedHealthConnectImports_firstImport_showsDisclaimerAndSetsFlag() = runTest(testDispatcher) {
         val sessions = listOf(
             HealthConnectSession(
                 healthConnectRecordId = "session-1",
@@ -271,19 +283,78 @@ class TripViewModelHealthConnectImportTest {
         advanceUntilIdle()
         viewModel.selectBike(testBike)
 
-        var result: HealthConnectImportResult? = null
-        val collectJob = launch {
-            result = viewModel.healthConnectImportResult.first()
-        }
-        advanceUntilIdle()
-
         viewModel.importFromHealthConnect()
         advanceUntilIdle()
 
+        viewModel.assignBikeToHealthConnectImport("session-1", testBike.id)
+        var result: HealthConnectImportResult? = null
+        val collectJob = launch { result = viewModel.healthConnectImportResult.first() }
+        advanceUntilIdle()
+        viewModel.saveReviewedHealthConnectImports()
+        advanceUntilIdle()
         collectJob.join()
         val success = result as HealthConnectImportResult.Success
         assertEquals(true, success.showDisclaimer)
         coVerify { appPreferencesRepository.setHasSeenHealthConnectImportDisclaimer() }
+    }
+
+    @Test
+    fun cancelHealthConnectImportReview_doesNotSaveOrUpdateAccounting() = runTest(testDispatcher) {
+        coEvery { healthConnectImporter.readCyclingSessions() } returns HealthConnectReadResult.Success(
+            listOf(importableSession()),
+        )
+        viewModel = newViewModel()
+        advanceUntilIdle()
+
+        viewModel.importFromHealthConnect()
+        advanceUntilIdle()
+        viewModel.cancelHealthConnectImportReview()
+
+        assertEquals(emptyList<HealthConnectImportReview>(), viewModel.uiState.value.healthConnectImportReviews)
+        coVerify(exactly = 0) { rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(any()) }
+        coVerify(exactly = 0) { appPreferencesRepository.setHasSeenHealthConnectImportDisclaimer() }
+    }
+
+    @Test
+    fun saveReviewedHealthConnectImports_missingBike_doesNotSave() = runTest(testDispatcher) {
+        coEvery { healthConnectImporter.readCyclingSessions() } returns HealthConnectReadResult.Success(
+            listOf(importableSession()),
+        )
+        viewModel = newViewModel()
+        advanceUntilIdle()
+        viewModel.importFromHealthConnect()
+        advanceUntilIdle()
+
+        var result: HealthConnectImportResult? = null
+        val collectJob = launch { result = viewModel.healthConnectImportResult.first() }
+        advanceUntilIdle()
+        viewModel.saveReviewedHealthConnectImports()
+        advanceUntilIdle()
+
+        collectJob.join()
+        assertEquals(HealthConnectImportResult.NoBikeSelected, result)
+        assertEquals(1, viewModel.uiState.value.healthConnectImportReviews.size)
+        coVerify(exactly = 0) { rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(any()) }
+    }
+
+    @Test
+    fun saveReviewedHealthConnectImports_doubleSubmit_savesAndAccountsOnce() = runTest(testDispatcher) {
+        coEvery { healthConnectImporter.readCyclingSessions() } returns HealthConnectReadResult.Success(
+            listOf(importableSession()),
+        )
+        coEvery { appPreferencesRepository.getHasSeenHealthConnectImportDisclaimer() } returns true
+        coEvery { rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(any()) } returns true
+        viewModel = newViewModel()
+        advanceUntilIdle()
+        viewModel.importFromHealthConnect()
+        advanceUntilIdle()
+        viewModel.assignBikeToHealthConnectImport("session-1", testBike.id)
+
+        viewModel.saveReviewedHealthConnectImports()
+        viewModel.saveReviewedHealthConnectImports()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(any()) }
     }
 
     @Test
@@ -339,4 +410,20 @@ class TripViewModelHealthConnectImportTest {
         assertEquals(expected, result)
         coVerify(exactly = 0) { rideRepository.saveHealthConnectRideAndUpdateBikeAndComponents(any()) }
     }
+
+    private fun newViewModel() = TripViewModel(
+        bikeRepository,
+        rideRepository,
+        componentRepository,
+        healthConnectImporter,
+        appPreferencesRepository,
+    )
+
+    private fun importableSession() = HealthConnectSession(
+        healthConnectRecordId = "session-1",
+        startTimeMs = 1000L,
+        endTimeMs = 4600000L,
+        durationMs = 3600000L,
+        distanceKm = 10.0,
+    )
 }
