@@ -282,8 +282,16 @@
     <string name="component_moved_to_garage">Moved to garage</string>
     <string name="component_uninstall_confirm_title">Uninstall from bike?</string>
     <string name="component_uninstall_confirm_message">This will move the component to the garage. You can reinstall it on any bike later.</string>
+    <string name="bike_delete">Delete bike</string>
+    <string name="bike_delete_confirm_title">Delete bike?</string>
+    <string name="bike_delete_confirm_without_components">This permanently deletes the bike. Its ride history will remain without a bike assignment.</string>
+    <string name="bike_delete_components_title">What should happen to installed components?</string>
+    <string name="bike_delete_components_message">Moving components to the garage keeps their mileage and install history so you can reuse them. Retiring keeps the history but prevents future installation.</string>
+    <string name="bike_delete_move_components_to_garage">Move to Garage and delete bike</string>
+    <string name="bike_delete_retire_components">Retire components and delete bike</string>
     <string name="component_swap">Swap</string>
     <string name="component_swap_picker_title">Move to bike</string>
+    <string name="component_swap_deleted_bike">Deleted bike</string>
     <string name="component_in_garage">In garage</string>
     <string name="component_purchase_section">Last purchased</string>
     <string name="component_service_intervals">Service intervals</string>

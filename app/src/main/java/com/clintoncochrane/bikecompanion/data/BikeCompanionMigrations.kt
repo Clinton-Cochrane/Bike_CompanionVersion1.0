@@ -266,10 +266,43 @@ object BikeCompanionMigrations {
         }
     }
 
+    /** Preserves component swap history when a bike is deleted. */
+    val MIGRATION_15_16 = object : Migration(15, 16) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE component_swaps_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    componentId INTEGER NOT NULL,
+                    bikeId INTEGER,
+                    installedAt INTEGER NOT NULL,
+                    uninstalledAt INTEGER,
+                    FOREIGN KEY(componentId) REFERENCES components(id) ON DELETE CASCADE,
+                    FOREIGN KEY(bikeId) REFERENCES bikes(id) ON DELETE SET NULL
+                )
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                INSERT INTO component_swaps_new (id, componentId, bikeId, installedAt, uninstalledAt)
+                SELECT id, componentId, bikeId, installedAt, uninstalledAt FROM component_swaps
+                """.trimIndent(),
+            )
+            db.execSQL("DROP TABLE component_swaps")
+            db.execSQL("ALTER TABLE component_swaps_new RENAME TO component_swaps")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_component_swaps_componentId ON component_swaps(componentId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_component_swaps_bikeId ON component_swaps(bikeId)")
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS index_component_swaps_one_active_install " +
+                    "ON component_swaps(componentId) WHERE uninstalledAt IS NULL",
+            )
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
         MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
         MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
-        MIGRATION_14_15,
+        MIGRATION_14_15, MIGRATION_15_16,
     )
 }

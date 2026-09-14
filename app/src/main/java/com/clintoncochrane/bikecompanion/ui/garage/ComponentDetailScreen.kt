@@ -599,7 +599,8 @@ fun ComponentDetailScreen(
                 Text(stringResource(R.string.component_swaps_section), style = MaterialTheme.typography.titleMedium)
             }
             items(uiState.swaps, key = { it.id }) { swap ->
-                val bikeName = uiState.bikes.find { it.id == swap.bikeId }?.name ?: ""
+                val bikeName = uiState.bikes.find { it.id == swap.bikeId }?.name
+                    ?: stringResource(R.string.component_swap_deleted_bike)
                 val dateFormat = SimpleDateFormat("M/d/yyyy 'at' h:mm a", Locale.getDefault())
                 Card(
                     modifier = Modifier.fillMaxWidth(),

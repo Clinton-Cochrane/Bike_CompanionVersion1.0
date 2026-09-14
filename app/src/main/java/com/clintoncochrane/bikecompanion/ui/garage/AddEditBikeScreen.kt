@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,6 +32,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -54,6 +56,7 @@ import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.clintoncochrane.bikecompanion.R
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
+import com.clintoncochrane.bikecompanion.data.bike.BikeDeletionComponentDisposition
 import com.clintoncochrane.bikecompanion.ui.garage.SaveOutcome
 import com.clintoncochrane.bikecompanion.ui.navigation.Screen
 
@@ -68,6 +71,67 @@ fun AddEditBikeScreen(
         viewModelStoreOwner = backStackEntry,
     )
     val uiState by viewModel.uiState.collectAsState()
+
+    when (uiState.bikeDeletionPrompt) {
+        BikeDeletionPrompt.WithoutInstalledComponents -> {
+            AlertDialog(
+                onDismissRequest = viewModel::cancelBikeDeletion,
+                title = { Text(stringResource(R.string.bike_delete_confirm_title)) },
+                text = { Text(stringResource(R.string.bike_delete_confirm_without_components)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.confirmBikeDeletion(BikeDeletionComponentDisposition.MOVE_TO_GARAGE)
+                        },
+                    ) {
+                        Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = viewModel::cancelBikeDeletion) {
+                        Text(stringResource(android.R.string.cancel))
+                    }
+                },
+            )
+        }
+        BikeDeletionPrompt.WithInstalledComponents -> {
+            AlertDialog(
+                onDismissRequest = viewModel::cancelBikeDeletion,
+                title = { Text(stringResource(R.string.bike_delete_components_title)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.bike_delete_components_message))
+                        TextButton(
+                            onClick = {
+                                viewModel.confirmBikeDeletion(BikeDeletionComponentDisposition.RETIRE)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                stringResource(R.string.bike_delete_retire_components),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.confirmBikeDeletion(BikeDeletionComponentDisposition.MOVE_TO_GARAGE)
+                        },
+                    ) {
+                        Text(stringResource(R.string.bike_delete_move_components_to_garage))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = viewModel::cancelBikeDeletion) {
+                        Text(stringResource(android.R.string.cancel))
+                    }
+                },
+            )
+        }
+        null -> Unit
+    }
 
     var name by remember { mutableStateOf("") }
     var make by remember { mutableStateOf("") }
@@ -266,6 +330,14 @@ fun AddEditBikeScreen(
             ) {
                 Text(stringResource(R.string.bike_save))
             }
+            if (uiState.bike != null) {
+                OutlinedButton(
+                    onClick = viewModel::requestBikeDeletion,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.bike_delete), color = MaterialTheme.colorScheme.error)
+                }
+            }
             LaunchedEffect(uiState.saveOutcome) {
                 when (val outcome = uiState.saveOutcome) {
                     is SaveOutcome.NewBike -> {
@@ -279,6 +351,14 @@ fun AddEditBikeScreen(
                         viewModel.clearSaveOutcome()
                     }
                     null -> { }
+                }
+            }
+            LaunchedEffect(uiState.bikeDeleted) {
+                if (uiState.bikeDeleted) {
+                    navController.navigate(Screen.Garage.route) {
+                        popUpTo(Screen.Garage.route) { inclusive = false }
+                    }
+                    viewModel.clearBikeDeleted()
                 }
             }
         }
