@@ -93,10 +93,14 @@ class ActiveRideActivity : ComponentActivity() {
     private val saveFailedEvents = MutableSharedFlow<Unit>(replay = 0, extraBufferCapacity = 1)
     private val assignmentFailedEvents = MutableSharedFlow<Unit>(replay = 0, extraBufferCapacity = 1)
     private val saveInProgressFlow = MutableStateFlow(false)
+    private var notificationStopRequested = false
+    private val completionRequestGuard = RideCompletionRequestGuard()
     private var boundService: RideTrackingService? = null
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             boundService = (service as RideTrackingService.LocalBinder).getService()
+            rideStateFlow.value = boundService?.rideState?.value ?: RideState()
+            handleNotificationStopRequest()
             lifecycleScope.launch {
                 boundService?.rideState?.collect { rideStateFlow.value = it }
             }
@@ -109,6 +113,7 @@ class ActiveRideActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        notificationStopRequested = intent.getBooleanExtra(REQUEST_STOP_EXTRA, false)
         val hadPlaceholdersFromIntent = intent.getBooleanExtra(HAD_PLACEHOLDERS_EXTRA, false)
         lifecycleScope.launch {
             bikeRepository.getAllBikes().collect { bikesFlow.value = it }
@@ -126,12 +131,24 @@ class ActiveRideActivity : ComponentActivity() {
                     isSavingFlow = saveInProgressFlow.asStateFlow(),
                     onAssignBike = ::assignBikeDuringRide,
                     onAssignBikeAndSave = ::assignBikeAndSave,
-                    onCancelPendingStop = { pendingStopRideFlow.value = null },
+                    onCancelPendingStop = {
+                        pendingStopRideFlow.value = null
+                        completionRequestGuard.reset()
+                    },
                     rideStateFlow = rideStateFlow.asStateFlow(),
                     saveFailedEvents = saveFailedEvents.asSharedFlow(),
                     assignmentFailedEvents = assignmentFailedEvents.asSharedFlow(),
                 )
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra(REQUEST_STOP_EXTRA, false)) {
+            notificationStopRequested = true
+            handleNotificationStopRequest()
         }
     }
 
@@ -156,16 +173,24 @@ class ActiveRideActivity : ComponentActivity() {
             }
             return
         }
+        if (!completionRequestGuard.tryStart()) return
         val pendingRide = PendingStopRide(
             state = state,
             hadPlaceholdersAtStart = hadPlaceholdersAtStart,
             endedAtMs = System.currentTimeMillis(),
         )
-        if (state.bikeId < 0L) {
-            pendingStopRideFlow.value = pendingRide
-            return
+        when (RideCompletionPolicy.destinationFor(state)) {
+            RideCompletionDestination.ASSIGN_BIKE -> pendingStopRideFlow.value = pendingRide
+            RideCompletionDestination.SAVE -> saveRide(pendingRide, state.bikeId)
         }
-        saveRide(pendingRide, state.bikeId)
+    }
+
+    private fun handleNotificationStopRequest() {
+        val service = boundService ?: return
+        if (!notificationStopRequested) return
+        notificationStopRequested = false
+        intent.removeExtra(REQUEST_STOP_EXTRA)
+        requestStopRide(service.rideState.value, service.rideState.value.hadPlaceholdersAtStart)
     }
 
     private fun assignBikeDuringRide(bikeId: Long) {
@@ -235,6 +260,7 @@ class ActiveRideActivity : ComponentActivity() {
             } catch (exception: CancellationException) {
                 throw exception
             } catch (_: Exception) {
+                completionRequestGuard.reset()
                 saveFailedEvents.tryEmit(Unit)
             } finally {
                 saveInProgressFlow.value = false
@@ -252,6 +278,7 @@ class ActiveRideActivity : ComponentActivity() {
     companion object {
         const val BIKE_ID_EXTRA = "bike_id"
         const val HAD_PLACEHOLDERS_EXTRA = "had_placeholders_at_start"
+        const val REQUEST_STOP_EXTRA = "request_stop"
 
         fun start(context: Context, bikeId: Long, hadPlaceholdersAtStart: Boolean = false) {
             context.startActivity(Intent(context, ActiveRideActivity::class.java).apply {
@@ -259,6 +286,34 @@ class ActiveRideActivity : ComponentActivity() {
                 putExtra(HAD_PLACEHOLDERS_EXTRA, hadPlaceholdersAtStart)
             })
         }
+    }
+}
+
+internal enum class RideCompletionDestination {
+    ASSIGN_BIKE,
+    SAVE,
+}
+
+internal object RideCompletionPolicy {
+    fun destinationFor(state: RideState): RideCompletionDestination =
+        if (state.bikeId < 0L) {
+            RideCompletionDestination.ASSIGN_BIKE
+        } else {
+            RideCompletionDestination.SAVE
+        }
+}
+
+internal class RideCompletionRequestGuard {
+    private var requestInProgress = false
+
+    fun tryStart(): Boolean {
+        if (requestInProgress) return false
+        requestInProgress = true
+        return true
+    }
+
+    fun reset() {
+        requestInProgress = false
     }
 }
 

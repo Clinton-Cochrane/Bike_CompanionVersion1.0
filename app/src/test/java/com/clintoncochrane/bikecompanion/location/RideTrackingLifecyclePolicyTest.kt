@@ -63,4 +63,20 @@ class RideTrackingLifecyclePolicyTest {
         assertFalse(RideTrackingLifecyclePolicy.canResumeTracking(RideState()))
         assertFalse(RideTrackingLifecyclePolicy.canResumeTracking(RideState(isTracking = true)))
     }
+
+    @Test
+    fun notificationStop_routesToFinishFlowInsteadOfServiceCleanup() {
+        assertEquals(
+            RideNotificationActionDestination.FINISH_RIDE,
+            RideNotificationActionPolicy.destinationFor(RideTrackingService.ACTION_STOP),
+        )
+        assertEquals(
+            RideNotificationActionDestination.SERVICE,
+            RideNotificationActionPolicy.destinationFor(RideTrackingService.ACTION_PAUSE),
+        )
+        assertEquals(
+            RideNotificationActionDestination.SERVICE,
+            RideNotificationActionPolicy.destinationFor(RideTrackingService.ACTION_RESUME),
+        )
+    }
 }
