@@ -52,6 +52,9 @@ inventory, vulnerability decisions, compatibility pins, and commands to repeat b
   - `./gradlew assembleDebug` – debug APK
   - `./gradlew installDebug` – install on connected device
 
+Production App Bundle signing, versioning, and verification are documented in the
+[release guide](docs/releasing.md).
+
 ## License
 
 See repository or project license file.
