@@ -28,7 +28,7 @@ class RideRepositoryEditTransactionTest {
     private lateinit var originalRide: RideEntity
 
     @Before
-    fun setUp() = runBlocking {
+    fun setUp(): Unit = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         database = Room.inMemoryDatabaseBuilder(context, BikeCompanionDatabase::class.java).build()
         repository = RideRepository(
@@ -42,7 +42,17 @@ class RideRepositoryEditTransactionTest {
         )
 
         bikeId = database.bikeDao().insert(
-            BikeEntity(name = "Edit Test Bike", totalDistanceKm = 10.0, totalTimeSeconds = 600L, createdAt = 1L),
+            BikeEntity(
+                name = "Edit Test Bike",
+                totalDistanceKm = 15.0,
+                totalTimeSeconds = 4_200L,
+                lastRideAt = 4_300_000L,
+                avgSpeedKmh = 15.0 / (4_200.0 / 3_600.0),
+                maxSpeedKmh = 30.0,
+                totalElevGainM = 140.0,
+                totalElevLossM = 120.0,
+                createdAt = 1L,
+            ),
         )
         componentId = database.componentDao().insert(
             ComponentEntity(
@@ -50,8 +60,11 @@ class RideRepositoryEditTransactionTest {
                 type = "chain",
                 name = "Edit Test Chain",
                 lifespanKm = 5_000.0,
-                distanceUsedKm = 10.0,
-                totalTimeSeconds = 600L,
+                distanceUsedKm = 15.0,
+                totalTimeSeconds = 4_200L,
+                avgSpeedKmh = 15.0 / (4_200.0 / 3_600.0),
+                maxSpeedKmh = 30.0,
+                maxSpeedBikeId = bikeId,
                 installedAt = 1L,
             ),
         )
@@ -60,9 +73,9 @@ class RideRepositoryEditTransactionTest {
                 componentId = componentId,
                 name = "Inspect",
                 intervalKm = 1_000.0,
-                trackedKm = 10.0,
+                trackedKm = 15.0,
                 intervalTimeSeconds = 7_200L,
-                trackedTimeSeconds = 600L,
+                trackedTimeSeconds = 4_200L,
             ),
         )
         database.rideDao().insert(

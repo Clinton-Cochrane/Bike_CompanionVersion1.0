@@ -30,7 +30,6 @@ class ComponentSeedingIdempotencyTest {
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         db = Room.inMemoryDatabaseBuilder(context, BikeCompanionDatabase::class.java)
-            .fallbackToDestructiveMigration()
             .build()
         componentRepository = ComponentRepository(
             db.componentDao(),
@@ -56,6 +55,12 @@ class ComponentSeedingIdempotencyTest {
 
         componentRepository.seedDefaultComponentsIfEmpty(bikeId)
         assertEquals(expectedCount, db.componentDao().getComponentCountByBikeId(bikeId))
+        db.componentDao().getComponentsByBikeIdOnce(bikeId).forEach { component ->
+            val activeSwaps = db.componentSwapDao().getSwapsByComponentIdOnce(component.id)
+                .filter { it.uninstalledAt == null }
+            assertEquals(1, activeSwaps.size)
+            assertEquals(bikeId, activeSwaps.single().bikeId)
+        }
 
         componentRepository.seedDefaultComponentsIfEmpty(bikeId)
         assertEquals(

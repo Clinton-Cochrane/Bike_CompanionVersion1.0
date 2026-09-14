@@ -22,7 +22,7 @@ class ServiceIntervalRepositoryPersistenceTest {
     private var componentId = 0L
 
     @Before
-    fun setUp() = runBlocking {
+    fun setUp(): Unit = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         database = Room.inMemoryDatabaseBuilder(context, BikeCompanionDatabase::class.java).build()
         repository = ServiceIntervalRepository(database.serviceIntervalDao())

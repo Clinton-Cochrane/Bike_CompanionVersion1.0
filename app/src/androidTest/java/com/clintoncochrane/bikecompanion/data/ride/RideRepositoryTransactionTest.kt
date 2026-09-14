@@ -28,7 +28,7 @@ class RideRepositoryTransactionTest {
     private var intervalId = 0L
 
     @Before
-    fun setUp() = runBlocking {
+    fun setUp(): Unit = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         database = Room.inMemoryDatabaseBuilder(context, BikeCompanionDatabase::class.java).build()
         repository = RideRepository(

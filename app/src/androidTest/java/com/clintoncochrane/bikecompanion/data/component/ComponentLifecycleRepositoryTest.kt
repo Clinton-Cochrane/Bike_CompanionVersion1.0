@@ -28,7 +28,7 @@ class ComponentLifecycleRepositoryTest {
     private var componentId = 0L
 
     @Before
-    fun setUp() = runBlocking {
+    fun setUp(): Unit = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         database = Room.inMemoryDatabaseBuilder(context, BikeCompanionDatabase::class.java).build()
         repository = ComponentRepository(
@@ -60,6 +60,58 @@ class ComponentLifecycleRepositoryTest {
     @After
     fun tearDown() {
         database.close()
+    }
+
+    @Test
+    fun insertComponent_installedComponent_createsOneActiveSwap() = runBlocking {
+        val installedAt = 123L
+
+        val insertedId = repository.insertComponent(
+            ComponentEntity(
+                bikeId = bikeBId,
+                type = "cassette",
+                name = "New cassette",
+                lifespanKm = 10_000.0,
+                installedAt = installedAt,
+            ),
+        )
+
+        val inserted = requireNotNull(database.componentDao().getComponentById(insertedId))
+        val swaps = database.componentSwapDao().getSwapsByComponentIdOnce(insertedId)
+        assertEquals(ComponentLifecycleStatus.INSTALLED, inserted.lifecycleStatus)
+        assertEquals(1, swaps.size)
+        assertEquals(bikeBId, swaps.single().bikeId)
+        assertEquals(installedAt, swaps.single().installedAt)
+        assertNull(swaps.single().uninstalledAt)
+    }
+
+    @Test
+    fun insertComponent_serviceIntervalFailure_rollsBackComponentAndSwap() = runBlocking {
+        database.openHelper.writableDatabase.execSQL(
+            """
+            CREATE TRIGGER fail_new_component_interval
+            BEFORE INSERT ON service_intervals
+            BEGIN
+                SELECT RAISE(ABORT, 'forced interval failure');
+            END
+            """.trimIndent(),
+        )
+
+        val result = runCatching {
+            repository.insertComponent(
+                ComponentEntity(
+                    bikeId = bikeBId,
+                    type = "cassette",
+                    name = "Atomic cassette",
+                    lifespanKm = 10_000.0,
+                    installedAt = 123L,
+                ),
+            )
+        }
+
+        assertTrue(result.isFailure)
+        assertEquals(listOf(componentId), database.componentDao().getAllComponents().map { it.id })
+        assertEquals(1, database.componentSwapDao().getSwapsByComponentIdOnce(componentId).size)
     }
 
     @Test

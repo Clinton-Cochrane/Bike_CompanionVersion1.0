@@ -299,10 +299,42 @@ object BikeCompanionMigrations {
         }
     }
 
+    /**
+     * Replaces an unrepresentable partial index with equivalent triggers and repairs active
+     * installation history for components created before all insert paths recorded swaps.
+     */
+    val MIGRATION_16_17 = object : Migration(16, 17) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("DROP INDEX IF EXISTS index_component_swaps_one_active_install")
+            db.execSQL(
+                "UPDATE component_swaps SET uninstalledAt = installedAt " +
+                    "WHERE uninstalledAt IS NULL AND NOT EXISTS (" +
+                    "SELECT 1 FROM components " +
+                    "WHERE components.id = component_swaps.componentId " +
+                    "AND components.bikeId = component_swaps.bikeId " +
+                    "AND components.lifecycleStatus = 'INSTALLED')",
+            )
+            db.execSQL(
+                "UPDATE component_swaps SET uninstalledAt = installedAt " +
+                    "WHERE uninstalledAt IS NULL AND id NOT IN (" +
+                    "SELECT MAX(id) FROM component_swaps WHERE uninstalledAt IS NULL GROUP BY componentId)",
+            )
+            db.execSQL(
+                "INSERT INTO component_swaps (componentId, bikeId, installedAt, uninstalledAt) " +
+                    "SELECT id, bikeId, installedAt, NULL FROM components " +
+                    "WHERE bikeId IS NOT NULL AND lifecycleStatus = 'INSTALLED' " +
+                    "AND NOT EXISTS (SELECT 1 FROM component_swaps " +
+                    "WHERE component_swaps.componentId = components.id " +
+                    "AND component_swaps.uninstalledAt IS NULL)",
+            )
+            ComponentSwapIntegrity.install(db)
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
         MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
         MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
-        MIGRATION_14_15, MIGRATION_15_16,
+        MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
     )
 }

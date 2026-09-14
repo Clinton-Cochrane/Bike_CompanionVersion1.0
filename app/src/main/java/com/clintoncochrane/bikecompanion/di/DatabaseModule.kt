@@ -3,6 +3,7 @@ package com.clintoncochrane.bikecompanion.di
 import android.content.Context
 import androidx.room.Room
 import com.clintoncochrane.bikecompanion.data.BikeCompanionDatabase
+import com.clintoncochrane.bikecompanion.data.BikeCompanionDatabaseCallback
 import com.clintoncochrane.bikecompanion.data.BikeCompanionMigrations
 import com.clintoncochrane.bikecompanion.data.bike.BikeDao
 import com.clintoncochrane.bikecompanion.data.component.ComponentContextDao
@@ -32,6 +33,7 @@ object DatabaseModule {
         BikeCompanionDatabase::class.java,
         DATABASE_NAME,
     ).addMigrations(*BikeCompanionMigrations.ALL)
+        .addCallback(BikeCompanionDatabaseCallback)
         .build()
 
     @Provides
