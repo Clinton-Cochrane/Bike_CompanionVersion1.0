@@ -77,7 +77,7 @@ class GarageViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            componentRepository.getAllComponentsFlow().collect { list ->
+            componentRepository.getNonRetiredComponents().collect { list ->
                 val order = _uiState.value.componentSortOrder
                 val intervalsByComponentId = if (order == ComponentSortOrder.NEXT_SERVICE && list.isNotEmpty()) {
                     val ids = list.map { it.id }

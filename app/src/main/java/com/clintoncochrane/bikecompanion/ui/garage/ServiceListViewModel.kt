@@ -69,7 +69,7 @@ class ServiceListViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            componentRepository.getAllComponentsFlow().collect { components ->
+            componentRepository.getNonRetiredComponents().collect { components ->
                 val ids = components.map { it.id }
                 val intervals = if (ids.isEmpty()) emptyList()
                 else serviceIntervalRepository.getIntervalsByComponentIdsOnce(ids)
