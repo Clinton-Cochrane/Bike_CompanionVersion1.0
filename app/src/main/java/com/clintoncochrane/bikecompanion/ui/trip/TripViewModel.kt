@@ -46,6 +46,12 @@ sealed class HealthConnectImportResult {
     data object Error : HealthConnectImportResult()
 }
 
+sealed class ManualMileageSaveResult {
+    data object Success : ManualMileageSaveResult()
+    data object InvalidInput : ManualMileageSaveResult()
+    data object Error : ManualMileageSaveResult()
+}
+
 /** Info for one missing part slot: expected component and optional garage matches. */
 data class MissingPartInfo(
     val expected: DefaultSeedComponent,
@@ -71,6 +77,8 @@ data class TripUiState(
     val healthConnectImportReviews: List<HealthConnectImportReview> = emptyList(),
     /** Prevents duplicate accounting while reviewed sessions are being saved. */
     val isSavingHealthConnectImports: Boolean = false,
+    /** Prevents a manual entry from being submitted more than once. */
+    val isSavingManualMileage: Boolean = false,
 )
 
 data class HealthConnectImportReview(
@@ -92,6 +100,9 @@ class TripViewModel @Inject constructor(
 
     private val _healthConnectImportResult = MutableSharedFlow<HealthConnectImportResult>(replay = 0, extraBufferCapacity = 1)
     val healthConnectImportResult: SharedFlow<HealthConnectImportResult> = _healthConnectImportResult.asSharedFlow()
+
+    private val _manualMileageSaveResult = MutableSharedFlow<ManualMileageSaveResult>(replay = 0, extraBufferCapacity = 1)
+    val manualMileageSaveResult: SharedFlow<ManualMileageSaveResult> = _manualMileageSaveResult.asSharedFlow()
 
     init {
         viewModelScope.launch {
@@ -223,6 +234,28 @@ class TripViewModel @Inject constructor(
     fun deleteRide(ride: RideEntity) {
         viewModelScope.launch {
             rideRepository.deleteRide(ride)
+        }
+    }
+
+    fun saveManualMileage(bikeId: Long?, distanceKm: Double?) {
+        if (bikeId == null || bikeId <= 0L || distanceKm == null || !distanceKm.isFinite() || distanceKm <= 0.0) {
+            _manualMileageSaveResult.tryEmit(ManualMileageSaveResult.InvalidInput)
+            return
+        }
+        if (_uiState.value.isSavingManualMileage) return
+
+        _uiState.update { it.copy(isSavingManualMileage = true) }
+        viewModelScope.launch {
+            try {
+                rideRepository.saveManualRide(bikeId, distanceKm)
+                _manualMileageSaveResult.emit(ManualMileageSaveResult.Success)
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                _manualMileageSaveResult.emit(ManualMileageSaveResult.Error)
+            } finally {
+                _uiState.update { it.copy(isSavingManualMileage = false) }
+            }
         }
     }
 

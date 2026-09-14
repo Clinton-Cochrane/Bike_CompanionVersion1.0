@@ -107,6 +107,31 @@ class RideRepositoryTransactionTest {
     }
 
     @Test
+    fun saveManualRide_createsHistoryAndAccountsDistanceExactlyOnce() = runBlocking {
+        repository.saveManualRide(bikeId = bikeId, distanceKm = 5.0, occurredAt = 2_000L)
+
+        val ride = database.rideDao().getAllRides().first().single()
+        val bike = requireNotNull(database.bikeDao().getBikeById(bikeId))
+        val component = requireNotNull(database.componentDao().getComponentById(componentId))
+        val interval = database.serviceIntervalDao()
+            .getIntervalsByComponentIdOnce(componentId)
+            .single { it.id == intervalId }
+
+        assertEquals(RideSource.MANUAL, ride.source)
+        assertEquals(bikeId, ride.bikeId)
+        assertEquals(5.0, ride.distanceKm, 0.0)
+        assertEquals(0L, ride.durationMs)
+        assertEquals(2_000L, ride.startedAt)
+        assertEquals(2_000L, ride.endedAt)
+        assertEquals(15.0, bike.totalDistanceKm, 0.0)
+        assertEquals(600L, bike.totalTimeSeconds)
+        assertEquals(15.0, component.distanceUsedKm, 0.0)
+        assertEquals(600L, component.totalTimeSeconds)
+        assertEquals(15.0, interval.trackedKm, 0.0)
+        assertEquals(600L, interval.trackedTimeSeconds)
+    }
+
+    @Test
     fun saveRideAndUpdateBikeAndComponents_serviceIntervalUpdateFails_rollsBackEveryUpdate() = runBlocking {
         database.openHelper.writableDatabase.execSQL(
             """

@@ -102,6 +102,66 @@ class RideRepositoryTotalsTest {
     }
 
     @Test
+    fun saveManualRide_validDistance_createsNormalRideAndUpdatesAccountingOnce() = runBlocking {
+        val bikeId = 1L
+        val bike = BikeEntity(
+            id = bikeId,
+            name = "Test Bike",
+            totalDistanceKm = 10.0,
+            totalTimeSeconds = 600L,
+            createdAt = 0L,
+        )
+        val component = ComponentEntity(
+            id = 2L,
+            bikeId = bikeId,
+            type = "chain",
+            name = "Chain",
+            lifespanKm = 3_000.0,
+            distanceUsedKm = 10.0,
+            totalTimeSeconds = 600L,
+            installedAt = 0L,
+        )
+
+        coEvery { rideDao.insert(any()) } returns 3L
+        coEvery { bikeDao.getBikeById(bikeId) } returns bike
+        coEvery { bikeDao.update(any()) } returns Unit
+        coEvery { componentDao.getComponentsByBikeIdOnce(bikeId) } returns listOf(component)
+        coEvery { componentDao.update(any()) } returns Unit
+
+        repository.saveManualRide(bikeId = bikeId, distanceKm = 5.0, occurredAt = 1_000L)
+
+        coVerify(exactly = 1) {
+            rideDao.insert(
+                match {
+                    it.bikeId == bikeId &&
+                        it.distanceKm == 5.0 &&
+                        it.durationMs == 0L &&
+                        it.avgSpeedKmh == 0.0 &&
+                        it.maxSpeedKmh == 0.0 &&
+                        it.elevGainM == 0.0 &&
+                        it.elevLossM == 0.0 &&
+                        it.startedAt == 1_000L &&
+                        it.endedAt == 1_000L &&
+                        it.source == RideSource.MANUAL
+                },
+            )
+        }
+        coVerify(exactly = 1) { bikeDao.update(match { it.totalDistanceKm == 15.0 }) }
+        coVerify(exactly = 1) { componentDao.update(match { it.distanceUsedKm == 15.0 }) }
+        coVerify(exactly = 1) { componentAlertNotifier.notifyIfNeeded(bikeId) }
+    }
+
+    @Test
+    fun saveManualRide_invalidDistance_doesNotStartPersistence() = runBlocking {
+        listOf(0.0, -1.0, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY).forEach { distanceKm ->
+            assertTrue(runCatching { repository.saveManualRide(1L, distanceKm) }.isFailure)
+        }
+
+        coVerify(exactly = 0) { ridePersistenceTransaction.run(any()) }
+        coVerify(exactly = 0) { rideDao.insert(any()) }
+    }
+
+    @Test
     fun saveRideAndUpdateBikeAndComponents_addsRideToBaselineWithoutInflatingAverageSpeed() = runBlocking {
         val bikeId = 1L
         val ride = RideEntity(

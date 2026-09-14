@@ -32,6 +32,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -60,6 +61,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -93,6 +96,7 @@ fun TripScreen(
     var hasRequestedLocationPermission by rememberSaveable { mutableStateOf(false) }
     var showLocationRationale by rememberSaveable { mutableStateOf(false) }
     var showLocationSettings by rememberSaveable { mutableStateOf(false) }
+    var showManualMileageDialog by rememberSaveable { mutableStateOf(false) }
 
     fun beginRide() {
         val bikeId = uiState.selectedBike?.id ?: -1L
@@ -193,6 +197,21 @@ fun TripScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.manualMileageSaveResult.collect { result ->
+            when (result) {
+                ManualMileageSaveResult.Success -> {
+                    showManualMileageDialog = false
+                    snackbarHostState.showSnackbar(context.getString(R.string.trip_manual_mileage_success))
+                }
+                ManualMileageSaveResult.InvalidInput ->
+                    snackbarHostState.showSnackbar(context.getString(R.string.trip_manual_mileage_invalid))
+                ManualMileageSaveResult.Error ->
+                    snackbarHostState.showSnackbar(context.getString(R.string.trip_manual_mileage_error))
+            }
+        }
+    }
+
     fun startTrip() {
         val bikeId = uiState.selectedBike?.id
         if (uiState.bikes.isEmpty()) return
@@ -288,6 +307,16 @@ fun TripScreen(
         )
     }
 
+    if (showManualMileageDialog) {
+        ManualMileageDialog(
+            bikes = uiState.bikes,
+            initialBikeId = uiState.selectedBike?.id,
+            isSaving = uiState.isSavingManualMileage,
+            onSave = viewModel::saveManualMileage,
+            onDismiss = { showManualMileageDialog = false },
+        )
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -326,6 +355,7 @@ fun TripScreen(
                         if (rideActiveBikeId >= 0) ActiveRideActivity.start(context, rideActiveBikeId)
                     },
                     onSelectBike = viewModel::selectBike,
+                    onAddManualMileage = { showManualMileageDialog = true },
                     onImportFromHealthConnect = { viewModel.importFromHealthConnect() },
                 )
             }
@@ -429,9 +459,11 @@ private fun StartTripSection(
     onStartTrip: () -> Unit,
     onViewCurrentTrip: () -> Unit,
     onSelectBike: (com.clintoncochrane.bikecompanion.data.bike.BikeEntity?) -> Unit,
+    onAddManualMileage: () -> Unit,
     onImportFromHealthConnect: () -> Unit,
 ) {
     val startButtonDesc = stringResource(R.string.trip_start_button_content_description)
+    val manualMileageDesc = stringResource(R.string.trip_add_manual_mileage_content_description)
     val importDesc = stringResource(R.string.trip_import_health_connect_content_description)
     val isRideActive = rideActiveBikeId >= 0
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -471,6 +503,12 @@ private fun StartTripSection(
         }
         if (bikes.isNotEmpty()) {
             TextButton(
+                onClick = onAddManualMileage,
+                modifier = Modifier.semantics { contentDescription = manualMileageDesc },
+            ) {
+                Text(stringResource(R.string.trip_add_manual_mileage))
+            }
+            TextButton(
                 onClick = onImportFromHealthConnect,
                 modifier = Modifier.semantics { contentDescription = importDesc },
             ) {
@@ -478,6 +516,73 @@ private fun StartTripSection(
             }
         }
     }
+}
+
+@Composable
+private fun ManualMileageDialog(
+    bikes: List<com.clintoncochrane.bikecompanion.data.bike.BikeEntity>,
+    initialBikeId: Long?,
+    isSaving: Boolean,
+    onSave: (Long?, Double?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var selectedBikeId by rememberSaveable { mutableStateOf(initialBikeId) }
+    var distanceText by rememberSaveable { mutableStateOf("") }
+    val distanceKm = distanceText.trim().toDoubleOrNull()
+    val isDistanceValid = distanceKm != null && distanceKm.isFinite() && distanceKm > 0.0
+
+    AlertDialog(
+        onDismissRequest = { if (!isSaving) onDismiss() },
+        title = { Text(stringResource(R.string.trip_manual_mileage_title)) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(stringResource(R.string.trip_manual_mileage_message))
+                Text(
+                    text = stringResource(R.string.trip_select_bike),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                bikes.forEach { bike ->
+                    FilterChip(
+                        selected = selectedBikeId == bike.id,
+                        onClick = { selectedBikeId = bike.id },
+                        label = { Text(bike.name) },
+                        enabled = !isSaving,
+                    )
+                }
+                OutlinedTextField(
+                    value = distanceText,
+                    onValueChange = { distanceText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isSaving,
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.trip_manual_mileage_distance)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = distanceText.isNotBlank() && !isDistanceValid,
+                    supportingText = if (distanceText.isNotBlank() && !isDistanceValid) {
+                        { Text(stringResource(R.string.trip_manual_mileage_invalid)) }
+                    } else {
+                        null
+                    },
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(selectedBikeId, distanceKm) },
+                enabled = selectedBikeId != null && isDistanceValid && !isSaving,
+            ) {
+                Text(stringResource(R.string.trip_manual_mileage_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isSaving) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
+    )
 }
 
 @Composable

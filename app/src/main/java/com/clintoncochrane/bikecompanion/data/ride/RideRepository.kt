@@ -24,6 +24,28 @@ class RideRepository @Inject constructor(
 
     suspend fun getRideById(id: Long): RideEntity? = rideDao.getRideById(id)
 
+    /** Creates a manual mileage entry through the normal completed-ride accounting path. */
+    suspend fun saveManualRide(
+        bikeId: Long,
+        distanceKm: Double,
+        occurredAt: Long = System.currentTimeMillis(),
+    ) {
+        require(bikeId > 0L) { "A manual ride requires a bike" }
+        require(distanceKm.isFinite() && distanceKm > 0.0) {
+            "Manual ride distance must be positive and finite"
+        }
+        saveRideAndUpdateBikeAndComponents(
+            RideEntity(
+                bikeId = bikeId,
+                distanceKm = distanceKm,
+                durationMs = 0L,
+                startedAt = occurredAt,
+                endedAt = occurredAt,
+                source = RideSource.MANUAL,
+            ),
+        )
+    }
+
     /**
      * Saves a ride and updates the bike's total distance, total time, and all components'
      * distanceUsedKm and totalTimeSeconds. Call this after a ride ends (in-app or imported).
