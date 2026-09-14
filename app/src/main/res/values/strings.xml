@@ -363,6 +363,9 @@
     <string name="settings_health_alert_slider_content_description">Mild alert threshold, percentage</string>
     <string name="settings_maintenance_estimates_title">About maintenance estimates</string>
     <string name="settings_maintenance_estimates_disclaimer">Maintenance intervals are estimates. Inspect actual component condition and follow manufacturer guidance.</string>
+    <string name="settings_notifications_permission_title">Notifications are off</string>
+    <string name="settings_notifications_permission_message">Allow notifications in app settings to receive maintenance reminders. Bike and maintenance tracking will continue without them.</string>
+    <string name="settings_notifications_permission_settings">Open settings</string>
     <string name="settings_privacy_title">Privacy and data</string>
     <string name="settings_privacy_subtitle">Review how Bike Companion uses location and Health Connect data.</string>
 
