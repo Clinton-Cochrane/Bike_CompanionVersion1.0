@@ -2,6 +2,9 @@
 
 Run this checklist against the release candidate on the Pixel 5 and Pixel 8 launch targets. Use synthetic location and Health Connect data rather than personal data.
 
+Record the corresponding Play Console answers and submission evidence in
+`docs/play-console-declarations.md`.
+
 ## Static release checks
 
 - Build the release APK/AAB and inspect the merged release manifest. Confirm there is no `android.permission.INTERNET`, no background-location permission, and no unexpected exported component.
