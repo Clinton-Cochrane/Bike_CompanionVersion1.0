@@ -79,6 +79,10 @@ class ComponentRepository @Inject constructor(
 
     fun getComponentsInGarage(): Flow<List<ComponentEntity>> = componentDao.getComponentsInGarage()
 
+    fun getNonRetiredComponents(): Flow<List<ComponentEntity>> = componentDao.getNonRetiredComponents()
+
+    fun getRetiredComponents(): Flow<List<ComponentEntity>> = componentDao.getRetiredComponents()
+
     fun getAllComponentsFlow(): Flow<List<ComponentEntity>> = componentDao.getAllComponentsFlow()
 
     /**

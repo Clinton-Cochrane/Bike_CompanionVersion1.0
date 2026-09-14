@@ -42,6 +42,18 @@ interface ComponentDao {
     @Query("SELECT * FROM components WHERE lifecycleStatus = 'IN_GARAGE' ORDER BY type, name")
     fun getComponentsInGarage(): Flow<List<ComponentEntity>>
 
+    @Query("SELECT * FROM components WHERE lifecycleStatus != 'RETIRED' ORDER BY type, name")
+    fun getNonRetiredComponents(): Flow<List<ComponentEntity>>
+
+    @Query("SELECT * FROM components WHERE lifecycleStatus = 'RETIRED' ORDER BY type, name")
+    fun getRetiredComponents(): Flow<List<ComponentEntity>>
+
+    @Query("SELECT * FROM components WHERE lifecycleStatus != 'RETIRED' ORDER BY type, name")
+    suspend fun getNonRetiredComponentsOnce(): List<ComponentEntity>
+
+    @Query("SELECT * FROM components WHERE lifecycleStatus = 'RETIRED' ORDER BY type, name")
+    suspend fun getRetiredComponentsOnce(): List<ComponentEntity>
+
     @Query("SELECT * FROM components")
     suspend fun getAllComponents(): List<ComponentEntity>
 

@@ -28,6 +28,15 @@
     <string name="trip_add_bike_first">Add a bike in Garage first</string>
     <string name="trip_import_health_connect">Import from Health Connect</string>
     <string name="trip_import_health_connect_content_description">Import cycling sessions from Health Connect</string>
+    <string name="trip_add_manual_mileage">Add manual mileage</string>
+    <string name="trip_add_manual_mileage_content_description">Add bike mileage manually</string>
+    <string name="trip_manual_mileage_title">Add manual mileage</string>
+    <string name="trip_manual_mileage_message">Log a completed ride distance in kilometers.</string>
+    <string name="trip_manual_mileage_distance">Distance (km)</string>
+    <string name="trip_manual_mileage_invalid">Enter a distance greater than zero.</string>
+    <string name="trip_manual_mileage_save">Save mileage</string>
+    <string name="trip_manual_mileage_success">Manual mileage saved</string>
+    <string name="trip_manual_mileage_error">Could not save manual mileage. Try again.</string>
     <string name="trip_import_success">Imported %1$d ride(s)</string>
     <string name="trip_import_success_with_disclaimer">Imported %1$d ride(s). Elevation and max speed may not be available for imported rides.</string>
     <string name="ride_stat_unavailable">—</string>
@@ -81,11 +90,19 @@
     <string name="ride_resume">Resume</string>
     <string name="ride_stop">Stop ride</string>
     <string name="ride_stop_confirm_title">Exit ride?</string>
-    <string name="ride_stop_confirm_message">Your ride will be saved and you\'ll return to the trip screen.</string>
+    <string name="ride_stop_confirm_message">Your ride will be saved and you\'ll return to the trip screen. If no bike is assigned, you\'ll choose one before saving.</string>
     <string name="ride_duration_over_24h">>24h</string>
     <string name="ride_save_failed_tracking">Ride could not be saved. Please wait for tracking to start.</string>
     <string name="ride_discarded_zero_distance">Ride discarded: 0 km recorded. Move a little before saving a ride.</string>
     <string name="ride_save_rejected_invalid">Ride was not saved because it contained invalid data.</string>
+    <string name="ride_no_bike_assigned">No bike assigned yet. Choose one now or assign one when you save.</string>
+    <string name="ride_assign_bike">Use %1$s for this ride</string>
+    <string name="ride_assign_bike_failed">That bike could not be assigned. Choose a bike again.</string>
+    <string name="ride_assign_before_save_title">Choose a bike before saving</string>
+    <string name="ride_assign_before_save_message">This completed ride is still unsaved. Choose a bike to save it and update mileage.</string>
+    <string name="ride_assign_before_save_no_bikes">Add a bike in Garage, then return here to save this ride.</string>
+    <string name="ride_save_with_bike">Save with %1$s</string>
+    <string name="ride_continue_tracking">Continue ride</string>
     <string name="ride_recovery_title">Recover unfinished ride?</string>
     <string name="ride_recovery_message">An unfinished ride was found. You can resume it, save what was recorded, or discard it.</string>
     <string name="ride_recovery_select_bike">Choose a bike before saving this recovered ride.</string>
@@ -353,6 +370,9 @@
     <string name="service_list_empty">No components due for service</string>
     <string name="service_list_selected_count">%1$d selected</string>
     <string name="garage_settings">Garage settings</string>
+    <string name="wall_of_honor_title">Wall of Honor</string>
+    <string name="wall_of_honor_description">Retired components and the miles they carried.</string>
+    <string name="wall_of_honor_empty">No components have been retired yet.</string>
 
     <!-- Settings (general) -->
     <string name="settings_content_description">Open settings</string>

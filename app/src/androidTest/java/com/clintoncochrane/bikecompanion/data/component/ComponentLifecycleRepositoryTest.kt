@@ -112,6 +112,30 @@ class ComponentLifecycleRepositoryTest {
         assertFalse(database.componentSwapDao().getSwapsByComponentIdOnce(componentId).any { it.uninstalledAt == null })
     }
 
+    @Test
+    fun componentQueries_separateRetiredComponentsFromNormalComponents() = runBlocking {
+        repository.retireComponent(requireComponent())
+        val garageComponentId = database.componentDao().insert(
+            ComponentEntity(
+                bikeId = null,
+                lifecycleStatus = ComponentLifecycleStatus.IN_GARAGE,
+                type = "cassette",
+                name = "Reusable cassette",
+                lifespanKm = 10_000.0,
+                installedAt = 2L,
+            ),
+        )
+
+        assertEquals(
+            listOf(componentId),
+            database.componentDao().getRetiredComponentsOnce().map { it.id },
+        )
+        assertEquals(
+            listOf(garageComponentId),
+            database.componentDao().getNonRetiredComponentsOnce().map { it.id },
+        )
+    }
+
     private suspend fun requireComponent(): ComponentEntity =
         requireNotNull(database.componentDao().getComponentById(componentId))
 }

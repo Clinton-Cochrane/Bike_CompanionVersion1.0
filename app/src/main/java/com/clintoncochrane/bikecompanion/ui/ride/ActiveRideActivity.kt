@@ -53,6 +53,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.clintoncochrane.bikecompanion.R
+import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
+import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
 import com.clintoncochrane.bikecompanion.data.ride.RideEntity
 import com.clintoncochrane.bikecompanion.data.ride.RideRepository
 import com.clintoncochrane.bikecompanion.data.ride.RideSaveResult
@@ -65,8 +67,16 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+private data class PendingStopRide(
+    val state: RideState,
+    val hadPlaceholdersAtStart: Boolean,
+    val endedAtMs: Long,
+)
 
 @AndroidEntryPoint
 class ActiveRideActivity : ComponentActivity() {
@@ -74,8 +84,15 @@ class ActiveRideActivity : ComponentActivity() {
     @Inject
     lateinit var rideRepository: RideRepository
 
+    @Inject
+    lateinit var bikeRepository: BikeRepository
+
     private val rideStateFlow = MutableStateFlow(RideState())
+    private val bikesFlow = MutableStateFlow<List<BikeEntity>>(emptyList())
+    private val pendingStopRideFlow = MutableStateFlow<PendingStopRide?>(null)
     private val saveFailedEvents = MutableSharedFlow<Unit>(replay = 0, extraBufferCapacity = 1)
+    private val assignmentFailedEvents = MutableSharedFlow<Unit>(replay = 0, extraBufferCapacity = 1)
+    private val saveInProgressFlow = MutableStateFlow(false)
     private var boundService: RideTrackingService? = null
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -92,20 +109,27 @@ class ActiveRideActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val bikeId = intent.getLongExtra(BIKE_ID_EXTRA, -1L)
         val hadPlaceholdersFromIntent = intent.getBooleanExtra(HAD_PLACEHOLDERS_EXTRA, false)
+        lifecycleScope.launch {
+            bikeRepository.getAllBikes().collect { bikesFlow.value = it }
+        }
         setContent {
             BikeCompanionTheme {
                 ActiveRideScreen(
-                    bikeId = bikeId,
-                    rideRepository = rideRepository,
                     onStopRide = { state ->
                         val hadPlaceholders = boundService?.rideState?.value?.hadPlaceholdersAtStart
                             ?: hadPlaceholdersFromIntent
-                        stopRideAndSave(state, hadPlaceholders)
+                        requestStopRide(state, hadPlaceholders)
                     },
+                    bikesFlow = bikesFlow.asStateFlow(),
+                    pendingStopRideFlow = pendingStopRideFlow.asStateFlow(),
+                    isSavingFlow = saveInProgressFlow.asStateFlow(),
+                    onAssignBike = ::assignBikeDuringRide,
+                    onAssignBikeAndSave = ::assignBikeAndSave,
+                    onCancelPendingStop = { pendingStopRideFlow.value = null },
                     rideStateFlow = rideStateFlow.asStateFlow(),
                     saveFailedEvents = saveFailedEvents.asSharedFlow(),
+                    assignmentFailedEvents = assignmentFailedEvents.asSharedFlow(),
                 )
             }
         }
@@ -125,20 +149,52 @@ class ActiveRideActivity : ComponentActivity() {
         unbindService(connection)
     }
 
-    private fun stopRideAndSave(state: RideState, hadPlaceholdersAtStart: Boolean) {
+    private fun requestStopRide(state: RideState, hadPlaceholdersAtStart: Boolean) {
         if (state.startTimeMs <= 0 || !state.isTracking) {
             lifecycleScope.launch {
                 saveFailedEvents.emit(Unit)
             }
             return
         }
-        val bikeId = intent.getLongExtra(BIKE_ID_EXTRA, -1L)
-        val endTime = System.currentTimeMillis()
+        val pendingRide = PendingStopRide(
+            state = state,
+            hadPlaceholdersAtStart = hadPlaceholdersAtStart,
+            endedAtMs = System.currentTimeMillis(),
+        )
+        if (state.bikeId < 0L) {
+            pendingStopRideFlow.value = pendingRide
+            return
+        }
+        saveRide(pendingRide, state.bikeId)
+    }
+
+    private fun assignBikeDuringRide(bikeId: Long) {
+        if (boundService?.assignBike(bikeId) != true) {
+            assignmentFailedEvents.tryEmit(Unit)
+        }
+    }
+
+    private fun assignBikeAndSave(bikeId: Long) {
+        val pendingRide = pendingStopRideFlow.value ?: return
+        val service = boundService
+        val assignmentAccepted = service?.rideState?.value?.bikeId == bikeId || service?.assignBike(bikeId) == true
+        if (!assignmentAccepted) {
+            assignmentFailedEvents.tryEmit(Unit)
+            return
+        }
+        saveRide(pendingRide, bikeId)
+    }
+
+    private fun saveRide(pendingRide: PendingStopRide, bikeId: Long) {
+        if (saveInProgressFlow.value) return
+        saveInProgressFlow.value = true
+        val state = pendingRide.state
+        val endTime = pendingRide.endedAtMs
         val currentPauseMs = if (state.isPaused && state.pausedAtMs > 0) endTime - state.pausedAtMs else 0L
         val totalPausedMs = state.totalPausedDurationMs + currentPauseMs
         val movingDurationMs = (endTime - state.startTimeMs - totalPausedMs).coerceAtLeast(0L)
         val ride = RideEntity(
-            bikeId = if (bikeId >= 0) bikeId else null,
+            bikeId = bikeId,
             distanceKm = state.distanceKm,
             durationMs = movingDurationMs,
             avgSpeedKmh = state.avgSpeedKmh,
@@ -148,29 +204,40 @@ class ActiveRideActivity : ComponentActivity() {
             startedAt = state.startTimeMs,
             endedAt = endTime,
             source = RideSource.APP,
-            hadPlaceholdersAtStart = hadPlaceholdersAtStart,
+            hadPlaceholdersAtStart = pendingRide.hadPlaceholdersAtStart,
         )
         lifecycleScope.launch {
-            when (rideRepository.saveRideAndUpdateBikeAndComponents(ride)) {
-                RideSaveResult.SAVED -> {
-                    stopTrackingAndFinish()
+            try {
+                when (rideRepository.saveRideAndUpdateBikeAndComponents(ride)) {
+                    RideSaveResult.SAVED -> {
+                        pendingStopRideFlow.value = null
+                        stopTrackingAndFinish()
+                    }
+                    RideSaveResult.DISCARDED_EMPTY -> {
+                        pendingStopRideFlow.value = null
+                        Toast.makeText(
+                            this@ActiveRideActivity,
+                            getString(R.string.ride_discarded_zero_distance),
+                            Toast.LENGTH_LONG,
+                        ).show()
+                        stopTrackingAndFinish()
+                    }
+                    RideSaveResult.REJECTED_INVALID -> {
+                        pendingStopRideFlow.value = null
+                        Toast.makeText(
+                            this@ActiveRideActivity,
+                            getString(R.string.ride_save_rejected_invalid),
+                            Toast.LENGTH_LONG,
+                        ).show()
+                        stopTrackingAndFinish()
+                    }
                 }
-                RideSaveResult.DISCARDED_EMPTY -> {
-                    Toast.makeText(
-                        this@ActiveRideActivity,
-                        getString(R.string.ride_discarded_zero_distance),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                    stopTrackingAndFinish()
-                }
-                RideSaveResult.REJECTED_INVALID -> {
-                    Toast.makeText(
-                        this@ActiveRideActivity,
-                        getString(R.string.ride_save_rejected_invalid),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                    stopTrackingAndFinish()
-                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                saveFailedEvents.tryEmit(Unit)
+            } finally {
+                saveInProgressFlow.value = false
             }
         }
     }
@@ -198,14 +265,22 @@ class ActiveRideActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ActiveRideScreen(
-    bikeId: Long,
-    rideRepository: RideRepository,
     onStopRide: (RideState) -> Unit,
+    bikesFlow: StateFlow<List<BikeEntity>>,
+    pendingStopRideFlow: StateFlow<PendingStopRide?>,
+    isSavingFlow: StateFlow<Boolean>,
+    onAssignBike: (Long) -> Unit,
+    onAssignBikeAndSave: (Long) -> Unit,
+    onCancelPendingStop: () -> Unit,
     rideStateFlow: kotlinx.coroutines.flow.StateFlow<RideState>,
     saveFailedEvents: kotlinx.coroutines.flow.SharedFlow<Unit>,
+    assignmentFailedEvents: kotlinx.coroutines.flow.SharedFlow<Unit>,
 ) {
     val context = LocalContext.current
     val state by rideStateFlow.collectAsState()
+    val bikes by bikesFlow.collectAsState()
+    val pendingStopRide by pendingStopRideFlow.collectAsState()
+    val isSaving by isSavingFlow.collectAsState()
     val tickState = remember { mutableStateOf(0) }
     DisposableEffect(Unit) {
         val handler = Handler(Looper.getMainLooper())
@@ -228,6 +303,11 @@ private fun ActiveRideScreen(
     LaunchedEffect(Unit) {
         saveFailedEvents.collect {
             snackbarHostState.showSnackbar(context.getString(R.string.ride_save_failed_tracking))
+        }
+    }
+    LaunchedEffect(Unit) {
+        assignmentFailedEvents.collect {
+            snackbarHostState.showSnackbar(context.getString(R.string.ride_assign_bike_failed))
         }
     }
     LaunchedEffect(state.isPaused, state.wasAutoPausedDueToNoMovement) {
@@ -278,6 +358,29 @@ private fun ActiveRideScreen(
                 text = stringResource(R.string.ride_distance, state.distanceKm),
                 style = MaterialTheme.typography.headlineMedium,
             )
+            if (state.bikeId > 0L) {
+                bikes.find { it.id == state.bikeId }?.let { bike ->
+                    Text(
+                        text = stringResource(R.string.trip_ride_bike, bike.name),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            } else if (state.isTracking) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = stringResource(R.string.ride_no_bike_assigned),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    bikes.forEach { bike ->
+                        TextButton(
+                            onClick = { onAssignBike(bike.id) },
+                            enabled = !isSaving,
+                        ) {
+                            Text(stringResource(R.string.ride_assign_bike, bike.name))
+                        }
+                    }
+                }
+            }
             // key(tick) forces recomposition every second when active; when paused, elapsedMovingMs is static
             key(tick) {
                 Text(
@@ -339,7 +442,7 @@ private fun ActiveRideScreen(
                 Button(
                     onClick = { showStopConfirm = true },
                     modifier = Modifier.weight(1f),
-                    enabled = state.startTimeMs > 0 && state.isTracking,
+                    enabled = state.startTimeMs > 0 && state.isTracking && !isSaving && pendingStopRide == null,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 ) {
                     Text(stringResource(R.string.ride_stop))
@@ -364,6 +467,34 @@ private fun ActiveRideScreen(
                     dismissButton = {
                         TextButton(onClick = { showStopConfirm = false }) {
                             Text(stringResource(R.string.common_cancel))
+                        }
+                    },
+                )
+            }
+            if (pendingStopRide != null) {
+                AlertDialog(
+                    onDismissRequest = {},
+                    title = { Text(stringResource(R.string.ride_assign_before_save_title)) },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(stringResource(R.string.ride_assign_before_save_message))
+                            if (bikes.isEmpty()) {
+                                Text(stringResource(R.string.ride_assign_before_save_no_bikes))
+                            }
+                            bikes.forEach { bike ->
+                                TextButton(
+                                    onClick = { onAssignBikeAndSave(bike.id) },
+                                    enabled = !isSaving,
+                                ) {
+                                    Text(stringResource(R.string.ride_save_with_bike, bike.name))
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {},
+                    dismissButton = {
+                        TextButton(onClick = onCancelPendingStop, enabled = !isSaving) {
+                            Text(stringResource(R.string.ride_continue_tracking))
                         }
                     },
                 )

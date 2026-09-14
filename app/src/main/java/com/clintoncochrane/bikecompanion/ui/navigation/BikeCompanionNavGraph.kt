@@ -14,6 +14,7 @@ import com.clintoncochrane.bikecompanion.ui.garage.SimpleAddBikeScreen
 import com.clintoncochrane.bikecompanion.ui.garage.ComponentDetailScreen
 import com.clintoncochrane.bikecompanion.ui.garage.GarageScreen
 import com.clintoncochrane.bikecompanion.ui.garage.ServiceListScreen
+import com.clintoncochrane.bikecompanion.ui.garage.WallOfHonorScreen
 import com.clintoncochrane.bikecompanion.ui.settings.SettingsScreen
 import com.clintoncochrane.bikecompanion.ui.stats.StatsScreen
 import com.clintoncochrane.bikecompanion.ui.trip.TripScreen
@@ -46,6 +47,7 @@ sealed class Screen(val route: String) {
         fun withId(id: Long) = "component_detail/$id"
     }
     data object ServiceList : Screen("service_list")
+    data object WallOfHonor : Screen("wall_of_honor")
     data object Settings : Screen("settings")
 }
 
@@ -101,6 +103,9 @@ fun BikeCompanionNavGraph(
         }
         composable(Screen.ServiceList.route) {
             ServiceListScreen(navController = navController)
+        }
+        composable(Screen.WallOfHonor.route) {
+            WallOfHonorScreen(navController = navController)
         }
         composable(Screen.Settings.route) {
             SettingsScreen(navController = navController)
