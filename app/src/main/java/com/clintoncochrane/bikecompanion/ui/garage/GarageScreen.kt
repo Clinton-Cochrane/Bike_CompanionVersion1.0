@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.DirectionsBike
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
@@ -179,6 +180,16 @@ fun GarageScreen(
                                 },
                                 leadingIcon = {
                                     Icon(Icons.Filled.Settings, contentDescription = null)
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.wall_of_honor_title)) },
+                                onClick = {
+                                    garageMenuExpanded = false
+                                    navController.navigate(Screen.WallOfHonor.route)
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Filled.EmojiEvents, contentDescription = null)
                                 },
                             )
                         }

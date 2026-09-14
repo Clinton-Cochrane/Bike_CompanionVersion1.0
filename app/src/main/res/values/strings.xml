@@ -351,6 +351,9 @@
     <string name="service_list_empty">No components due for service</string>
     <string name="service_list_selected_count">%1$d selected</string>
     <string name="garage_settings">Garage settings</string>
+    <string name="wall_of_honor_title">Wall of Honor</string>
+    <string name="wall_of_honor_description">Retired components and the miles they carried.</string>
+    <string name="wall_of_honor_empty">No components have been retired yet.</string>
 
     <!-- Settings (general) -->
     <string name="settings_content_description">Open settings</string>
