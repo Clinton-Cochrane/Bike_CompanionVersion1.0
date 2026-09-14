@@ -279,6 +279,111 @@ class RideRepositoryTotalsTest {
     }
 
     @Test
+    fun saveRideAndUpdateBikeAndComponents_zeroDistanceGpsRide_isDiscardedBeforeTransaction() = runBlocking {
+        val ride = RideEntity(
+            bikeId = 1L,
+            distanceKm = 0.0,
+            durationMs = 60_000L,
+            startedAt = 1_000L,
+            endedAt = 61_000L,
+            source = RideSource.APP,
+        )
+
+        val result = repository.saveRideAndUpdateBikeAndComponents(ride)
+
+        assertEquals(RideSaveResult.DISCARDED_EMPTY, result)
+        coVerify(exactly = 0) { ridePersistenceTransaction.run(any()) }
+        coVerify(exactly = 0) { rideDao.insert(any()) }
+        coVerify(exactly = 0) { bikeDao.update(any()) }
+        coVerify(exactly = 0) { componentDao.update(any()) }
+    }
+
+    @Test
+    fun saveRideAndUpdateBikeAndComponents_zeroDistanceManualRide_isDiscardedBeforeTransaction() = runBlocking {
+        val ride = RideEntity(
+            bikeId = 1L,
+            distanceKm = 0.0,
+            durationMs = 60_000L,
+            startedAt = 1_000L,
+            endedAt = 61_000L,
+            source = RideSource.MANUAL,
+        )
+
+        val result = repository.saveRideAndUpdateBikeAndComponents(ride)
+
+        assertEquals(RideSaveResult.DISCARDED_EMPTY, result)
+        coVerify(exactly = 0) { ridePersistenceTransaction.run(any()) }
+    }
+
+    @Test
+    fun saveRideAndUpdateBikeAndComponents_negativeDistance_isRejectedBeforeTransaction() = runBlocking {
+        val ride = RideEntity(
+            bikeId = 1L,
+            distanceKm = -0.1,
+            durationMs = 60_000L,
+            startedAt = 1_000L,
+            endedAt = 61_000L,
+        )
+
+        val result = repository.saveRideAndUpdateBikeAndComponents(ride)
+
+        assertEquals(RideSaveResult.REJECTED_INVALID, result)
+        coVerify(exactly = 0) { ridePersistenceTransaction.run(any()) }
+    }
+
+    @Test
+    fun saveRideAndUpdateBikeAndComponents_negativeDuration_isRejectedBeforeTransaction() = runBlocking {
+        val ride = RideEntity(
+            bikeId = 1L,
+            distanceKm = 1.0,
+            durationMs = -1L,
+            startedAt = 1_000L,
+            endedAt = 61_000L,
+        )
+
+        val result = repository.saveRideAndUpdateBikeAndComponents(ride)
+
+        assertEquals(RideSaveResult.REJECTED_INVALID, result)
+        coVerify(exactly = 0) { ridePersistenceTransaction.run(any()) }
+    }
+
+    @Test
+    fun saveRideAndUpdateBikeAndComponents_nonFiniteValues_areRejectedBeforeTransaction() = runBlocking {
+        listOf(
+            RideEntity(1L, 1L, Double.NaN, 60_000L, startedAt = 1_000L, endedAt = 61_000L),
+            RideEntity(2L, 1L, 1.0, 60_000L, avgSpeedKmh = Double.POSITIVE_INFINITY, startedAt = 1_000L, endedAt = 61_000L),
+            RideEntity(3L, 1L, 1.0, 60_000L, maxSpeedKmh = Double.NEGATIVE_INFINITY, startedAt = 1_000L, endedAt = 61_000L),
+        ).forEach { ride ->
+            val result = repository.saveRideAndUpdateBikeAndComponents(ride)
+            assertEquals(RideSaveResult.REJECTED_INVALID, result)
+        }
+
+        coVerify(exactly = 0) { ridePersistenceTransaction.run(any()) }
+    }
+
+    @Test
+    fun saveRideAndUpdateBikeAndComponents_tinyPositiveDistance_isSaved() = runBlocking {
+        val ride = RideEntity(
+            bikeId = 1L,
+            distanceKm = Double.MIN_VALUE,
+            durationMs = 1L,
+            startedAt = 1_000L,
+            endedAt = 1_001L,
+        )
+        val bike = BikeEntity(id = 1L, name = "Test Bike", createdAt = 0L)
+        coEvery { rideDao.insert(ride) } returns 1L
+        coEvery { bikeDao.getBikeById(1L) } returns bike
+        coEvery { bikeDao.update(any()) } coAnswers { }
+        coEvery { componentDao.getComponentsByBikeIdOnce(1L) } returns emptyList()
+
+        val result = repository.saveRideAndUpdateBikeAndComponents(ride)
+
+        assertEquals(RideSaveResult.SAVED, result)
+        coVerify(exactly = 1) { rideDao.insert(ride) }
+        coVerify(exactly = 1) { bikeDao.update(any()) }
+    }
+
+    @Test
     fun saveRideAndUpdateBikeAndComponents_allPriorUsageStates_incrementOnlyTrackedDistance() = runBlocking {
         PriorUsageCertainty.entries.forEachIndexed { index, certainty ->
             val bikeId = index.toLong() + 1L

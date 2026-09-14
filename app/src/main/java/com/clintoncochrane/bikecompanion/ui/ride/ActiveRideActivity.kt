@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -56,6 +57,7 @@ import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
 import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
 import com.clintoncochrane.bikecompanion.data.ride.RideEntity
 import com.clintoncochrane.bikecompanion.data.ride.RideRepository
+import com.clintoncochrane.bikecompanion.data.ride.RideSaveResult
 import com.clintoncochrane.bikecompanion.data.ride.RideSource
 import com.clintoncochrane.bikecompanion.location.RideState
 import com.clintoncochrane.bikecompanion.location.RideTrackingService
@@ -206,12 +208,30 @@ class ActiveRideActivity : ComponentActivity() {
         )
         lifecycleScope.launch {
             try {
-                rideRepository.saveRideAndUpdateBikeAndComponents(ride)
-                pendingStopRideFlow.value = null
-                startService(Intent(this@ActiveRideActivity, RideTrackingService::class.java).apply {
-                    putExtra(RideTrackingService.ACTION_KEY, RideTrackingService.ACTION_STOP)
-                })
-                finish()
+                when (rideRepository.saveRideAndUpdateBikeAndComponents(ride)) {
+                    RideSaveResult.SAVED -> {
+                        pendingStopRideFlow.value = null
+                        stopTrackingAndFinish()
+                    }
+                    RideSaveResult.DISCARDED_EMPTY -> {
+                        pendingStopRideFlow.value = null
+                        Toast.makeText(
+                            this@ActiveRideActivity,
+                            getString(R.string.ride_discarded_zero_distance),
+                            Toast.LENGTH_LONG,
+                        ).show()
+                        stopTrackingAndFinish()
+                    }
+                    RideSaveResult.REJECTED_INVALID -> {
+                        pendingStopRideFlow.value = null
+                        Toast.makeText(
+                            this@ActiveRideActivity,
+                            getString(R.string.ride_save_rejected_invalid),
+                            Toast.LENGTH_LONG,
+                        ).show()
+                        stopTrackingAndFinish()
+                    }
+                }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (_: Exception) {
@@ -220,6 +240,13 @@ class ActiveRideActivity : ComponentActivity() {
                 saveInProgressFlow.value = false
             }
         }
+    }
+
+    private fun stopTrackingAndFinish() {
+        startService(Intent(this, RideTrackingService::class.java).apply {
+            putExtra(RideTrackingService.ACTION_KEY, RideTrackingService.ACTION_STOP)
+        })
+        finish()
     }
 
     companion object {
