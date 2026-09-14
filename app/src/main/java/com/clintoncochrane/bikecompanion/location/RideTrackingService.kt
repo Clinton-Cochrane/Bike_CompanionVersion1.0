@@ -100,7 +100,7 @@ class RideTrackingService : Service() {
             ACTION_START -> {
                 val bikeId = intent.getLongExtra(BIKE_ID_KEY, -1L)
                 val hadPlaceholdersAtStart = intent.getBooleanExtra(HAD_PLACEHOLDERS_KEY, false)
-                if (bikeId >= 0) startTracking(bikeId, hadPlaceholdersAtStart)
+                if (bikeId == -1L || bikeId > 0L) startTracking(bikeId, hadPlaceholdersAtStart)
             }
             ACTION_PAUSE -> pauseTracking(wasAutoPause = false)
             ACTION_RESUME -> resumeTracking()
@@ -134,6 +134,7 @@ class RideTrackingService : Service() {
             hadPlaceholdersAtStart = hadPlaceholdersAtStart,
         )
         rideActiveBikeId.value = bikeId
+        rideIsActive.value = true
         ServiceCompat.startForeground(
             this,
             NOTIFICATION_ID,
@@ -186,6 +187,16 @@ class RideTrackingService : Service() {
         scheduleNoMovementCheck()
     }
 
+    /** Assigns a bike once; an assigned bike cannot be changed during the active ride. */
+    fun assignBike(bikeId: Long): Boolean {
+        val assignedState = RideAssignmentPolicy.assignBike(_rideState.value, bikeId) ?: return false
+        _rideState.value = assignedState
+        rideActiveBikeId.value = bikeId
+        persistCheckpoint()
+        updateNotification()
+        return true
+    }
+
     private fun restoreTracking() {
         if (_rideState.value.isTracking) return
         serviceScope.launch {
@@ -193,6 +204,7 @@ class RideTrackingService : Service() {
             val restoredState = checkpoint.toRideState()
             _rideState.value = restoredState
             rideActiveBikeId.value = restoredState.bikeId
+            rideIsActive.value = true
             createNotificationChannel()
             ServiceCompat.startForeground(
                 this@RideTrackingService,
@@ -217,6 +229,7 @@ class RideTrackingService : Service() {
         locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
         locationCallback = null
         rideActiveBikeId.value = -1L
+        rideIsActive.value = false
         _rideState.value = _rideState.value.copy(isTracking = false)
         serviceScope.launch {
             checkpointMutex.withLock {
@@ -446,6 +459,8 @@ class RideTrackingService : Service() {
     companion object {
         /** Exposed so UI can show "View current trip" when a ride is active. Updated by service. */
         val rideActiveBikeId = MutableStateFlow(-1L)
+        /** True while a ride is active, including before a bike has been assigned. */
+        val rideIsActive = MutableStateFlow(false)
 
         private const val CHANNEL_ID = "ride_tracking"
         private const val NOTIFICATION_ID = 4001
@@ -491,6 +506,14 @@ internal object RideTrackingLifecyclePolicy {
     fun canPauseTracking(state: RideState): Boolean = state.isTracking && !state.isPaused
 
     fun canResumeTracking(state: RideState): Boolean = state.isTracking && state.isPaused
+}
+
+internal object RideAssignmentPolicy {
+    fun canAssignBike(state: RideState, bikeId: Long): Boolean =
+        state.isTracking && state.bikeId < 0L && bikeId > 0L
+
+    fun assignBike(state: RideState, bikeId: Long): RideState? =
+        state.takeIf { canAssignBike(it, bikeId) }?.copy(bikeId = bikeId)
 }
 
 data class RideState(

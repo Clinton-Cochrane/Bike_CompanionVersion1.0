@@ -56,11 +56,6 @@ fun TripStartSplashScreen(
     val context = LocalContext.current
     var showPermissionLostDialog by remember { mutableStateOf(false) }
 
-    if (bikeId < 0) {
-        LaunchedEffect(Unit) { navController.popBackStack() }
-        return
-    }
-
     LaunchedEffect(viewModel.startTripEvents) {
         viewModel.startTripEvents.collectLatest {
             if (!RideLocationPermission.isGranted(context)) {

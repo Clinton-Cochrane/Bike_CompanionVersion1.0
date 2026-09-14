@@ -75,7 +75,7 @@ class TripStartSplashViewModel @Inject constructor(
                 current--
                 _state.update { it.copy(countdown = current) }
             }
-            if (!_state.value.isCancelled && bikeId >= 0) {
+            if (!_state.value.isCancelled) {
                 _startTripEvents.emit(StartTripEvent)
             }
         }
@@ -93,10 +93,8 @@ class TripStartSplashViewModel @Inject constructor(
         countdownJob?.cancel()
         countdownJob = null
         _state.update { it.copy(countdown = 0) }
-        if (bikeId >= 0) {
-            viewModelScope.launch {
-                _startTripEvents.emit(StartTripEvent)
-            }
+        viewModelScope.launch {
+            _startTripEvents.emit(StartTripEvent)
         }
     }
 }

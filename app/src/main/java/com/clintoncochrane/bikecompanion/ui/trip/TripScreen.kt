@@ -91,6 +91,7 @@ fun TripScreen(
     val viewModel = androidx.hilt.navigation.compose.hiltViewModel<TripViewModel>()
     val uiState by viewModel.uiState.collectAsState()
     val rideActiveBikeId by RideTrackingService.rideActiveBikeId.collectAsState(initial = -1L)
+    val rideIsActive by RideTrackingService.rideIsActive.collectAsState(initial = false)
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var hasRequestedLocationPermission by rememberSaveable { mutableStateOf(false) }
@@ -100,7 +101,6 @@ fun TripScreen(
 
     fun beginRide() {
         val bikeId = uiState.selectedBike?.id ?: -1L
-        if (bikeId < 0) return
         val hadPlaceholders = uiState.placeholdersAddedThisSession
         navController.navigate(Screen.TripStartSplash.withId(bikeId, hadPlaceholders))
         viewModel.onRideStarted()
@@ -213,8 +213,6 @@ fun TripScreen(
     }
 
     fun startTrip() {
-        val bikeId = uiState.selectedBike?.id
-        if (uiState.bikes.isEmpty()) return
         scope.launch {
             val okToProceed = viewModel.checkMissingPartsBeforeStart()
             if (!okToProceed) return@launch
@@ -337,7 +335,7 @@ fun TripScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp),
             contentPadding = PaddingValues(bottom = 24.dp),
         ) {
-            if (rideActiveBikeId >= 0) {
+            if (rideIsActive) {
                 item(key = "current_ride") {
                     CurrentRideSection(
                         bikeName = uiState.bikes.find { it.id == rideActiveBikeId }?.name ?: "",
@@ -349,6 +347,7 @@ fun TripScreen(
                 StartTripSection(
                     selectedBike = uiState.selectedBike,
                     bikes = uiState.bikes,
+                    rideIsActive = rideIsActive,
                     rideActiveBikeId = rideActiveBikeId,
                     onStartTrip = { startTrip() },
                     onViewCurrentTrip = {
@@ -439,6 +438,12 @@ private fun CurrentRideSection(
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
+            } else {
+                Text(
+                    text = stringResource(R.string.trip_no_bike_selected),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
             }
             Button(
                 onClick = onViewRide,
@@ -455,6 +460,7 @@ private fun CurrentRideSection(
 private fun StartTripSection(
     selectedBike: com.clintoncochrane.bikecompanion.data.bike.BikeEntity?,
     bikes: List<com.clintoncochrane.bikecompanion.data.bike.BikeEntity>,
+    rideIsActive: Boolean,
     rideActiveBikeId: Long,
     onStartTrip: () -> Unit,
     onViewCurrentTrip: () -> Unit,
@@ -465,7 +471,7 @@ private fun StartTripSection(
     val startButtonDesc = stringResource(R.string.trip_start_button_content_description)
     val manualMileageDesc = stringResource(R.string.trip_add_manual_mileage_content_description)
     val importDesc = stringResource(R.string.trip_import_health_connect_content_description)
-    val isRideActive = rideActiveBikeId >= 0
+    val isRideActive = rideIsActive
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Button(
             onClick = if (isRideActive) onViewCurrentTrip else onStartTrip,
@@ -487,16 +493,15 @@ private fun StartTripSection(
                 modifier = Modifier.padding(start = 12.dp),
             )
         }
-        if (bikes.isNotEmpty()) {
+        if (selectedBike != null) {
             Text(
-                text = selectedBike?.name?.let { stringResource(R.string.trip_ride_bike, it) }
-                    ?: stringResource(R.string.trip_no_bike_selected),
+                text = stringResource(R.string.trip_ride_bike, selectedBike.name),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
             )
         } else {
             Text(
-                text = stringResource(R.string.trip_add_bike_first),
+                text = stringResource(R.string.trip_no_bike_selected),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
