@@ -23,7 +23,7 @@ import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
             entity = BikeEntity::class,
             parentColumns = ["id"],
             childColumns = ["bikeId"],
-            onDelete = ForeignKey.CASCADE,
+            onDelete = ForeignKey.SET_NULL,
         ),
     ],
     indices = [Index("componentId"), Index("bikeId")],
@@ -32,7 +32,8 @@ data class ComponentSwapEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val componentId: Long,
-    val bikeId: Long,
+    /** Null after the associated bike is deleted; the swap remains as component history. */
+    val bikeId: Long?,
     val installedAt: Long,
     /** Null when component is currently installed. Set when uninstalled. */
     val uninstalledAt: Long? = null,

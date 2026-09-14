@@ -5,6 +5,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
+import com.clintoncochrane.bikecompanion.data.bike.BikeDeletionComponentDisposition
+import com.clintoncochrane.bikecompanion.data.bike.BikeDeletionRepository
 import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
 import com.clintoncochrane.bikecompanion.data.bike.withBaselineDistanceKm
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
@@ -23,6 +25,11 @@ sealed class SaveOutcome {
     data object Updated : SaveOutcome()
 }
 
+sealed class BikeDeletionPrompt {
+    data object WithoutInstalledComponents : BikeDeletionPrompt()
+    data object WithInstalledComponents : BikeDeletionPrompt()
+}
+
 data class AddEditBikeUiState(
     val bike: BikeEntity? = null,
     val saveOutcome: SaveOutcome? = null,
@@ -30,6 +37,8 @@ data class AddEditBikeUiState(
     val pickedImageUri: Uri? = null,
     /** User requested removal of image; show placeholder until save. */
     val removeImageRequested: Boolean = false,
+    val bikeDeletionPrompt: BikeDeletionPrompt? = null,
+    val bikeDeleted: Boolean = false,
 )
 
 @HiltViewModel
@@ -38,6 +47,7 @@ class AddEditBikeViewModel @Inject constructor(
     private val bikeRepository: BikeRepository,
     private val componentRepository: ComponentRepository,
     private val imageRepository: ImageRepository,
+    private val bikeDeletionRepository: BikeDeletionRepository? = null,
 ) : ViewModel() {
 
     private val bikeId: Long? = savedStateHandle.get<String>("bikeId")?.toLongOrNull()?.takeIf { it > 0 }
@@ -107,5 +117,33 @@ class AddEditBikeViewModel @Inject constructor(
 
     fun clearSaveOutcome() {
         _uiState.update { it.copy(saveOutcome = null) }
+    }
+
+    fun requestBikeDeletion() {
+        val bike = _uiState.value.bike ?: return
+        viewModelScope.launch {
+            val prompt = if (componentRepository.getComponentsByBikeIdOnce(bike.id).isEmpty()) {
+                BikeDeletionPrompt.WithoutInstalledComponents
+            } else {
+                BikeDeletionPrompt.WithInstalledComponents
+            }
+            _uiState.update { it.copy(bikeDeletionPrompt = prompt) }
+        }
+    }
+
+    fun confirmBikeDeletion(componentDisposition: BikeDeletionComponentDisposition) {
+        val bike = _uiState.value.bike ?: return
+        viewModelScope.launch {
+            requireNotNull(bikeDeletionRepository).deleteBike(bike, componentDisposition)
+            _uiState.update { it.copy(bikeDeletionPrompt = null, bikeDeleted = true) }
+        }
+    }
+
+    fun cancelBikeDeletion() {
+        _uiState.update { it.copy(bikeDeletionPrompt = null) }
+    }
+
+    fun clearBikeDeleted() {
+        _uiState.update { it.copy(bikeDeleted = false) }
     }
 }

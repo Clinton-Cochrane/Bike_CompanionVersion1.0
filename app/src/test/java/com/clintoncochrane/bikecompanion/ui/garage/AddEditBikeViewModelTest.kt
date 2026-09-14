@@ -3,6 +3,7 @@ package com.clintoncochrane.bikecompanion.ui.garage
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
+import com.clintoncochrane.bikecompanion.data.bike.BikeDeletionRepository
 import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
 import com.clintoncochrane.bikecompanion.data.image.ImageRepository
@@ -29,6 +30,7 @@ class AddEditBikeViewModelTest {
     private lateinit var bikeRepository: BikeRepository
     private lateinit var componentRepository: ComponentRepository
     private lateinit var imageRepository: ImageRepository
+    private lateinit var bikeDeletionRepository: BikeDeletionRepository
     private lateinit var viewModel: AddEditBikeViewModel
 
     private fun testUri(): Uri = mockk()
@@ -39,6 +41,7 @@ class AddEditBikeViewModelTest {
         bikeRepository = mockk()
         componentRepository = mockk()
         imageRepository = mockk()
+        bikeDeletionRepository = mockk()
     }
 
     @Test
@@ -258,5 +261,27 @@ class AddEditBikeViewModelTest {
 
         coVerify(exactly = 0) { bikeRepository.insertBike(any()) }
         coVerify(exactly = 0) { bikeRepository.updateBike(any()) }
+    }
+
+    @Test
+    fun cancelBikeDeletion_withInstalledComponents_leavesAllDataUnchanged() = runTest(testDispatcher) {
+        val bike = BikeEntity(id = 1L, name = "Test", createdAt = 1000L)
+        coEvery { bikeRepository.getBikeById(1L) } returns bike
+        coEvery { componentRepository.getComponentsByBikeIdOnce(1L) } returns listOf(mockk())
+        viewModel = AddEditBikeViewModel(
+            SavedStateHandle(mapOf("bikeId" to "1")),
+            bikeRepository,
+            componentRepository,
+            imageRepository,
+            bikeDeletionRepository,
+        )
+        advanceUntilIdle()
+
+        viewModel.requestBikeDeletion()
+        advanceUntilIdle()
+        viewModel.cancelBikeDeletion()
+
+        assertNull(viewModel.uiState.value.bikeDeletionPrompt)
+        coVerify(exactly = 0) { bikeDeletionRepository.deleteBike(any(), any()) }
     }
 }

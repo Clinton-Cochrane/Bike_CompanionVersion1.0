@@ -19,6 +19,9 @@ class ComponentRepository @Inject constructor(
     fun getComponentsByBikeId(bikeId: Long): Flow<List<ComponentEntity>> =
         componentDao.getComponentsByBikeId(bikeId)
 
+    suspend fun getComponentsByBikeIdOnce(bikeId: Long): List<ComponentEntity> =
+        componentDao.getComponentsByBikeIdOnce(bikeId)
+
     suspend fun getComponentById(id: Long): ComponentEntity? = componentDao.getComponentById(id)
 
     suspend fun insertComponent(component: ComponentEntity): Long {
