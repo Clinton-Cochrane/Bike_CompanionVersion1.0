@@ -239,7 +239,7 @@ class RideRepositoryTotalsTest {
     }
 
     @Test
-    fun saveRideAndUpdateBikeAndComponents_nullBikeId_doesNotUpdateBikeOrComponents() = runBlocking {
+    fun saveRideAndUpdateBikeAndComponents_nullBikeId_rejectsBeforePersistence() = runBlocking {
         val ride = RideEntity(
             bikeId = null,
             distanceKm = 5.0,
@@ -248,11 +248,9 @@ class RideRepositoryTotalsTest {
             endedAt = 3_601_000L,
         )
 
-        coEvery { rideDao.insert(ride) } returns 1L
+        assertTrue(runCatching { repository.saveRideAndUpdateBikeAndComponents(ride) }.isFailure)
 
-        repository.saveRideAndUpdateBikeAndComponents(ride)
-
-        coVerify(exactly = 1) { rideDao.insert(ride) }
+        coVerify(exactly = 0) { rideDao.insert(any()) }
         coVerify(exactly = 0) { bikeDao.getBikeById(any()) }
         coVerify(exactly = 0) { bikeDao.update(any()) }
         coVerify(exactly = 0) { componentDao.getComponentsByBikeIdOnce(any()) }
