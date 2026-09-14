@@ -1,4 +1,31 @@
 # Repository Guidelines
+# Global Working Agreements
+- you generate code
+- Prefer boring, readable, predictable code over clever code.
+- Reuse established project patterns.
+- Do not introduce a new abstraction unless the existing code clearly requires one to implement the requested behavior cleanly.
+- codex will be a github issue for implementation. codex is to implement it,meaning create the test that failes and by way of code make the test pass in the simplest most boring way possible,  then provide the user a ready-to-run local OpenCode prompt for the relevant test suit rather that running the test suit.
+- once the open code prompt has been produced, send the pull request link to the user.
+
+- Keep it simple, stupid (KISS): prefer the simplest solution that clearly meets the requirement.
+- Write clean, readable, unsurprising, and maintainable code.
+- Choose names that are pronounceable, descriptive, and consistent with the surrounding code.
+- Write as if the person maintaining the code is a homicidal maniac who knows your address; make the code so clear and considerate that they will like you instead.
+- Favor the Single Responsibility Principle: each function, class, and module should have one clear reason to change.
+- Keep changes focused, avoid cleverness, and leave the code easier to understand than you found it.
+- write the test then make it pass.
+
+## Branch Naming
+- fresh git pull main, branch from there.
+- Create a new branch for each change, using a short type, issue number, and kebab-case summary.
+- Use `feature/33-add-the-thing` for new functionality and `bug/33-fix-the-thing` for fixes. This corresponds to the human-readable style “feature 33 - add the thing” or “bug 33 - fix the thing.”
+
+## Protected Default Branches
+- Do not bypass this policy through Git, GitHub CLI, an API, a connector, or another tool.
+- Never push directly to `origin/main` or `origin/master`.
+- When work starts from a protected default branch, create or use a non-default branch and leave merging to a pull request or the user’s manual workflow
+- Other agents may be working at the same time as you, use git best practices to avoid interference.
+- Before making any repository change, including code, tests, configuration, migrations, documentation, or generated artifacts, check the current branch and working-tree status.
 
 ## Project Structure & Module Organization
 
