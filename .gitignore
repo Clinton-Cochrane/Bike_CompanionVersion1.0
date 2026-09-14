@@ -18,6 +18,11 @@
 .env.*
 secrets.properties
 **/secrets*.xml
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
 .kotlin/errors/*.log
 
 # Local feature planning (do not commit)
