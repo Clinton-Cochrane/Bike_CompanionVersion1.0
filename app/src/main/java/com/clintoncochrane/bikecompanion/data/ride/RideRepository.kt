@@ -31,7 +31,10 @@ class RideRepository @Inject constructor(
      * Aggregation strategy: Option B (denormalized). Totals are stored on bike/components
      * and incremented on trip completion for fast reads. See TRIP_TIME_TRACKING.md.
      */
-    suspend fun saveRideAndUpdateBikeAndComponents(ride: RideEntity) {
+    suspend fun saveRideAndUpdateBikeAndComponents(ride: RideEntity): RideSaveResult {
+        val validation = RideSaveValidator.validate(ride)
+        if (validation != RideSaveResult.SAVED) return validation
+
         val bikeIdForNotification = ridePersistenceTransaction.run transaction@{
             val id = rideDao.insert(ride)
             val savedRide = ride.copy(id = id)
@@ -41,10 +44,14 @@ class RideRepository @Inject constructor(
             bikeId
         }
         bikeIdForNotification?.let { componentAlertNotifier.notifyIfNeeded(it) }
+        return RideSaveResult.SAVED
     }
 
     /** Saves a recovered ride once, including its normal bike/component accounting. */
-    suspend fun saveRecoveredRideAndUpdateBikeAndComponents(ride: RideEntity): Boolean {
+    suspend fun saveRecoveredRideAndUpdateBikeAndComponents(ride: RideEntity): RideSaveResult {
+        val validation = RideSaveValidator.validate(ride)
+        if (validation != RideSaveResult.SAVED) return validation
+
         require(ride.source == RideSource.APP) { "Recovered rides must be app rides" }
         require(ride.bikeId != null) { "A recovered ride needs a bike before it can be saved" }
         require(!ride.recoveryCheckpointId.isNullOrBlank()) { "A recovery checkpoint ID is required" }
@@ -60,7 +67,7 @@ class RideRepository @Inject constructor(
             bikeId
         }
         bikeIdForNotification?.takeIf { it > 0L }?.let { componentAlertNotifier.notifyIfNeeded(it) }
-        return bikeIdForNotification != null
+        return RideSaveResult.SAVED
     }
 
     /**
@@ -76,6 +83,7 @@ class RideRepository @Inject constructor(
         require(!ride.healthConnectRecordId.isNullOrBlank()) {
             "A Health Connect ride requires a stable record ID"
         }
+        if (RideSaveValidator.validate(ride) != RideSaveResult.SAVED) return false
 
         val bikeIdForNotification = ridePersistenceTransaction.run transaction@{
             val id = rideDao.insertIgnoringHealthConnectDuplicate(ride)
@@ -90,7 +98,9 @@ class RideRepository @Inject constructor(
         return bikeIdForNotification != null
     }
 
-    suspend fun insertRide(ride: RideEntity): Long = rideDao.insert(ride)
+    /** Inserts an unaccounted ride for legacy callers; invalid or empty rides are not inserted. */
+    suspend fun insertRide(ride: RideEntity): Long =
+        if (RideSaveValidator.validate(ride) == RideSaveResult.SAVED) rideDao.insert(ride) else -1L
 
     private suspend fun updateBikeAndComponentsForNewRide(
         ride: RideEntity,

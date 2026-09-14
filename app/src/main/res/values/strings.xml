@@ -84,6 +84,8 @@
     <string name="ride_stop_confirm_message">Your ride will be saved and you\'ll return to the trip screen.</string>
     <string name="ride_duration_over_24h">>24h</string>
     <string name="ride_save_failed_tracking">Ride could not be saved. Please wait for tracking to start.</string>
+    <string name="ride_discarded_zero_distance">Ride discarded: 0 km recorded. Move a little before saving a ride.</string>
+    <string name="ride_save_rejected_invalid">Ride was not saved because it contained invalid data.</string>
     <string name="ride_recovery_title">Recover unfinished ride?</string>
     <string name="ride_recovery_message">An unfinished ride was found. You can resume it, save what was recorded, or discard it.</string>
     <string name="ride_recovery_select_bike">Choose a bike before saving this recovered ride.</string>

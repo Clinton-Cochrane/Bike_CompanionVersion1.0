@@ -3,6 +3,7 @@ package com.clintoncochrane.bikecompanion.ui.ride
 import com.clintoncochrane.bikecompanion.data.ride.ActiveRideCheckpoint
 import com.clintoncochrane.bikecompanion.data.ride.ActiveRideCheckpointRepository
 import com.clintoncochrane.bikecompanion.data.ride.RideRepository
+import com.clintoncochrane.bikecompanion.data.ride.RideSaveResult
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -27,7 +28,7 @@ class RideRecoveryCoordinatorTest {
 
     @Test
     fun save_successfullySavedRide_clearsCheckpointOnlyOnce() = runTest {
-        coEvery { rideRepository.saveRecoveredRideAndUpdateBikeAndComponents(any()) } returns true
+        coEvery { rideRepository.saveRecoveredRideAndUpdateBikeAndComponents(any()) } returns RideSaveResult.SAVED
 
         assertTrue(coordinator.save(checkpoint))
         assertTrue(coordinator.save(checkpoint))

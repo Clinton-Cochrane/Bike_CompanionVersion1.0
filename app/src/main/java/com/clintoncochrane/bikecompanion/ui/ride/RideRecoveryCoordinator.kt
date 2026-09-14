@@ -21,7 +21,7 @@ class RideRecoveryCoordinator @Inject constructor(
 
     suspend fun discard() = actionMutex.withLock { checkpointRepository.clear() }
 
-    /** Saves through normal accounting and clears only after its transaction succeeds. */
+    /** Saves through normal accounting and clears after a terminal save outcome. */
     suspend fun save(checkpoint: ActiveRideCheckpoint): Boolean = actionMutex.withLock {
         val checkpointId = checkpoint.recoveryId()
         if (!consumedCheckpointIds.add(checkpointId)) return@withLock true

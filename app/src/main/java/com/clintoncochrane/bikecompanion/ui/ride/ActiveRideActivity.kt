@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -54,6 +55,7 @@ import androidx.lifecycle.lifecycleScope
 import com.clintoncochrane.bikecompanion.R
 import com.clintoncochrane.bikecompanion.data.ride.RideEntity
 import com.clintoncochrane.bikecompanion.data.ride.RideRepository
+import com.clintoncochrane.bikecompanion.data.ride.RideSaveResult
 import com.clintoncochrane.bikecompanion.data.ride.RideSource
 import com.clintoncochrane.bikecompanion.location.RideState
 import com.clintoncochrane.bikecompanion.location.RideTrackingService
@@ -149,12 +151,35 @@ class ActiveRideActivity : ComponentActivity() {
             hadPlaceholdersAtStart = hadPlaceholdersAtStart,
         )
         lifecycleScope.launch {
-            rideRepository.saveRideAndUpdateBikeAndComponents(ride)
-            startService(Intent(this@ActiveRideActivity, RideTrackingService::class.java).apply {
-                putExtra(RideTrackingService.ACTION_KEY, RideTrackingService.ACTION_STOP)
-            })
-            finish()
+            when (rideRepository.saveRideAndUpdateBikeAndComponents(ride)) {
+                RideSaveResult.SAVED -> {
+                    stopTrackingAndFinish()
+                }
+                RideSaveResult.DISCARDED_EMPTY -> {
+                    Toast.makeText(
+                        this@ActiveRideActivity,
+                        getString(R.string.ride_discarded_zero_distance),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                    stopTrackingAndFinish()
+                }
+                RideSaveResult.REJECTED_INVALID -> {
+                    Toast.makeText(
+                        this@ActiveRideActivity,
+                        getString(R.string.ride_save_rejected_invalid),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                    stopTrackingAndFinish()
+                }
+            }
         }
+    }
+
+    private fun stopTrackingAndFinish() {
+        startService(Intent(this, RideTrackingService::class.java).apply {
+            putExtra(RideTrackingService.ACTION_KEY, RideTrackingService.ACTION_STOP)
+        })
+        finish()
     }
 
     companion object {
