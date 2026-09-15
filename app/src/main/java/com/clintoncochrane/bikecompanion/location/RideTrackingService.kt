@@ -197,6 +197,14 @@ class RideTrackingService : Service() {
         return true
     }
 
+    /** Stops location updates and checkpoints the ride while the user decides how to finish it. */
+    fun freezeForPendingStop(): RideState {
+        if (_rideState.value.isTracking && !_rideState.value.isPaused) {
+            pauseTracking(wasAutoPause = false)
+        }
+        return _rideState.value
+    }
+
     private fun restoreTracking() {
         if (_rideState.value.isTracking) return
         serviceScope.launch {

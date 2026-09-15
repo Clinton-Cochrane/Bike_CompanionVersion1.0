@@ -38,7 +38,10 @@ import com.clintoncochrane.bikecompanion.ui.navigation.BikeCompanionNavGraph
 import com.clintoncochrane.bikecompanion.ui.navigation.Screen
 
 @Composable
-fun MainScaffold(modifier: Modifier = Modifier) {
+fun MainScaffold(
+    modifier: Modifier = Modifier,
+    startDestination: String? = null,
+) {
     val context = LocalContext.current
     val appViewModel: AppViewModel = androidx.hilt.navigation.compose.hiltViewModel(
         viewModelStoreOwner = context as ComponentActivity,
@@ -65,8 +68,8 @@ fun MainScaffold(modifier: Modifier = Modifier) {
         return
     }
 
-    val startDestination =
-        if (hasAnyBike) Screen.Trip.route else Screen.Garage.route
+    val resolvedStartDestination = startDestination
+        ?: if (hasAnyBike) Screen.Trip.route else Screen.Garage.route
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -127,7 +130,7 @@ fun MainScaffold(modifier: Modifier = Modifier) {
     ) { paddingValues ->
         BikeCompanionNavGraph(
             navController = navController,
-            startDestination = startDestination,
+            startDestination = resolvedStartDestination,
             paddingValues = paddingValues,
             onStartRide = {
                 val bikeId = com.clintoncochrane.bikecompanion.ui.trip.InitialRideAssignmentPolicy

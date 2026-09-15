@@ -54,6 +54,31 @@ class RideRecoveryCoordinatorTest {
         coVerify(exactly = 0) { rideRepository.saveRecoveredRideAndUpdateBikeAndComponents(any()) }
     }
 
+    @Test
+    fun pendingUnassignedStop_offersGarageDiscardAndContinueWhenNoBikesExist() {
+        assertEquals(
+            setOf(
+                PendingStopAction.GO_TO_GARAGE,
+                PendingStopAction.DISCARD,
+                PendingStopAction.CONTINUE,
+            ),
+            PendingStopActionPolicy.availableActions(hasBikes = false),
+        )
+    }
+
+    @Test
+    fun pendingUnassignedStop_keepsSaveOptionsAlongsideEscapePathsWhenBikesExist() {
+        assertEquals(
+            setOf(
+                PendingStopAction.SAVE_WITH_BIKE,
+                PendingStopAction.GO_TO_GARAGE,
+                PendingStopAction.DISCARD,
+                PendingStopAction.CONTINUE,
+            ),
+            PendingStopActionPolicy.availableActions(hasBikes = true),
+        )
+    }
+
     private companion object {
         val checkpoint = ActiveRideCheckpoint(
             bikeId = 7L, hadPlaceholdersAtStart = false, startTimeMs = 1_000L,
