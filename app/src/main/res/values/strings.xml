@@ -158,7 +158,7 @@
     <!-- Garage screen -->
     <string name="garage_title">Bike garage</string>
     <string name="garage_tab_bikes">Bikes</string>
-    <string name="garage_tab_components">Components</string>
+    <string name="garage_tab_components">Parts</string>
     <string name="garage_previous_bike">Previous bike</string>
     <string name="garage_next_bike">Next bike</string>
     <string name="garage_bike_position">Bike %1$d of %2$d</string>
@@ -180,6 +180,18 @@
     <string name="garage_spec_total_distance">Combined odometers: %1$.0f km</string>
     <string name="garage_no_bikes">No bikes yet. Add your first bike.</string>
     <string name="garage_no_components">No components yet. Add from the + button or via a bike.</string>
+    <string name="garage_parts_filter_content_description">Filter parts</string>
+    <string name="garage_parts_filter_all">All parts</string>
+    <string name="garage_parts_filter_active">Active</string>
+    <string name="garage_parts_filter_retired">Retired</string>
+    <string name="garage_parts_filter_without_bikes">Without bikes</string>
+    <string name="garage_parts_empty">No parts yet. Add one from the + button or through a bike.</string>
+    <string name="garage_parts_filter_empty">No parts match this filter.</string>
+    <string name="garage_parts_no_bike">No bike</string>
+    <string name="garage_parts_last_bike_retired">Last on %1$s · Retired</string>
+    <string name="garage_parts_retired">Retired</string>
+    <string name="garage_parts_distance">%1$.0f km</string>
+    <string name="garage_parts_distance_tracked">%1$.0f km tracked</string>
     <string name="garage_component_assigned_to">Assigned to: %1$s</string>
     <string name="garage_assigned_none">None</string>
     <string name="garage_add_component">Add component</string>
