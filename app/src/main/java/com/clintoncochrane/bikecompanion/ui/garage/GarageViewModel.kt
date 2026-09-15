@@ -9,6 +9,8 @@ import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
 import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalRepository
 import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesRepository
+import com.clintoncochrane.bikecompanion.data.ride.RideEntity
+import com.clintoncochrane.bikecompanion.data.ride.RideRepository
 import com.clintoncochrane.bikecompanion.util.ComponentSortOrder
 import com.clintoncochrane.bikecompanion.util.GarageSpecHelper
 import com.clintoncochrane.bikecompanion.util.componentHealthPercent
@@ -47,6 +49,8 @@ data class GarageUiState(
     val totalDistanceKm: Double = 0.0,
     /** Bike ID that was ridden most recently; null when no bike has been ridden. */
     val lastRiddenBikeId: Long? = null,
+    /** State for the one-bike-at-a-time Bikes overview. */
+    val bikesOverview: GarageBikesUiState = GarageBikesUiState(),
 )
 
 @HiltViewModel
@@ -55,10 +59,12 @@ class GarageViewModel @Inject constructor(
     private val componentRepository: ComponentRepository,
     private val serviceIntervalRepository: ServiceIntervalRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
+    private val rideRepository: RideRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GarageUiState())
     val uiState: StateFlow<GarageUiState> = _uiState.asStateFlow()
+    private var rides: List<RideEntity> = emptyList()
 
     init {
         viewModelScope.launch {
@@ -72,7 +78,7 @@ class GarageViewModel @Inject constructor(
                         bikeHasAlert = computeBikeAlerts(state.garageComponents, sorted, state.closeToServiceThreshold),
                         totalDistanceKm = GarageSpecHelper.computeTotalDistanceKm(sorted),
                         lastRiddenBikeId = GarageSpecHelper.getLastRiddenBikeId(sorted),
-                    )
+                    ).withBikesOverview()
                 }
             }
         }
@@ -93,7 +99,7 @@ class GarageViewModel @Inject constructor(
                         garageComponents = sorted,
                         bikeHealth = health,
                         bikeHasAlert = computeBikeAlerts(sorted, bikes, threshold),
-                    )
+                    ).withBikesOverview()
                 }
             }
         }
@@ -107,8 +113,14 @@ class GarageViewModel @Inject constructor(
                             state.bikes,
                             threshold,
                         ),
-                    )
+                    ).withBikesOverview()
                 }
+            }
+        }
+        viewModelScope.launch {
+            rideRepository.getAllRides().collect { updatedRides ->
+                rides = updatedRides
+                _uiState.update { it.withBikesOverview() }
             }
         }
     }
@@ -155,6 +167,13 @@ class GarageViewModel @Inject constructor(
         _uiState.update { it.copy(selectedTab = tab) }
     }
 
+    fun selectBike(index: Int) {
+        _uiState.update { state ->
+            val selectedBikeId = state.bikes.getOrNull(index)?.id ?: return@update state
+            state.withBikesOverview(selectedBikeId)
+        }
+    }
+
     fun setComponentTypeFilter(type: String?) {
         _uiState.update { it.copy(componentTypeFilter = type) }
     }
@@ -184,4 +203,15 @@ class GarageViewModel @Inject constructor(
             )
         }
     }
+
+    private fun GarageUiState.withBikesOverview(selectedBikeId: Long? = bikesOverview.selectedBikeId): GarageUiState =
+        copy(
+            bikesOverview = GarageBikesPresenter.build(
+                bikes = bikes,
+                components = garageComponents,
+                rides = rides,
+                closeToServiceThreshold = closeToServiceThreshold,
+                selectedBikeId = selectedBikeId,
+            ),
+        )
 }

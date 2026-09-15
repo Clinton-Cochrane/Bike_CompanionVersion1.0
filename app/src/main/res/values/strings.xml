@@ -159,6 +159,16 @@
     <string name="garage_title">Bike garage</string>
     <string name="garage_tab_bikes">Bikes</string>
     <string name="garage_tab_components">Components</string>
+    <string name="garage_previous_bike">Previous bike</string>
+    <string name="garage_next_bike">Next bike</string>
+    <string name="garage_bike_position">Bike %1$d of %2$d</string>
+    <string name="garage_status_ready_to_ride">Ready to ride</string>
+    <string name="garage_status_inspect_soon">Inspect soon</string>
+    <string name="garage_status_service_due">Service due</string>
+    <string name="garage_status_components">Affected: %1$s</string>
+    <string name="garage_status_affected_components">%1$s. Affected: %2$s</string>
+    <string name="garage_recent_rides">Recent rides</string>
+    <string name="garage_recent_rides_empty">No rides recorded for this bike yet.</string>
     <string name="garage_filter_all">All</string>
     <string name="garage_filter_sort_card">Filter &amp; sort</string>
     <string name="garage_filter_sort_summary">%1$s · %2$s · %3$s</string>
