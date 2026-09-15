@@ -128,6 +128,10 @@
     <string name="ride_assign_before_save_message">This completed ride is still unsaved. Choose a bike to save it and update mileage.</string>
     <string name="ride_assign_before_save_no_bikes">Add a bike in Garage, then return here to save this ride.</string>
     <string name="ride_save_with_bike">Save with %1$s</string>
+    <string name="ride_go_to_garage">Garage / Add bike</string>
+    <string name="ride_discard">Discard ride</string>
+    <string name="ride_discard_confirm_title">Discard this ride?</string>
+    <string name="ride_discard_confirm_message">This unfinished ride will be permanently deleted and cannot be recovered.</string>
     <string name="ride_continue_tracking">Continue ride</string>
     <string name="ride_recovery_title">Recover unfinished ride?</string>
     <string name="ride_recovery_message">An unfinished ride was found. You can resume it, save what was recorded, or discard it.</string>

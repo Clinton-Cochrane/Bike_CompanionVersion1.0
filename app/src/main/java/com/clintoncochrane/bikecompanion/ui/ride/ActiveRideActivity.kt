@@ -63,6 +63,7 @@ import com.clintoncochrane.bikecompanion.data.ride.RideSaveResult
 import com.clintoncochrane.bikecompanion.data.ride.RideSource
 import com.clintoncochrane.bikecompanion.location.RideState
 import com.clintoncochrane.bikecompanion.location.RideTrackingService
+import com.clintoncochrane.bikecompanion.ui.MainActivity
 import com.clintoncochrane.bikecompanion.ui.theme.BikeCompanionTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -133,10 +134,9 @@ class ActiveRideActivity : ComponentActivity() {
                     isSavingFlow = saveInProgressFlow.asStateFlow(),
                     onAssignBike = ::assignBikeDuringRide,
                     onAssignBikeAndSave = ::assignBikeAndSave,
-                    onCancelPendingStop = {
-                        pendingStopRideFlow.value = null
-                        completionRequestGuard.reset()
-                    },
+                    onGoToGarage = ::goToGarage,
+                    onDiscardPendingStop = ::discardPendingStop,
+                    onContinuePendingStop = ::continuePendingStop,
                     rideStateFlow = rideStateFlow.asStateFlow(),
                     saveFailedEvents = saveFailedEvents.asSharedFlow(),
                     assignmentFailedEvents = assignmentFailedEvents.asSharedFlow(),
@@ -176,12 +176,18 @@ class ActiveRideActivity : ComponentActivity() {
             return
         }
         if (!completionRequestGuard.tryStart()) return
+        val destination = RideCompletionPolicy.destinationFor(state)
+        val stoppedState = if (destination == RideCompletionDestination.ASSIGN_BIKE) {
+            boundService?.freezeForPendingStop() ?: state
+        } else {
+            state
+        }
         val pendingRide = PendingStopRide(
-            state = state,
+            state = stoppedState,
             hadPlaceholdersAtStart = hadPlaceholdersAtStart,
             endedAtMs = System.currentTimeMillis(),
         )
-        when (RideCompletionPolicy.destinationFor(state)) {
+        when (destination) {
             RideCompletionDestination.ASSIGN_BIKE -> pendingStopRideFlow.value = pendingRide
             RideCompletionDestination.SAVE -> saveRide(pendingRide, state.bikeId)
         }
@@ -210,6 +216,27 @@ class ActiveRideActivity : ComponentActivity() {
             return
         }
         saveRide(pendingRide, bikeId)
+    }
+
+    private fun goToGarage() {
+        startActivity(Intent(this, MainActivity::class.java).apply {
+            putExtra(MainActivity.START_DESTINATION_EXTRA, MainActivity.GARAGE_DESTINATION)
+        })
+    }
+
+    private fun discardPendingStop() {
+        if (pendingStopRideFlow.value == null || saveInProgressFlow.value) return
+        pendingStopRideFlow.value = null
+        stopTrackingAndFinish()
+    }
+
+    private fun continuePendingStop() {
+        if (pendingStopRideFlow.value == null || saveInProgressFlow.value) return
+        pendingStopRideFlow.value = null
+        completionRequestGuard.reset()
+        startService(Intent(this, RideTrackingService::class.java).apply {
+            putExtra(RideTrackingService.ACTION_KEY, RideTrackingService.ACTION_RESUME)
+        })
     }
 
     private fun saveRide(pendingRide: PendingStopRide, bikeId: Long) {
@@ -319,6 +346,22 @@ internal class RideCompletionRequestGuard {
     }
 }
 
+internal enum class PendingStopAction {
+    SAVE_WITH_BIKE,
+    GO_TO_GARAGE,
+    DISCARD,
+    CONTINUE,
+}
+
+internal object PendingStopActionPolicy {
+    fun availableActions(hasBikes: Boolean): Set<PendingStopAction> = buildSet {
+        if (hasBikes) add(PendingStopAction.SAVE_WITH_BIKE)
+        add(PendingStopAction.GO_TO_GARAGE)
+        add(PendingStopAction.DISCARD)
+        add(PendingStopAction.CONTINUE)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ActiveRideScreen(
@@ -328,7 +371,9 @@ private fun ActiveRideScreen(
     isSavingFlow: StateFlow<Boolean>,
     onAssignBike: (Long) -> Unit,
     onAssignBikeAndSave: (Long) -> Unit,
-    onCancelPendingStop: () -> Unit,
+    onGoToGarage: () -> Unit,
+    onDiscardPendingStop: () -> Unit,
+    onContinuePendingStop: () -> Unit,
     rideStateFlow: kotlinx.coroutines.flow.StateFlow<RideState>,
     saveFailedEvents: kotlinx.coroutines.flow.SharedFlow<Unit>,
     assignmentFailedEvents: kotlinx.coroutines.flow.SharedFlow<Unit>,
@@ -354,6 +399,7 @@ private fun ActiveRideScreen(
     val elapsedMovingMs = com.clintoncochrane.bikecompanion.util.computeElapsedMovingMs(state, System.currentTimeMillis())
     val snackbarHostState = remember { SnackbarHostState() }
     var showStopConfirm by remember { mutableStateOf(false) }
+    var showDiscardConfirm by remember { mutableStateOf(false) }
     val pauseLabel = stringResource(R.string.ride_pause)
     val resumeLabel = stringResource(R.string.ride_resume)
 
@@ -506,6 +552,7 @@ private fun ActiveRideScreen(
                 )
             }
             if (pendingStopRide != null) {
+                val pendingStopActions = PendingStopActionPolicy.availableActions(bikes.isNotEmpty())
                 AlertDialog(
                     onDismissRequest = {},
                     title = { Text(stringResource(R.string.ride_assign_before_save_title)) },
@@ -515,20 +562,52 @@ private fun ActiveRideScreen(
                             if (bikes.isEmpty()) {
                                 Text(stringResource(R.string.ride_assign_before_save_no_bikes))
                             }
-                            bikes.forEach { bike ->
-                                TextButton(
-                                    onClick = { onAssignBikeAndSave(bike.id) },
-                                    enabled = !isSaving,
-                                ) {
-                                    Text(stringResource(R.string.ride_save_with_bike, bike.name))
+                            if (PendingStopAction.SAVE_WITH_BIKE in pendingStopActions) {
+                                bikes.forEach { bike ->
+                                    TextButton(
+                                        onClick = { onAssignBikeAndSave(bike.id) },
+                                        enabled = !isSaving,
+                                    ) {
+                                        Text(stringResource(R.string.ride_save_with_bike, bike.name))
+                                    }
                                 }
                             }
                         }
                     },
-                    confirmButton = {},
+                    confirmButton = {
+                        TextButton(onClick = onGoToGarage, enabled = !isSaving) {
+                            Text(stringResource(R.string.ride_go_to_garage))
+                        }
+                    },
                     dismissButton = {
-                        TextButton(onClick = onCancelPendingStop, enabled = !isSaving) {
-                            Text(stringResource(R.string.ride_continue_tracking))
+                        Row {
+                            TextButton(onClick = { showDiscardConfirm = true }, enabled = !isSaving) {
+                                Text(stringResource(R.string.ride_discard))
+                            }
+                            TextButton(onClick = onContinuePendingStop, enabled = !isSaving) {
+                                Text(stringResource(R.string.ride_continue_tracking))
+                            }
+                        }
+                    },
+                )
+            }
+            if (showDiscardConfirm) {
+                AlertDialog(
+                    onDismissRequest = { showDiscardConfirm = false },
+                    title = { Text(stringResource(R.string.ride_discard_confirm_title)) },
+                    text = { Text(stringResource(R.string.ride_discard_confirm_message)) },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showDiscardConfirm = false
+                                onDiscardPendingStop()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                        ) { Text(stringResource(R.string.ride_discard)) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDiscardConfirm = false }) {
+                            Text(stringResource(R.string.common_cancel))
                         }
                     },
                 )

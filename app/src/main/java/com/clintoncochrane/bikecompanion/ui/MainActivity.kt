@@ -29,6 +29,7 @@ import com.clintoncochrane.bikecompanion.location.RideTrackingService
 import com.clintoncochrane.bikecompanion.ui.ride.ActiveRideActivity
 import com.clintoncochrane.bikecompanion.ui.ride.RideRecoveryCoordinator
 import com.clintoncochrane.bikecompanion.ui.navigation.BikeCompanionNavGraph
+import com.clintoncochrane.bikecompanion.ui.navigation.Screen
 import com.clintoncochrane.bikecompanion.ui.theme.BikeCompanionTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -48,24 +49,33 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    MainScaffold()
-                    RideRecoveryDialog(
-                        coordinator = rideRecoveryCoordinator,
-                        bikeRepository = bikeRepository,
-                        onResume = { checkpoint ->
-                            startService(Intent(this@MainActivity, RideTrackingService::class.java).apply {
-                                putExtra(RideTrackingService.ACTION_KEY, RideTrackingService.ACTION_RESTORE)
-                            })
-                            ActiveRideActivity.start(
-                                this@MainActivity,
-                                checkpoint.bikeId ?: -1L,
-                                checkpoint.hadPlaceholdersAtStart,
-                            )
-                        },
+                    MainScaffold(
+                        startDestination = intent.getStringExtra(START_DESTINATION_EXTRA),
                     )
+                    if (!RideTrackingService.rideIsActive.collectAsState().value) {
+                        RideRecoveryDialog(
+                            coordinator = rideRecoveryCoordinator,
+                            bikeRepository = bikeRepository,
+                            onResume = { checkpoint ->
+                                startService(Intent(this@MainActivity, RideTrackingService::class.java).apply {
+                                    putExtra(RideTrackingService.ACTION_KEY, RideTrackingService.ACTION_RESTORE)
+                                })
+                                ActiveRideActivity.start(
+                                    this@MainActivity,
+                                    checkpoint.bikeId ?: -1L,
+                                    checkpoint.hadPlaceholdersAtStart,
+                                )
+                            },
+                        )
+                    }
                 }
             }
         }
+    }
+
+    companion object {
+        const val START_DESTINATION_EXTRA = "start_destination"
+        val GARAGE_DESTINATION = Screen.Garage.route
     }
 }
 
