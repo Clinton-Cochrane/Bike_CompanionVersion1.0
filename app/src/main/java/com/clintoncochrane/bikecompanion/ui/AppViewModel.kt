@@ -2,12 +2,12 @@ package com.clintoncochrane.bikecompanion.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
 import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -23,14 +23,19 @@ class AppViewModel @Inject constructor(
     private val _hasAnyBike = MutableStateFlow(false)
     val hasAnyBike: StateFlow<Boolean> = _hasAnyBike.asStateFlow()
 
+    private val _rideableBikes = MutableStateFlow<List<BikeEntity>>(emptyList())
+    val rideableBikes: StateFlow<List<BikeEntity>> = _rideableBikes.asStateFlow()
+
     private val _isInitialized = MutableStateFlow(false)
     val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
     init {
         viewModelScope.launch {
-            _hasAnyBike.value = bikeRepository.hasAnyBike().first()
-            _isInitialized.value = true
-            bikeRepository.hasAnyBike().collect { _hasAnyBike.value = it }
+            bikeRepository.getAllBikes().collect { bikes ->
+                _rideableBikes.value = bikes
+                _hasAnyBike.value = bikes.isNotEmpty()
+                _isInitialized.value = true
+            }
         }
     }
 }

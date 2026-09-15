@@ -86,6 +86,7 @@ import java.util.Locale
 @Composable
 fun TripScreen(
     navController: NavController,
+    onStartRide: () -> Unit,
 ) {
     val context = LocalContext.current
     val viewModel = androidx.hilt.navigation.compose.hiltViewModel<TripViewModel>()
@@ -319,6 +320,9 @@ fun TripScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.nav_trip)) },
+                actions = {
+                    com.clintoncochrane.bikecompanion.ui.StartRideAction(onStartRide)
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -345,15 +349,10 @@ fun TripScreen(
             }
             item(key = "start_trip") {
                 StartTripSection(
-                    selectedBike = uiState.selectedBike,
                     bikes = uiState.bikes,
                     rideIsActive = rideIsActive,
-                    rideActiveBikeId = rideActiveBikeId,
-                    onStartTrip = { startTrip() },
-                    onViewCurrentTrip = {
-                        if (rideActiveBikeId >= 0) ActiveRideActivity.start(context, rideActiveBikeId)
-                    },
-                    onSelectBike = viewModel::selectBike,
+                    onStartTrip = onStartRide,
+                    onViewCurrentTrip = { ActiveRideActivity.start(context, rideActiveBikeId) },
                     onAddManualMileage = { showManualMileageDialog = true },
                     onImportFromHealthConnect = { viewModel.importFromHealthConnect() },
                 )
@@ -458,13 +457,10 @@ private fun CurrentRideSection(
 
 @Composable
 private fun StartTripSection(
-    selectedBike: com.clintoncochrane.bikecompanion.data.bike.BikeEntity?,
     bikes: List<com.clintoncochrane.bikecompanion.data.bike.BikeEntity>,
     rideIsActive: Boolean,
-    rideActiveBikeId: Long,
     onStartTrip: () -> Unit,
     onViewCurrentTrip: () -> Unit,
-    onSelectBike: (com.clintoncochrane.bikecompanion.data.bike.BikeEntity?) -> Unit,
     onAddManualMileage: () -> Unit,
     onImportFromHealthConnect: () -> Unit,
 ) {
@@ -493,15 +489,9 @@ private fun StartTripSection(
                 modifier = Modifier.padding(start = 12.dp),
             )
         }
-        if (selectedBike != null) {
+        if (!isRideActive) {
             Text(
-                text = stringResource(R.string.trip_ride_bike, selectedBike.name),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        } else {
-            Text(
-                text = stringResource(R.string.trip_no_bike_selected),
+                text = stringResource(R.string.trip_start_ride_hint),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

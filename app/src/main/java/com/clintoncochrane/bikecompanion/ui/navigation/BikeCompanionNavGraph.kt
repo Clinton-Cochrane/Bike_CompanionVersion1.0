@@ -55,6 +55,7 @@ sealed class Screen(val route: String) {
 fun BikeCompanionNavGraph(
     navController: NavHostController,
     startDestination: String,
+    onStartRide: () -> Unit,
     modifier: Modifier = Modifier,
     paddingValues: PaddingValues = PaddingValues(),
 ) {
@@ -63,9 +64,9 @@ fun BikeCompanionNavGraph(
         navController = navController,
         startDestination = startDestination,
     ) {
-        composable(Screen.Trip.route) { TripScreen(navController = navController) }
-        composable(Screen.Garage.route) { GarageScreen(navController = navController) }
-        composable(Screen.Stats.route) { StatsScreen(navController = navController) }
+        composable(Screen.Trip.route) { TripScreen(navController = navController, onStartRide = onStartRide) }
+        composable(Screen.Garage.route) { GarageScreen(navController = navController, onStartRide = onStartRide) }
+        composable(Screen.Stats.route) { StatsScreen(navController = navController, onStartRide = onStartRide) }
         composable(Screen.BikeDetail.route) { backStackEntry ->
             BikeDetailScreen(navController = navController, backStackEntry = backStackEntry)
         }

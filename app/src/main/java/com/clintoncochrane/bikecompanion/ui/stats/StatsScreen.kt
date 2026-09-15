@@ -32,6 +32,7 @@ import com.clintoncochrane.bikecompanion.R
 @Composable
 fun StatsScreen(
     navController: NavController,
+    onStartRide: () -> Unit,
 ) {
     val viewModel = androidx.hilt.navigation.compose.hiltViewModel<StatsViewModel>()
     val uiState by viewModel.uiState.collectAsState()
@@ -40,6 +41,9 @@ fun StatsScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.stats_title)) },
+                actions = {
+                    com.clintoncochrane.bikecompanion.ui.StartRideAction(onStartRide)
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
