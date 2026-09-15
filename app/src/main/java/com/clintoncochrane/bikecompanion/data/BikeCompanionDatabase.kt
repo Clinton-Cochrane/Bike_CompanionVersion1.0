@@ -32,7 +32,7 @@ import com.clintoncochrane.bikecompanion.data.ride.RideSourceConverters
         ComponentSwapEntity::class,
         ServiceIntervalEntity::class,
     ],
-    version = 16,
+    version = 17,
     exportSchema = true,
 )
 @TypeConverters(
