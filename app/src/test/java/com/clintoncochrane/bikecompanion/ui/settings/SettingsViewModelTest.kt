@@ -29,6 +29,7 @@ class SettingsViewModelTest {
     @Before
     fun setUp() {
         every { appPreferencesRepository.closeToServiceHealthThreshold } returns flowOf(20)
+        every { appPreferencesRepository.hasRequestedMaintenanceNotificationPermission } returns flowOf(false)
     }
 
     @Test
@@ -71,5 +72,19 @@ class SettingsViewModelTest {
 
         assertEquals(AppPreferencesRepository.MAX_THRESHOLD, viewModel.uiState.value.closeToServiceHealthThreshold)
         coVerify(exactly = 1) { appPreferencesRepository.setCloseToServiceHealthThreshold(AppPreferencesRepository.MAX_THRESHOLD) }
+    }
+
+    @Test
+    fun recordMaintenanceNotificationPermissionRequest_updatesStateAndPersists() = runTest(testDispatcher) {
+        Dispatchers.setMain(testDispatcher)
+        coEvery { appPreferencesRepository.setHasRequestedMaintenanceNotificationPermission() } returns Unit
+        viewModel = SettingsViewModel(appPreferencesRepository)
+        advanceUntilIdle()
+
+        viewModel.recordMaintenanceNotificationPermissionRequest()
+        advanceUntilIdle()
+
+        assertEquals(true, viewModel.uiState.value.hasRequestedMaintenanceNotificationPermission)
+        coVerify(exactly = 1) { appPreferencesRepository.setHasRequestedMaintenanceNotificationPermission() }
     }
 }

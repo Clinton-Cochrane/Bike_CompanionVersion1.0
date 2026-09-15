@@ -402,7 +402,7 @@ fun TripScreen(
                         snoozedPlaceholderReminderUntilMs = uiState.snoozedPlaceholderReminderUntilMs,
                         onEditRide = {
                             navController.navigate(
-                                com.clintoncochrane.bikecompanion.ui.navigation.Screen.EditRide.withId(row.ride.id),
+                                com.clintoncochrane.bikecompanion.ui.navigation.Screen.RideDetail.withId(row.ride.id),
                             )
                         },
                         onDismissAlert = { viewModel.dismissRideFlag(row.ride.id) },
