@@ -3,14 +3,16 @@
     <string name="app_name">Bike Companion</string>
 
     <!-- Bottom navigation -->
-    <string name="nav_trip">Trip</string>
+    <string name="nav_trip">Rides</string>
     <string name="nav_garage">Garage</string>
     <string name="nav_stats">Stats</string>
 
     <!-- Trip screen -->
-    <string name="trip_start_button">Start new trip</string>
-    <string name="trip_view_current_trip">View current trip</string>
-    <string name="trip_start_button_content_description">Start a new bike trip</string>
+    <string name="trip_start_button">Start ride</string>
+    <string name="trip_view_current_trip">View current ride</string>
+    <string name="trip_start_button_content_description">Start ride</string>
+    <string name="start_ride_content_description">Start ride</string>
+    <string name="trip_start_ride_hint">Start a ride from here or the bike icon above.</string>
     <string name="trip_location_permission_title">Allow location for ride tracking</string>
     <string name="trip_location_permission_rationale">Bike Companion uses your precise location only during a ride you start to calculate distance, speed, and elevation. It does not track rides passively.</string>
     <string name="trip_location_permission_continue">Continue</string>
@@ -61,12 +63,14 @@
     <string name="trip_start_anyway">Start ride anyway</string>
 
     <!-- Trip start splash (countdown) -->
-    <string name="trip_splash_title">Starting trip</string>
+    <string name="trip_splash_title">Starting ride</string>
     <string name="trip_splash_cancel">Cancel</string>
-    <string name="trip_splash_cancel_content_description">Cancel and return without starting the trip</string>
+    <string name="trip_splash_cancel_content_description">Cancel and return without starting the ride</string>
     <string name="trip_splash_countdown_content_description">Countdown: %1$d seconds</string>
-    <string name="trip_splash_go_now">GO now</string>
-    <string name="trip_splash_go_now_content_description">Start trip immediately</string>
+    <string name="trip_splash_add_ten_seconds">+10 seconds</string>
+    <string name="trip_splash_add_ten_seconds_content_description">Add ten seconds to the countdown</string>
+    <string name="trip_splash_riding_bike">Riding %1$s</string>
+    <string name="trip_splash_no_bike_assigned">No bike assigned</string>
     <string name="trip_splash_action_bike_mode">Bike mode</string>
     <string name="trip_splash_action_auto_pause">Auto-pause</string>
 
@@ -76,6 +80,12 @@
 
     <!-- Active ride screen -->
     <string name="ride_active_title">Ride in progress</string>
+    <string name="ride_elapsed_time">Elapsed time</string>
+    <string name="ride_distance_value">Distance · %1$.2f km</string>
+    <string name="ride_elevation_gain_value">Elevation gain · %1$.0f m</string>
+    <string name="ride_elevation_loss_value">Elevation loss · %1$.0f m</string>
+    <string name="ride_assigned_bike">Bike · %1$s</string>
+    <string name="ride_no_bike_assigned_short">No bike assigned</string>
     <string name="ride_distance">Distance: %1$.2f km</string>
     <string name="ride_duration">Duration: %1$s</string>
     <string name="ride_speed_current">Speed: %1$.1f km/h</string>
@@ -88,7 +98,7 @@
     <string name="ride_paused">Paused</string>
     <string name="ride_auto_paused_no_movement">Your ride was automatically paused because there was no movement for 30 minutes.</string>
     <string name="ride_resume">Resume</string>
-    <string name="ride_stop">Stop ride</string>
+    <string name="ride_stop">Stop</string>
     <string name="ride_stop_confirm_title">Exit ride?</string>
     <string name="ride_stop_confirm_message">Your ride will be saved and you\'ll return to the trip screen. If no bike is assigned, you\'ll choose one before saving.</string>
     <string name="ride_duration_over_24h">>24h</string>

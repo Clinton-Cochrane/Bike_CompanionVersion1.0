@@ -14,7 +14,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -410,20 +412,43 @@ private fun ActiveRideScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                text = stringResource(R.string.ride_distance, state.distanceKm),
-                style = MaterialTheme.typography.headlineMedium,
+                text = stringResource(R.string.ride_elapsed_time),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            // key(tick) forces recomposition every second when active; when paused, elapsedMovingMs is static.
+            key(tick) {
+                Text(
+                    text = com.clintoncochrane.bikecompanion.util.DurationFormatHelper.formatDurationBreakdownMs(
+                        elapsedMovingMs,
+                        capAt24h = false,
+                    ),
+                    style = MaterialTheme.typography.displayLarge,
+                )
+            }
+            Text(
+                text = stringResource(R.string.ride_distance_value, state.distanceKm),
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Text(
+                text = stringResource(R.string.ride_elevation_gain_value, state.elevGainM),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                text = stringResource(R.string.ride_elevation_loss_value, state.elevLossM),
+                style = MaterialTheme.typography.bodyLarge,
             )
             if (state.bikeId > 0L) {
-                bikes.find { it.id == state.bikeId }?.let { bike ->
-                    Text(
-                        text = stringResource(R.string.trip_ride_bike, bike.name),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                }
+                val bikeName = bikes.find { it.id == state.bikeId }?.name
+                Text(
+                    text = bikeName?.let { stringResource(R.string.ride_assigned_bike, it) }
+                        ?: stringResource(R.string.ride_no_bike_assigned_short),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
             } else if (state.isTracking) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = stringResource(R.string.ride_no_bike_assigned),
+                        text = stringResource(R.string.ride_no_bike_assigned_short),
                         style = MaterialTheme.typography.bodyLarge,
                     )
                     bikes.forEach { bike ->
@@ -436,72 +461,26 @@ private fun ActiveRideScreen(
                     }
                 }
             }
-            // key(tick) forces recomposition every second when active; when paused, elapsedMovingMs is static
-            key(tick) {
-                Text(
-                    text = stringResource(
-                        R.string.ride_duration,
-                        com.clintoncochrane.bikecompanion.util.DurationFormatHelper.formatDurationBreakdownMs(elapsedMovingMs, capAt24h = false),
-                    ),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            }
-            Text(
-                text = stringResource(R.string.ride_speed_current, state.currentSpeedKmh),
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Text(
-                text = stringResource(R.string.ride_speed_avg, state.avgSpeedKmh),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text = stringResource(R.string.ride_speed_max, "%.1f km/h".format(state.maxSpeedKmh)),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Row(
+            Spacer(modifier = Modifier.weight(1f))
+            TextButton(
+                onClick = {
+                    val intent = Intent(context, RideTrackingService::class.java).apply {
+                        putExtra(RideTrackingService.ACTION_KEY, if (state.isPaused) RideTrackingService.ACTION_RESUME else RideTrackingService.ACTION_PAUSE)
+                    }
+                    context.startService(intent)
+                },
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(
-                    text = stringResource(R.string.ride_elevation_label),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                val elevNet = state.elevGainM - state.elevLossM
-                val elevColor = when {
-                    elevNet > 0 -> Color(0xFF2E7D32)
-                    elevNet < 0 -> MaterialTheme.colorScheme.error
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
-                Text(
-                    text = "+%.0f / -%.0f m".format(state.elevGainM, state.elevLossM),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = elevColor,
-                )
+                Text(if (state.isPaused) resumeLabel else pauseLabel)
             }
-            Row(
+            Button(
+                onClick = { showStopConfirm = true },
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                enabled = state.startTimeMs > 0 && state.isTracking && !isSaving && pendingStopRide == null,
+                contentPadding = PaddingValues(vertical = 20.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
             ) {
-                Button(
-                    onClick = {
-                        val intent = Intent(context, RideTrackingService::class.java).apply {
-                            putExtra(RideTrackingService.ACTION_KEY, if (state.isPaused) RideTrackingService.ACTION_RESUME else RideTrackingService.ACTION_PAUSE)
-                        }
-                        context.startService(intent)
-                    },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(if (state.isPaused) resumeLabel else pauseLabel)
-                }
-                Button(
-                    onClick = { showStopConfirm = true },
-                    modifier = Modifier.weight(1f),
-                    enabled = state.startTimeMs > 0 && state.isTracking && !isSaving && pendingStopRide == null,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                ) {
-                    Text(stringResource(R.string.ride_stop))
-                }
+                Text(stringResource(R.string.ride_stop), style = MaterialTheme.typography.titleLarge)
             }
             if (showStopConfirm) {
                 AlertDialog(

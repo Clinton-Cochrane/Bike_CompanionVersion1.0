@@ -45,6 +45,7 @@ fun MainScaffold(modifier: Modifier = Modifier) {
     )
     val isInitialized by appViewModel.isInitialized.collectAsState()
     val hasAnyBike by appViewModel.hasAnyBike.collectAsState()
+    val rideableBikes by appViewModel.rideableBikes.collectAsState()
 
     if (!isInitialized) {
         Box(
@@ -91,11 +92,12 @@ fun MainScaffold(modifier: Modifier = Modifier) {
         Screen.Garage to (Icons.Filled.DirectionsBike to R.string.nav_garage),
         Screen.Stats to (Icons.Filled.StackedBarChart to R.string.nav_stats),
     )
+    val isCountdown = currentDestination?.route == Screen.TripStartSplash.route
 
     androidx.compose.material3.Scaffold(
         modifier = modifier,
         bottomBar = {
-            NavigationBar {
+            if (!isCountdown) NavigationBar {
                 bottomNavItems.forEach { (screen, pair) ->
                     val (icon, labelRes) = pair
                     val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
@@ -127,6 +129,11 @@ fun MainScaffold(modifier: Modifier = Modifier) {
             navController = navController,
             startDestination = startDestination,
             paddingValues = paddingValues,
+            onStartRide = {
+                val bikeId = com.clintoncochrane.bikecompanion.ui.trip.InitialRideAssignmentPolicy
+                    .initialBikeId(rideableBikes)
+                navController.navigate(Screen.TripStartSplash.withId(bikeId))
+            },
         )
     }
 }

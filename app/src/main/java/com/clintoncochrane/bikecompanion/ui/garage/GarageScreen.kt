@@ -83,6 +83,7 @@ import com.clintoncochrane.bikecompanion.ui.garage.ThumbnailAvatar
 @Composable
 fun GarageScreen(
     navController: NavController,
+    onStartRide: () -> Unit,
 ) {
     val viewModel = androidx.hilt.navigation.compose.hiltViewModel<GarageViewModel>()
     val uiState by viewModel.uiState.collectAsState()
@@ -151,6 +152,7 @@ fun GarageScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.garage_title)) },
                 actions = {
+                    com.clintoncochrane.bikecompanion.ui.StartRideAction(onStartRide)
                     Box {
                         IconButton(
                             onClick = { garageMenuExpanded = true },
