@@ -36,7 +36,6 @@ import com.clintoncochrane.bikecompanion.data.ride.RideEntity
 import com.clintoncochrane.bikecompanion.data.ride.RideSource
 import com.clintoncochrane.bikecompanion.ui.navigation.Screen
 import com.clintoncochrane.bikecompanion.util.DurationFormatHelper
-import com.clintoncochrane.bikecompanion.util.RideDisplayHelper
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
