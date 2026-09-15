@@ -15,25 +15,22 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class BikeStats(
-    val totalDistanceKm: Double,
-    val rideCount: Int,
-    val avgDistanceKm: Double,
-    val avgSpeedKmh: Double,
-    val totalElevGainM: Double,
+data class StatsSummary(
+    val totalDistanceKm: Double = 0.0,
+    val totalRideDurationMs: Long = 0L,
+    val rideCount: Int = 0,
+    val completedServiceCount: Int = 0,
 )
 
-/**
- * A bike with its computed ride stats. [stats] is null when the bike has no rides.
- */
 data class BikeWithStats(
     val bike: BikeEntity,
-    val stats: BikeStats?,
+    val stats: StatsSummary,
 )
 
 data class StatsUiState(
+    val allBikesStats: StatsSummary = StatsSummary(),
     val bikesWithStats: List<BikeWithStats> = emptyList(),
-    val filterBikeId: Long? = null,
+    val selectedBikeIndex: Int = 0,
 )
 
 @HiltViewModel
@@ -51,36 +48,59 @@ class StatsViewModel @Inject constructor(
                 bikeRepository.getAllBikes(),
                 rideRepository.getAllRides(),
             ) { bikes, rides ->
-                bikes.map { bike ->
-                    val bikeRides = rides.filter { it.bikeId == bike.id }
-                    val stats = computeStats(bikeRides)
-                    BikeWithStats(bike = bike, stats = stats)
+                StatsUiState(
+                    allBikesStats = computeStats(rides),
+                    bikesWithStats = bikes.map { bike ->
+                        BikeWithStats(
+                            bike = bike,
+                            stats = computeStats(rides.filter { it.bikeId == bike.id }),
+                        )
+                    },
+                )
+            }.collect { stats ->
+                _uiState.update { currentState ->
+                    stats.copy(
+                        selectedBikeIndex = currentState.selectedBikeIndex
+                            .coerceAtMost(stats.bikesWithStats.lastIndex)
+                            .coerceAtLeast(0),
+                    )
                 }
-            }.collect { bikesWithStats ->
-                _uiState.update { it.copy(bikesWithStats = bikesWithStats) }
             }
         }
     }
 
-    /**
-     * Filters the stats list to a single bike when non-null, or shows all when null.
-     */
-    fun setFilterBikeId(bikeId: Long?) {
-        _uiState.update { it.copy(filterBikeId = bikeId) }
+    fun selectPreviousBike() {
+        _uiState.update { state ->
+            state.copy(selectedBikeIndex = (state.selectedBikeIndex - 1).coerceAtLeast(0))
+        }
     }
 
-    private fun computeStats(rides: List<RideEntity>): BikeStats? {
-        if (rides.isEmpty()) return null
-        val totalKm = rides.sumOf { it.distanceKm }
-        val count = rides.size
-        val sumSpeed = rides.sumOf { it.avgSpeedKmh }
-        val totalElev = rides.sumOf { it.elevGainM }
-        return BikeStats(
-            totalDistanceKm = totalKm,
-            rideCount = count,
-            avgDistanceKm = totalKm / count,
-            avgSpeedKmh = sumSpeed / count,
-            totalElevGainM = totalElev,
-        )
+    fun selectNextBike() {
+        _uiState.update { state ->
+            if (state.bikesWithStats.isEmpty()) {
+                state
+            } else {
+                state.copy(
+                    selectedBikeIndex = (state.selectedBikeIndex + 1)
+                        .coerceAtMost(state.bikesWithStats.lastIndex),
+                )
+            }
+        }
     }
+
+    fun selectBike(index: Int) {
+        _uiState.update { state ->
+            state.copy(
+                selectedBikeIndex = index.coerceIn(0, state.bikesWithStats.lastIndex.coerceAtLeast(0)),
+            )
+        }
+    }
+
+    private fun computeStats(rides: List<RideEntity>): StatsSummary = StatsSummary(
+        totalDistanceKm = rides.sumOf { it.distanceKm },
+        totalRideDurationMs = rides.sumOf { it.durationMs.coerceAtLeast(0L) },
+        rideCount = rides.size,
+        // Service interval completion only resets an interval; it does not persist a service record.
+        completedServiceCount = 0,
+    )
 }

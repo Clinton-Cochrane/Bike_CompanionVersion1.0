@@ -352,13 +352,15 @@
 
     <!-- Stats screen -->
     <string name="stats_title">Stats</string>
-    <string name="stats_filter_all">All</string>
-    <string name="stats_total_distance">Total distance: %1$.1f km</string>
-    <string name="stats_ride_count">Rides: %1$d</string>
-    <string name="stats_avg_distance">Avg distance: %1$.1f km</string>
-    <string name="stats_avg_speed">Avg speed: %1$.1f km/h</string>
-    <string name="stats_elevation_gain">Elevation gain: %1$.0f m</string>
-    <string name="stats_no_data">No ride data for this bike yet.</string>
+    <string name="stats_all_bikes">All bikes</string>
+    <string name="stats_distance">Distance: %1$.1f km</string>
+    <string name="stats_ride_time">Ride time: %1$s</string>
+    <string name="stats_rides">Rides: %1$d</string>
+    <string name="stats_services">Services: %1$d</string>
+    <string name="stats_no_bikes">Add a bike to see per-bike lifetime totals.</string>
+    <string name="stats_bike_position">Bike %1$d of %2$d</string>
+    <string name="stats_previous_bike">Show previous bike</string>
+    <string name="stats_next_bike">Show next bike</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
