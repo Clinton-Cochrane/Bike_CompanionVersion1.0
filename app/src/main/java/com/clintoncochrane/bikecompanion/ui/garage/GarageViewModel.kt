@@ -6,6 +6,8 @@ import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
 import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
+import com.clintoncochrane.bikecompanion.data.component.ComponentSwapEntity
+import com.clintoncochrane.bikecompanion.data.component.ComponentSwapRepository
 import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalRepository
 import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesRepository
@@ -20,6 +22,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -51,12 +54,15 @@ data class GarageUiState(
     val lastRiddenBikeId: Long? = null,
     /** State for the one-bike-at-a-time Bikes overview. */
     val bikesOverview: GarageBikesUiState = GarageBikesUiState(),
+    /** State for the complete active, unassigned, and retired Parts directory. */
+    val partsDirectory: PartsDirectoryUiState = PartsDirectoryUiState(),
 )
 
 @HiltViewModel
 class GarageViewModel @Inject constructor(
     private val bikeRepository: BikeRepository,
     private val componentRepository: ComponentRepository,
+    private val componentSwapRepository: ComponentSwapRepository,
     private val serviceIntervalRepository: ServiceIntervalRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
     private val rideRepository: RideRepository,
@@ -65,6 +71,8 @@ class GarageViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(GarageUiState())
     val uiState: StateFlow<GarageUiState> = _uiState.asStateFlow()
     private var rides: List<RideEntity> = emptyList()
+    private var allComponents: List<ComponentEntity> = emptyList()
+    private var componentSwaps: List<ComponentSwapEntity> = emptyList()
 
     init {
         viewModelScope.launch {
@@ -78,9 +86,20 @@ class GarageViewModel @Inject constructor(
                         bikeHasAlert = computeBikeAlerts(state.garageComponents, sorted, state.closeToServiceThreshold),
                         totalDistanceKm = GarageSpecHelper.computeTotalDistanceKm(sorted),
                         lastRiddenBikeId = GarageSpecHelper.getLastRiddenBikeId(sorted),
-                    ).withBikesOverview()
+                    ).withBikesOverview().withPartsDirectory()
                 }
             }
+        }
+        viewModelScope.launch {
+            combine(
+                componentRepository.getAllComponentsFlow(),
+                componentSwapRepository.getAllSwaps(),
+            ) { components, swaps -> components to swaps }
+                .collect { (components, swaps) ->
+                    allComponents = components
+                    componentSwaps = swaps
+                    _uiState.update { it.withPartsDirectory() }
+                }
         }
         viewModelScope.launch {
             componentRepository.getNonRetiredComponents().collect { list ->
@@ -167,6 +186,13 @@ class GarageViewModel @Inject constructor(
         _uiState.update { it.copy(selectedTab = tab) }
     }
 
+    fun setPartsDirectoryFilter(filter: PartsDirectoryFilter) {
+        _uiState.update { state ->
+            state.copy(partsDirectory = state.partsDirectory.copy(filter = filter))
+                .withPartsDirectory()
+        }
+    }
+
     fun selectBike(index: Int) {
         _uiState.update { state ->
             val selectedBikeId = state.bikes.getOrNull(index)?.id ?: return@update state
@@ -214,4 +240,15 @@ class GarageViewModel @Inject constructor(
                 selectedBikeId = selectedBikeId,
             ),
         )
+
+    private fun GarageUiState.withPartsDirectory(): GarageUiState = copy(
+        partsDirectory = partsDirectory.copy(
+            sections = PartsDirectoryPresenter.build(
+                components = allComponents,
+                bikes = bikes,
+                swaps = componentSwaps,
+                filter = partsDirectory.filter,
+            ),
+        ),
+    )
 }

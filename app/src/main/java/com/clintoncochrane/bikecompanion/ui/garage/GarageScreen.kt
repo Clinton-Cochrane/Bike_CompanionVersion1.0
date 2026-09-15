@@ -43,6 +43,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -65,6 +66,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import java.text.SimpleDateFormat
@@ -252,19 +254,172 @@ fun GarageScreen(
                     onBikeSelected = viewModel::selectBike,
                     navController = navController,
                 )
-                GarageTab.Components -> ComponentsContent(
-                    components = uiState.garageComponents,
-                    bikes = uiState.bikes,
-                    typeFilter = uiState.componentTypeFilter,
-                    onTypeFilterChange = viewModel::setComponentTypeFilter,
-                    bikeFilterId = uiState.componentBikeFilter,
-                    onBikeFilterChange = viewModel::setComponentBikeFilter,
-                    componentSortOrder = uiState.componentSortOrder,
-                    onSortOrderChange = viewModel::setComponentSortOrder,
-                    navController = navController,
+                GarageTab.Components -> PartsDirectoryContent(
+                    state = uiState.partsDirectory,
+                    onFilterChange = viewModel::setPartsDirectoryFilter,
+                    onPartClick = { componentId ->
+                        navController.navigate(Screen.ComponentDetail.withId(componentId))
+                    },
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun PartsDirectoryContent(
+    state: PartsDirectoryUiState,
+    onFilterChange: (PartsDirectoryFilter) -> Unit,
+    onPartClick: (Long) -> Unit,
+) {
+    var filterMenuExpanded by remember { mutableStateOf(false) }
+    val selectedFilterLabel = partsFilterLabel(state.filter)
+    val filterContentDescription = stringResource(R.string.garage_parts_filter_content_description)
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.padding(vertical = 8.dp)) {
+            FilterChip(
+                selected = true,
+                onClick = { filterMenuExpanded = true },
+                label = {
+                    Text(
+                        text = selectedFilterLabel,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                trailingIcon = {
+                    Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+                },
+                modifier = Modifier.semantics {
+                    contentDescription = filterContentDescription
+                },
+            )
+            DropdownMenu(
+                expanded = filterMenuExpanded,
+                onDismissRequest = { filterMenuExpanded = false },
+            ) {
+                PartsDirectoryFilter.entries.forEach { filter ->
+                    DropdownMenuItem(
+                        text = { Text(partsFilterLabel(filter)) },
+                        onClick = {
+                            onFilterChange(filter)
+                            filterMenuExpanded = false
+                        },
+                    )
+                }
+            }
+        }
+
+        if (state.sections.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(
+                        if (state.filter == PartsDirectoryFilter.ALL_PARTS) {
+                            R.string.garage_parts_empty
+                        } else {
+                            R.string.garage_parts_filter_empty
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 80.dp),
+            ) {
+                state.sections.forEach { section ->
+                    item(key = "parts-heading-${section.typeKey}") {
+                        Text(
+                            text = section.typeHeading,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp, bottom = 6.dp),
+                        )
+                    }
+                    items(
+                        items = section.rows,
+                        key = { row -> "part-${row.componentId}" },
+                    ) { row ->
+                        PartDirectoryListRow(
+                            row = row,
+                            onClick = { onPartClick(row.componentId) },
+                        )
+                        HorizontalDivider()
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun partsFilterLabel(filter: PartsDirectoryFilter): String = when (filter) {
+    PartsDirectoryFilter.ALL_PARTS -> stringResource(R.string.garage_parts_filter_all)
+    PartsDirectoryFilter.ACTIVE -> stringResource(R.string.garage_parts_filter_active)
+    PartsDirectoryFilter.RETIRED -> stringResource(R.string.garage_parts_filter_retired)
+    PartsDirectoryFilter.WITHOUT_BIKES -> stringResource(R.string.garage_parts_filter_without_bikes)
+}
+
+@Composable
+private fun PartDirectoryListRow(
+    row: PartsDirectoryRow,
+    onClick: () -> Unit,
+) {
+    val association = when (val value = row.association) {
+        is PartAssociation.CurrentBike -> value.bikeName
+        is PartAssociation.LastBike -> stringResource(R.string.garage_parts_last_bike_retired, value.bikeName)
+        PartAssociation.NoBike -> stringResource(R.string.garage_parts_no_bike)
+        PartAssociation.Retired -> stringResource(R.string.garage_parts_retired)
+    }
+    val distance = stringResource(
+        if (row.isTrackedDistanceOnly) {
+            R.string.garage_parts_distance_tracked
+        } else {
+            R.string.garage_parts_distance
+        },
+        row.lifetimeDistanceKm,
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = row.displayName,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = association,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            text = distance,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
     }
 }
 

@@ -8,6 +8,8 @@ import javax.inject.Singleton
 class ComponentSwapRepository @Inject constructor(
     private val componentSwapDao: ComponentSwapDao,
 ) {
+    fun getAllSwaps(): Flow<List<ComponentSwapEntity>> = componentSwapDao.getAllSwaps()
+
     fun getSwapsByComponentId(componentId: Long): Flow<List<ComponentSwapEntity>> =
         componentSwapDao.getSwapsByComponentId(componentId)
 
