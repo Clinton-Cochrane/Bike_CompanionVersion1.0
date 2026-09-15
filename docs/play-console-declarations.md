@@ -11,10 +11,7 @@ submission. Google Play declarations apply to every active artifact for the pack
 
 ## Submission blockers and dependencies
 
-- Resolve the v1 photo-scope/privacy mismatch recorded in the follow-up issue linked from #65.
-  The shipped UI imports and stores bike and component thumbnail photos, while #32 defers photos
-  and `PRIVACY.md`, the in-app policy, and the #64 inventory do not disclose photo access or
-  storage. Do not submit the current privacy-policy text as comprehensive.
+- Issue #101 removed the deferred v1 photo picker, thumbnail display, and photo persistence.
 - Complete #56. The manifest declares `POST_NOTIFICATIONS`, component alerts default to enabled,
   and notifications have implemented purposes, but v1 does not yet implement the planned
   contextual opt-in/permission flow for maintenance alerts. Recheck this declaration after #56.
@@ -63,19 +60,18 @@ complete the per-type form before release.
 | Approximate location | Requested with precise location as part of Android's location permission flow. The GPS ride feature requires precise fixes and does not use coarse fixes as a separate data product. | No | No | App functionality: user-started GPS ride recording. | Raw fixes remain in service memory only and are discarded when tracking ends. |
 | Precise location | Latitude, longitude, altitude, accuracy, speed, and timestamps are read during a user-started ride to derive distance, speed, elevation, and movement state. Raw coordinates are not persisted. | No | No | App functionality: calculate the user's active ride statistics. | Raw fixes are replaced in memory and discarded when tracking ends. Derived ride statistics remain locally until the ride/app data is deleted. |
 | Fitness info | On explicit import, reads 30 days of cycling exercise session times/type, duration, Health Connect record ID, and aggregate distance. Imported sessions require review and a bike assignment. | No | No | App functionality: create local cycling ride history, update bike/component mileage, and prevent duplicate imports. | The local imported ride and record ID remain until that ride or app data is deleted. Revoking permission stops future access but does not delete either local imports or source Health Connect records. |
-| Photos | The current build uses Android Photo Picker and copies a selected bike/component thumbnail into app-private files. This row is a blocker record, not approval to ship the out-of-scope feature. | No | No | App functionality if retained: optional local bike/component identification. | A thumbnail is replaced or deleted when the user changes/removes it or deletes its bike/component; all app files are removed by clear-storage/uninstall. Must be resolved and documented before submission. |
 | Other user-generated content | Bike/component names, descriptions, notes, serial number, settings, lifecycle/service history, and ride assignments are entered or generated locally. | No | No | App functionality: bicycle mileage and maintenance tracking. | Until the relevant local record or all app data is deleted. |
 | Purchase history / other financial info | Optional component purchase date, price, seller, and purchase link are stored locally. | No | No | App functionality: local component maintenance records. | Until the component/context record or all app data is deleted. Opening a saved purchase link is a specific user-initiated browser action. |
 | App interactions / other actions | Local preferences include maintenance threshold, dismissed/snoozed reminder IDs, and whether the Health Connect import disclaimer was shown. | No | No | App functionality: remember local UI and reminder state. | Until replaced by later interaction or all app data is deleted. |
 
 ### Security and deletion statements that are supported
 
-- Data is stored in Android app-private Room, Preferences DataStore, and app-private image files.
+- Data is stored in Android app-private Room and Preferences DataStore.
 - Android cloud backup and device-to-device transfer are disabled by the manifest and both backup
   rule formats.
 - The app adds no separate database encryption. Do not claim that it does.
 - No user data is sent to the developer or another company by the app.
-- Individual rides, bikes, components, and their owned thumbnails have in-app deletion paths.
+- Individual rides, bikes, and components have in-app deletion paths.
 - Clearing app storage or uninstalling deletes all Bike Companion local data. It does not delete
   source records in Health Connect.
 - There is no account, cloud copy, remote deletion request, or developer-held record to delete.
@@ -177,7 +173,7 @@ Fill this in without changing the prepared answers silently:
 - Pixel 8 privacy checklist result:
 - Hosted privacy-policy URL:
 - Foreground-service demonstration video URL:
-- Photo mismatch follow-up resolution:
+- Photo mismatch follow-up resolution: #101 removed the deferred v1 photo flow and legacy photo storage.
 - #56 resolution / notification behavior recheck:
 - Play Console Data Safety submitted by / date:
 - Play Console Health apps and Health Connect submitted by / date:

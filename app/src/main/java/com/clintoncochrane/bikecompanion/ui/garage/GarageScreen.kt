@@ -996,7 +996,6 @@ private fun GarageComponentCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ThumbnailAvatar(
-                thumbnailUri = component.thumbnailUri,
                 size = 40.dp,
                 placeholder = {
                     Icon(
@@ -1086,7 +1085,6 @@ private fun BikeCard(
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
                 ThumbnailAvatar(
-                    thumbnailUri = bike.thumbnailUri,
                     size = 40.dp,
                     placeholder = {
                         Text(

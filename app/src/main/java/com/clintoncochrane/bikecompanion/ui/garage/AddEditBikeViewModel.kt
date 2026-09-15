@@ -1,6 +1,5 @@
 package com.clintoncochrane.bikecompanion.ui.garage
 
-import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,7 +9,6 @@ import com.clintoncochrane.bikecompanion.data.bike.BikeDeletionRepository
 import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
 import com.clintoncochrane.bikecompanion.data.bike.withBaselineDistanceKm
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
-import com.clintoncochrane.bikecompanion.data.image.ImageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,10 +31,6 @@ sealed class BikeDeletionPrompt {
 data class AddEditBikeUiState(
     val bike: BikeEntity? = null,
     val saveOutcome: SaveOutcome? = null,
-    /** User-picked image URI; shown before save. Cleared after save. */
-    val pickedImageUri: Uri? = null,
-    /** User requested removal of image; show placeholder until save. */
-    val removeImageRequested: Boolean = false,
     val bikeDeletionPrompt: BikeDeletionPrompt? = null,
     val bikeDeleted: Boolean = false,
 )
@@ -46,7 +40,6 @@ class AddEditBikeViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val bikeRepository: BikeRepository,
     private val componentRepository: ComponentRepository,
-    private val imageRepository: ImageRepository,
     private val bikeDeletionRepository: BikeDeletionRepository? = null,
 ) : ViewModel() {
 
@@ -64,52 +57,24 @@ class AddEditBikeViewModel @Inject constructor(
         }
     }
 
-    fun setPickedImageUri(uri: Uri?) {
-        _uiState.update {
-            it.copy(pickedImageUri = uri, removeImageRequested = false)
-        }
-    }
-
-    fun setRemoveImageRequested() {
-        _uiState.update {
-            it.copy(pickedImageUri = null, removeImageRequested = true)
-        }
-    }
-
     fun saveBike(
         bike: BikeEntity,
         startingOdometerInput: String = bike.baselineDistanceKm.toString(),
     ) {
         val startingOdometerKm = parseStartingOdometerKm(startingOdometerInput) ?: return
         viewModelScope.launch {
-            val state = _uiState.value
-            var bikeToSave = bike.withBaselineDistanceKm(startingOdometerKm)
+            val bikeToSave = bike.withBaselineDistanceKm(startingOdometerKm)
 
             if (bike.id > 0) {
-                if (state.removeImageRequested) {
-                    imageRepository.deleteImageAtPath(bike.thumbnailUri)
-                    bikeToSave = bikeToSave.copy(thumbnailUri = null)
-                } else if (state.pickedImageUri != null) {
-                    val path = imageRepository.saveBikeImage(bike.id, state.pickedImageUri)
-                    bikeToSave = bikeToSave.copy(thumbnailUri = path ?: bike.thumbnailUri)
-                    // If save failed (null), keep existing thumbnail to avoid data loss
-                }
                 bikeRepository.updateBike(bikeToSave)
                 _uiState.update {
-                    it.copy(saveOutcome = SaveOutcome.Updated, pickedImageUri = null, removeImageRequested = false)
+                    it.copy(saveOutcome = SaveOutcome.Updated)
                 }
             } else {
                 val newId = bikeRepository.insertBike(bikeToSave)
-                if (state.pickedImageUri != null) {
-                    val path = imageRepository.saveBikeImage(newId, state.pickedImageUri)
-                    if (path != null) {
-                        bikeRepository.updateBike(bikeToSave.copy(id = newId, thumbnailUri = path))
-                    }
-                    // If save failed, bike has no thumbnail yet; update id only for consistency
-                }
                 componentRepository.seedDefaultComponentsIfEmpty(newId)
                 _uiState.update {
-                    it.copy(saveOutcome = SaveOutcome.NewBike(newId), pickedImageUri = null, removeImageRequested = false)
+                    it.copy(saveOutcome = SaveOutcome.NewBike(newId))
                 }
             }
         }

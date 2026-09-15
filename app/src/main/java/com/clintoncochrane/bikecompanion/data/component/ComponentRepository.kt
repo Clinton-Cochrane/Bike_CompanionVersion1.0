@@ -2,7 +2,6 @@ package com.clintoncochrane.bikecompanion.data.component
 
 import com.clintoncochrane.bikecompanion.data.bike.BikeDao
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
-import com.clintoncochrane.bikecompanion.data.image.ImageRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -13,7 +12,6 @@ class ComponentRepository @Inject constructor(
     private val serviceIntervalDao: ServiceIntervalDao,
     private val componentSwapDao: ComponentSwapDao,
     private val bikeDao: BikeDao,
-    private val imageRepository: ImageRepository,
     private val lifecycleTransaction: ComponentLifecycleTransaction,
 ) {
     fun getComponentsByBikeId(bikeId: Long): Flow<List<ComponentEntity>> =
@@ -73,10 +71,7 @@ class ComponentRepository @Inject constructor(
 
     suspend fun updateComponent(component: ComponentEntity) = componentDao.update(component)
 
-    suspend fun deleteComponent(component: ComponentEntity) {
-        imageRepository.deleteComponentImage(component.id)
-        componentDao.deleteById(component.id)
-    }
+    suspend fun deleteComponent(component: ComponentEntity) = componentDao.deleteById(component.id)
 
     suspend fun getAllComponents(): List<ComponentEntity> = componentDao.getAllComponents()
 
