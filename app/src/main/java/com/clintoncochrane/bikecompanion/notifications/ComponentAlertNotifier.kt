@@ -1,9 +1,13 @@
 package com.clintoncochrane.bikecompanion.notifications
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.clintoncochrane.bikecompanion.R
 import com.clintoncochrane.bikecompanion.data.component.ComponentDao
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
@@ -23,6 +27,14 @@ class ComponentAlertNotifier @Inject constructor(
     private val componentDao: ComponentDao,
 ) {
     suspend fun notifyIfNeeded(bikeId: Long) = withContext(Dispatchers.IO) {
+        if (!canPostMaintenanceNotifications(
+                sdkInt = Build.VERSION.SDK_INT,
+                permissionGranted = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS,
+                ) == PackageManager.PERMISSION_GRANTED,
+            )
+        ) return@withContext
         val components = componentDao.getComponentsByBikeIdOnce(bikeId)
         val nowMillis = System.currentTimeMillis()
         val needAlert = components.filter { component ->
