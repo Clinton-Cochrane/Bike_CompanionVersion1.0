@@ -158,6 +158,19 @@
     <string name="ride_placeholder_reminder_dismiss">Don\'t remind again</string>
     <string name="ride_edit_title">Edit ride</string>
     <string name="ride_edit_coming_soon">Edit ride coming soon</string>
+    <string name="ride_detail_title">Ride details</string>
+    <string name="ride_detail_not_found">This ride is no longer available.</string>
+    <string name="ride_detail_bike">Bike</string>
+    <string name="ride_detail_distance">Distance</string>
+    <string name="ride_detail_duration">Duration</string>
+    <string name="ride_detail_average_speed">Average speed</string>
+    <string name="ride_detail_max_speed">Maximum speed</string>
+    <string name="ride_detail_elevation_gain">Elevation gain and loss</string>
+    <string name="ride_detail_source">Source</string>
+    <string name="ride_detail_source_app">Bike Companion</string>
+    <string name="ride_detail_source_health_connect">Health Connect</string>
+    <string name="ride_detail_source_manual">Manual entry</string>
+    <string name="ride_detail_edit_action">Edit ride</string>
 
     <!-- Garage screen -->
     <string name="garage_title">Bike garage</string>
