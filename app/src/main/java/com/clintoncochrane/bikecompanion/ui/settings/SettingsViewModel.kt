@@ -13,6 +13,7 @@ import javax.inject.Inject
 
 data class SettingsUiState(
     val closeToServiceHealthThreshold: Int = AppPreferencesRepository.DEFAULT_CLOSE_TO_SERVICE_THRESHOLD,
+    val hasRequestedMaintenanceNotificationPermission: Boolean = false,
 )
 
 @HiltViewModel
@@ -29,6 +30,11 @@ class SettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(closeToServiceHealthThreshold = threshold) }
             }
         }
+        viewModelScope.launch {
+            appPreferencesRepository.hasRequestedMaintenanceNotificationPermission.collect { hasRequested ->
+                _uiState.update { it.copy(hasRequestedMaintenanceNotificationPermission = hasRequested) }
+            }
+        }
     }
 
     fun setCloseToServiceHealthThreshold(value: Int) {
@@ -39,6 +45,13 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(closeToServiceHealthThreshold = clamped) }
         viewModelScope.launch {
             appPreferencesRepository.setCloseToServiceHealthThreshold(clamped)
+        }
+    }
+
+    fun recordMaintenanceNotificationPermissionRequest() {
+        _uiState.update { it.copy(hasRequestedMaintenanceNotificationPermission = true) }
+        viewModelScope.launch {
+            appPreferencesRepository.setHasRequestedMaintenanceNotificationPermission()
         }
     }
 }

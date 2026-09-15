@@ -25,6 +25,7 @@ class AppPreferencesRepository @Inject constructor(
 ) {
     private val closeToServiceKey = intPreferencesKey("close_to_service_health_threshold")
     private val hasSeenHealthConnectImportDisclaimerKey = booleanPreferencesKey("has_seen_health_connect_import_disclaimer")
+    private val hasRequestedMaintenanceNotificationPermissionKey = booleanPreferencesKey("has_requested_maintenance_notification_permission")
     private val dismissedRideFlagIdsKey = stringPreferencesKey("dismissed_ride_flag_ids")
     private val dismissedPlaceholderReminderIdsKey = stringPreferencesKey("dismissed_placeholder_reminder_ids")
     private val snoozedPlaceholderReminderUntilMsKey = longPreferencesKey("snoozed_placeholder_reminder_until_ms")
@@ -51,6 +52,17 @@ class AppPreferencesRepository @Inject constructor(
     suspend fun setHasSeenHealthConnectImportDisclaimer() {
         context.dataStore.edit { prefs ->
             prefs[hasSeenHealthConnectImportDisclaimerKey] = true
+        }
+    }
+
+    /** Whether the user has already been offered optional maintenance notifications. */
+    val hasRequestedMaintenanceNotificationPermission: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[hasRequestedMaintenanceNotificationPermissionKey] ?: false
+    }
+
+    suspend fun setHasRequestedMaintenanceNotificationPermission() {
+        context.dataStore.edit { prefs ->
+            prefs[hasRequestedMaintenanceNotificationPermissionKey] = true
         }
     }
 

@@ -436,6 +436,11 @@
     <string name="settings_health_alert_threshold_subtitle">Show a mild alert when bike health is at or below this percentage. At 0%%, the app shows that the expected interval was reached. Default: 20%%.</string>
     <string name="settings_health_alert_threshold_value">%1$d%%</string>
     <string name="settings_health_alert_slider_content_description">Mild alert threshold, percentage</string>
+    <string name="settings_maintenance_notifications_title">Maintenance reminders</string>
+    <string name="settings_maintenance_notifications_subtitle">Tap to receive optional advisory reminders about components that may need attention.</string>
+    <string name="settings_maintenance_notifications_off_title">Maintenance reminders are off</string>
+    <string name="settings_maintenance_notifications_off_message">Allow notifications in app settings to receive maintenance reminders. Bike and maintenance tracking continue without them.</string>
+    <string name="settings_maintenance_notifications_open_settings">Open settings</string>
     <string name="settings_maintenance_estimates_title">About maintenance estimates</string>
     <string name="settings_maintenance_estimates_disclaimer">Maintenance intervals are estimates. Inspect actual component condition and follow manufacturer guidance.</string>
     <string name="settings_privacy_title">Privacy and data</string>
