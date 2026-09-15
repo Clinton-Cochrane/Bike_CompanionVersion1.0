@@ -3,7 +3,6 @@ package com.clintoncochrane.bikecompanion.data.bike
 import androidx.room.withTransaction
 import com.clintoncochrane.bikecompanion.data.BikeCompanionDatabase
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
-import com.clintoncochrane.bikecompanion.data.image.ImageRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,7 +17,6 @@ class BikeDeletionRepository @Inject constructor(
     private val database: BikeCompanionDatabase,
     private val bikeDao: BikeDao,
     private val componentRepository: ComponentRepository,
-    private val imageRepository: ImageRepository,
 ) {
     suspend fun deleteBike(
         bike: BikeEntity,
@@ -37,6 +35,5 @@ class BikeDeletionRepository @Inject constructor(
             }
             bikeDao.deleteById(bike.id)
         }
-        imageRepository.deleteBikeImage(bike.id)
     }
 }

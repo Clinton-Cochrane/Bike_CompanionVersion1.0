@@ -372,7 +372,6 @@ fun BikeDetailScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             ThumbnailAvatar(
-                                thumbnailUri = bike.thumbnailUri,
                                 size = 48.dp,
                                 placeholder = {
                                     Text(

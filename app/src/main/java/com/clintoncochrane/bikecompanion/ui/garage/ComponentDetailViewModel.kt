@@ -1,6 +1,5 @@
 package com.clintoncochrane.bikecompanion.ui.garage
 
-import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,7 +15,6 @@ import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.data.component.ComponentSwapRepository
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalEntity
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalRepository
-import com.clintoncochrane.bikecompanion.data.image.ImageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,7 +42,6 @@ class ComponentDetailViewModel @Inject constructor(
     private val componentSwapRepository: ComponentSwapRepository,
     private val serviceIntervalRepository: ServiceIntervalRepository,
     private val bikeRepository: BikeRepository,
-    private val imageRepository: ImageRepository,
 ) : ViewModel() {
 
     private val componentId: Long = savedStateHandle.get<String>("componentId")?.toLongOrNull() ?: 0L
@@ -179,8 +176,7 @@ class ComponentDetailViewModel @Inject constructor(
     }
 
     /**
-     * Updates component display name, mileage, time, optionally resets avg/max speed,
-     * and optionally updates thumbnail image.
+     * Updates component display name, mileage, time, and optionally resets avg/max speed.
      * Refreshes UI state after a successful update.
      */
     fun updateComponent(
@@ -190,25 +186,11 @@ class ComponentDetailViewModel @Inject constructor(
         baselineKm: Double,
         totalTimeSeconds: Long,
         resetAvgMaxSpeed: Boolean,
-        pickedImageUri: Uri? = null,
-        removeImage: Boolean = false,
     ) {
         val component = _uiState.value.component ?: return
         if (!distanceUsedKm.isFinite() || distanceUsedKm < 0.0) return
         if (!baselineKm.isFinite() || baselineKm < 0.0) return
         viewModelScope.launch {
-            var thumbnailUri = component.thumbnailUri
-            if (removeImage) {
-                imageRepository.deleteImageAtPath(component.thumbnailUri)
-                thumbnailUri = null
-            } else if (pickedImageUri != null) {
-                val newPath = imageRepository.saveComponentImage(component.id, pickedImageUri)
-                if (newPath != null) {
-                    thumbnailUri = newPath
-                }
-                // If save failed (null), keep existing thumbnailUri to avoid data loss
-            }
-
             val updated = component.copy(
                 name = name.trim(),
                 distanceUsedKm = distanceUsedKm.coerceAtLeast(0.0),
@@ -218,7 +200,6 @@ class ComponentDetailViewModel @Inject constructor(
                 avgSpeedKmh = if (resetAvgMaxSpeed) 0.0 else component.avgSpeedKmh,
                 maxSpeedKmh = if (resetAvgMaxSpeed) 0.0 else component.maxSpeedKmh,
                 maxSpeedBikeId = if (resetAvgMaxSpeed) null else component.maxSpeedBikeId,
-                thumbnailUri = thumbnailUri,
             )
             componentRepository.updateComponent(updated)
             val refreshed = componentRepository.getComponentById(component.id)

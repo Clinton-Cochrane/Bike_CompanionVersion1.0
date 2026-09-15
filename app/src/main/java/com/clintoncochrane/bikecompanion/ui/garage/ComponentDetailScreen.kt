@@ -2,7 +2,6 @@ package com.clintoncochrane.bikecompanion.ui.garage
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -88,7 +87,6 @@ import com.clintoncochrane.bikecompanion.util.DurationFormatHelper
 import com.clintoncochrane.bikecompanion.util.IntervalTimeConstants
 import com.clintoncochrane.bikecompanion.util.ServiceIntervalHelper
 import com.clintoncochrane.bikecompanion.util.componentTypeIcon
-import coil3.compose.AsyncImage
 import com.clintoncochrane.bikecompanion.ui.garage.ThumbnailAvatar
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -134,7 +132,7 @@ fun ComponentDetailScreen(
                 showComponentEdit = false
                 componentEditValidationError = null
             },
-            onSave = { name, mileageStr, certainty, baselineKmStr, timeStr, resetSpeeds, pickedImageUri, removeImage ->
+            onSave = { name, mileageStr, certainty, baselineKmStr, timeStr, resetSpeeds ->
                 componentEditValidationError = null
                 val nameTrimmed = name.trim()
                 val mileage = mileageStr.trim().toDoubleOrNull()
@@ -159,8 +157,6 @@ fun ComponentDetailScreen(
                             baselineKm ?: 0.0,
                             timeSeconds ?: 0L,
                             resetSpeeds,
-                            pickedImageUri,
-                            removeImage,
                         )
                         showComponentEdit = false
                     }
@@ -387,7 +383,6 @@ fun ComponentDetailScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             ThumbnailAvatar(
-                                thumbnailUri = component.thumbnailUri,
                                 size = 48.dp,
                                 placeholder = {
                                     Icon(
@@ -771,8 +766,6 @@ private fun ComponentEditDialog(
         baselineKmStr: String,
         timeStr: String,
         resetAvgMaxSpeed: Boolean,
-        pickedImageUri: Uri?,
-        removeImage: Boolean,
     ) -> Unit,
 ) {
     var name by remember(component.id) { mutableStateOf(component.name) }
@@ -783,24 +776,6 @@ private fun ComponentEditDialog(
         mutableStateOf(DurationFormatHelper.formatDurationSeconds(component.totalTimeSeconds))
     }
     var resetSpeeds by remember(component.id) { mutableStateOf(false) }
-    var pickedImageUri by remember(component.id) { mutableStateOf<Uri?>(null) }
-    var removeImageRequested by remember(component.id) { mutableStateOf(false) }
-
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-    ) { uri: Uri? ->
-        pickedImageUri = uri
-        removeImageRequested = false
-    }
-
-    val hasImage = !removeImageRequested && (pickedImageUri != null || !component.thumbnailUri.isNullOrBlank())
-    val imageModel = when {
-        removeImageRequested -> null
-        pickedImageUri != null -> pickedImageUri
-        !component.thumbnailUri.isNullOrBlank() -> java.io.File(component.thumbnailUri)
-        else -> null
-    }
-
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -821,51 +796,6 @@ private fun ComponentEditDialog(
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                     )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        when (imageModel) {
-                            null -> Icon(
-                                imageVector = componentTypeIcon(component.type),
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            else -> AsyncImage(
-                                model = imageModel,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                                contentScale = ContentScale.Crop,
-                            )
-                        }
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        if (hasImage) {
-                            OutlinedButton(onClick = { imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
-                                Text(stringResource(R.string.component_change_photo))
-                            }
-                            OutlinedButton(onClick = { pickedImageUri = null; removeImageRequested = true }) {
-                                Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Text(stringResource(R.string.component_remove_photo))
-                            }
-                        } else {
-                            OutlinedButton(onClick = { imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
-                                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Text(stringResource(R.string.component_add_photo))
-                            }
-                        }
-                    }
                 }
                 OutlinedTextField(
                     value = name,
@@ -927,8 +857,6 @@ private fun ComponentEditDialog(
                     baselineKmStr,
                     timeStr,
                     resetSpeeds,
-                    pickedImageUri,
-                    removeImageRequested,
                 )
             }) {
                 Text(stringResource(R.string.component_context_save))

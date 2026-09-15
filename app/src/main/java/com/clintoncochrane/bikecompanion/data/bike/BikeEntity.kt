@@ -20,8 +20,6 @@ data class BikeEntity(
     val lastRideAt: Long? = null,
     val description: String = "",
     val createdAt: Long,
-    /** Thumbnail URI for display; null uses placeholder. */
-    val thumbnailUri: String? = null,
     /** Average speed in km/h across all rides. Denormalized for fast reads. */
     val avgSpeedKmh: Double = 0.0,
     /** Max speed in km/h across all rides. Denormalized for fast reads. */
