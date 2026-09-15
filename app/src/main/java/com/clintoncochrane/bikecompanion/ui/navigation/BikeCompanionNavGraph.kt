@@ -21,6 +21,7 @@ import com.clintoncochrane.bikecompanion.ui.trip.TripScreen
 import com.clintoncochrane.bikecompanion.ui.trip.TripStartSplashScreen
 import com.clintoncochrane.bikecompanion.ui.trip.TripSettingsPlaceholderScreen
 import com.clintoncochrane.bikecompanion.ui.trip.EditRidePlaceholderScreen
+import com.clintoncochrane.bikecompanion.ui.trip.RideDetailScreen
 
 sealed class Screen(val route: String) {
     data object Trip : Screen("trip")
@@ -42,6 +43,9 @@ sealed class Screen(val route: String) {
     data object TripSettings : Screen("trip_settings")
     data object EditRide : Screen("edit_ride/{rideId}") {
         fun withId(rideId: Long) = "edit_ride/$rideId"
+    }
+    data object RideDetail : Screen("ride_detail/{rideId}") {
+        fun withId(rideId: Long) = "ride_detail/$rideId"
     }
     data object ComponentDetail : Screen("component_detail/{componentId}") {
         fun withId(id: Long) = "component_detail/$id"
@@ -98,6 +102,9 @@ fun BikeCompanionNavGraph(
         composable(Screen.EditRide.route) { backStackEntry ->
             val rideId = backStackEntry.arguments?.getString("rideId")?.toLongOrNull() ?: 0L
             EditRidePlaceholderScreen(navController = navController, rideId = rideId)
+        }
+        composable(Screen.RideDetail.route) { backStackEntry ->
+            RideDetailScreen(navController = navController, backStackEntry = backStackEntry)
         }
         composable(Screen.ComponentDetail.route) { backStackEntry ->
             ComponentDetailScreen(navController = navController, backStackEntry = backStackEntry)
