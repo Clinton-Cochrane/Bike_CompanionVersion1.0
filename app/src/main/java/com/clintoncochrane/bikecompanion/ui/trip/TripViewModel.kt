@@ -61,6 +61,7 @@ data class MissingPartInfo(
 data class TripUiState(
     val bikes: List<BikeEntity> = emptyList(),
     val rides: List<RideEntity> = emptyList(),
+    val rideHistory: RideHistoryUiState = RideHistoryUiState(),
     val selectedBike: BikeEntity? = null,
     val lastRiddenBike: BikeEntity? = null,
     /** When non-null, show missing-parts dialog before starting ride. */
@@ -123,6 +124,13 @@ class TripViewModel @Inject constructor(
                         selectedBike = current.selectedBike?.let { selected ->
                             result.bikes.find { it.id == selected.id }
                         } ?: lastRidden,
+                        rideHistory = current.rideHistory.let { history ->
+                            if (history.bikeFilterId == null || result.bikes.any { it.id == history.bikeFilterId }) {
+                                history
+                            } else {
+                                history.copy(bikeFilterId = null)
+                            }
+                        },
                         lastRiddenBike = lastRidden,
                         dismissedRideFlagIds = result.dismissedRideFlagIds,
                         dismissedPlaceholderReminderIds = result.dismissedPlaceholderReminderIds,
@@ -135,6 +143,18 @@ class TripViewModel @Inject constructor(
 
     fun selectBike(bike: BikeEntity?) {
         _uiState.value = _uiState.value.copy(selectedBike = bike)
+    }
+
+    fun setRideHistoryBikeFilter(bikeId: Long?) {
+        _uiState.update { state ->
+            state.copy(rideHistory = state.rideHistory.copy(bikeFilterId = bikeId))
+        }
+    }
+
+    fun setRideHistorySort(sort: RideHistorySort) {
+        _uiState.update { state ->
+            state.copy(rideHistory = state.rideHistory.copy(sort = sort))
+        }
     }
 
     /**

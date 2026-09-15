@@ -8,6 +8,22 @@
     <string name="nav_stats">Stats</string>
 
     <!-- Trip screen -->
+    <string name="ride_history_title">Rides</string>
+    <plurals name="ride_history_total">
+        <item quantity="one">%d ride total</item>
+        <item quantity="other">%d rides total</item>
+    </plurals>
+    <string name="ride_history_filter_label">Bike</string>
+    <string name="ride_history_all_bikes">All bikes</string>
+    <string name="ride_history_sort_label">Sort</string>
+    <string name="ride_history_sort_newest">Newest</string>
+    <string name="ride_history_sort_distance">Distance</string>
+    <string name="ride_history_sort_duration">Duration</string>
+    <string name="ride_history_empty">No rides yet.</string>
+    <string name="ride_history_filter_empty">No rides match this bike.</string>
+    <string name="ride_history_add_title">Add to your history</string>
+    <string name="ride_history_summary_assigned">%1$s · Rode %2$.1f km on %3$s in %4$s</string>
+    <string name="ride_history_summary_unassigned">%1$s · Rode %2$.1f km in %3$s · No bike assigned</string>
     <string name="trip_start_button">Start ride</string>
     <string name="trip_view_current_trip">View current ride</string>
     <string name="trip_start_button_content_description">Start ride</string>
