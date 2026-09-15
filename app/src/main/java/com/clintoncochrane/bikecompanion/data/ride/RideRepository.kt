@@ -3,6 +3,7 @@ package com.clintoncochrane.bikecompanion.data.ride
 import com.clintoncochrane.bikecompanion.data.bike.recordedDistanceKm
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentSwapDao
+import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalEntity
 import com.clintoncochrane.bikecompanion.notifications.ComponentAlertNotifier
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -170,16 +171,18 @@ class RideRepository @Inject constructor(
                 ),
             )
             serviceIntervalDao.getIntervalsByComponentIdOnce(component.id).forEach { interval ->
-                serviceIntervalDao.update(
-                    interval.copy(
-                        trackedKm = interval.trackedKm + ride.distanceKm,
-                        trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
-                            (interval.trackedTimeSeconds ?: 0L) + durationSeconds
-                        } else {
-                            interval.trackedTimeSeconds
-                        },
-                    ),
-                )
+                if (interval.includes(ride)) {
+                    serviceIntervalDao.update(
+                        interval.copy(
+                            trackedKm = interval.trackedKm + ride.distanceKm,
+                            trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
+                                (interval.trackedTimeSeconds ?: 0L) + durationSeconds
+                            } else {
+                                interval.trackedTimeSeconds
+                            },
+                        ),
+                    )
+                }
             }
         }
     }
@@ -340,16 +343,7 @@ class RideRepository @Inject constructor(
                 ),
             )
             serviceIntervalDao.getIntervalsByComponentIdOnce(component.id).forEach { interval ->
-                serviceIntervalDao.update(
-                    interval.copy(
-                        trackedKm = (interval.trackedKm + distanceDeltaKm).coerceAtLeast(0.0),
-                        trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
-                            ((interval.trackedTimeSeconds ?: 0L) + timeDeltaSeconds).coerceAtLeast(0L)
-                        } else {
-                            interval.trackedTimeSeconds
-                        },
-                    ),
-                )
+                updateIntervalForEditedRide(interval, oldRide, replacementRide)
             }
         }
     }
@@ -373,16 +367,18 @@ class RideRepository @Inject constructor(
                 ),
             )
             serviceIntervalDao.getIntervalsByComponentIdOnce(component.id).forEach { interval ->
-                serviceIntervalDao.update(
-                    interval.copy(
-                        trackedKm = interval.trackedKm + assignedRide.distanceKm,
-                        trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
-                            (interval.trackedTimeSeconds ?: 0L) + durationSeconds
-                        } else {
-                            interval.trackedTimeSeconds
-                        },
-                    ),
-                )
+                if (interval.includes(assignedRide)) {
+                    serviceIntervalDao.update(
+                        interval.copy(
+                            trackedKm = interval.trackedKm + assignedRide.distanceKm,
+                            trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
+                                (interval.trackedTimeSeconds ?: 0L) + durationSeconds
+                            } else {
+                                interval.trackedTimeSeconds
+                            },
+                        ),
+                    )
+                }
             }
         }
     }
@@ -426,18 +422,57 @@ class RideRepository @Inject constructor(
             ),
         )
         serviceIntervalDao.getIntervalsByComponentIdOnce(component.id).forEach { interval ->
-            serviceIntervalDao.update(
-                interval.copy(
-                    trackedKm = (interval.trackedKm - deletedRide.distanceKm).coerceAtLeast(0.0),
-                    trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
-                        ((interval.trackedTimeSeconds ?: 0L) - durationSeconds).coerceAtLeast(0L)
-                    } else {
-                        interval.trackedTimeSeconds
-                    },
-                ),
-            )
+            if (interval.includes(deletedRide)) {
+                serviceIntervalDao.update(
+                    interval.copy(
+                        trackedKm = (interval.trackedKm - deletedRide.distanceKm).coerceAtLeast(0.0),
+                        trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
+                            ((interval.trackedTimeSeconds ?: 0L) - durationSeconds).coerceAtLeast(0L)
+                        } else {
+                            interval.trackedTimeSeconds
+                        },
+                    ),
+                )
+            }
         }
     }
+
+    private suspend fun updateIntervalForEditedRide(
+        interval: ServiceIntervalEntity,
+        oldRide: RideEntity,
+        replacementRide: RideEntity,
+    ) {
+        val oldRideCounts = interval.includes(oldRide)
+        val replacementRideCounts = interval.includes(replacementRide)
+        if (!oldRideCounts && !replacementRideCounts) return
+
+        val oldDurationSeconds = (oldRide.durationMs / 1000L).coerceAtLeast(0L)
+        val replacementDurationSeconds = (replacementRide.durationMs / 1000L).coerceAtLeast(0L)
+        val distanceDeltaKm = when {
+            oldRideCounts && replacementRideCounts -> replacementRide.distanceKm - oldRide.distanceKm
+            oldRideCounts -> -oldRide.distanceKm
+            else -> replacementRide.distanceKm
+        }
+        val timeDeltaSeconds = when {
+            oldRideCounts && replacementRideCounts -> replacementDurationSeconds - oldDurationSeconds
+            oldRideCounts -> -oldDurationSeconds
+            else -> replacementDurationSeconds
+        }
+        serviceIntervalDao.update(
+            interval.copy(
+                trackedKm = (interval.trackedKm + distanceDeltaKm).coerceAtLeast(0.0),
+                trackedTimeSeconds = if (interval.intervalTimeSeconds != null) {
+                    ((interval.trackedTimeSeconds ?: 0L) + timeDeltaSeconds).coerceAtLeast(0L)
+                } else {
+                    interval.trackedTimeSeconds
+                },
+            ),
+        )
+    }
+
+    private fun ServiceIntervalEntity.includes(
+        ride: RideEntity,
+    ): Boolean = lastCompletedAt == null || ride.endedAt >= lastCompletedAt
 
     private fun validateReplacement(oldRide: RideEntity, replacementRide: RideEntity) {
         require(oldRide.id > 0L && replacementRide.id == oldRide.id) {

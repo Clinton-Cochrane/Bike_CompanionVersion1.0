@@ -91,8 +91,8 @@ class ServiceIntervalRepositoryPersistenceTest {
         val replacementId = database.serviceIntervalDao().insert(replacement)
         val componentBefore = requireNotNull(database.componentDao().getComponentById(componentId))
 
-        assertTrue(repository.completeServiceInterval(selectedId))
-        assertTrue(repository.completeServiceInterval(selectedId))
+        assertTrue(repository.completeServiceInterval(selectedId, completedAt = 1_000L))
+        assertTrue(repository.completeServiceInterval(selectedId, completedAt = 2_000L))
 
         val componentAfter = requireNotNull(database.componentDao().getComponentById(componentId))
         val intervalsAfter = database.serviceIntervalDao()
@@ -106,6 +106,7 @@ class ServiceIntervalRepositoryPersistenceTest {
         assertEquals("Inspect bearings", selectedAfter.name)
         assertEquals(1_000.0, selectedAfter.intervalKm, 0.0)
         assertEquals(100_000L, selectedAfter.intervalTimeSeconds)
+        assertEquals(2_000L, selectedAfter.lastCompletedAt)
         assertEquals(grease.copy(id = greaseId), intervalsAfter[greaseId])
         assertEquals(replacement.copy(id = replacementId), intervalsAfter[replacementId])
     }

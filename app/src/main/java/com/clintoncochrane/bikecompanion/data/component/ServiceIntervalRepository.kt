@@ -28,7 +28,10 @@ class ServiceIntervalRepository @Inject constructor(
      * Completes one inspection or grease/service interval without changing its policy.
      * Only progress tracked by a configured distance or time basis is reset.
      */
-    suspend fun completeServiceInterval(intervalId: Long): Boolean {
+    suspend fun completeServiceInterval(
+        intervalId: Long,
+        completedAt: Long = System.currentTimeMillis(),
+    ): Boolean {
         val interval = serviceIntervalDao.getIntervalById(intervalId) ?: return false
         if (interval.type != SERVICE_INTERVAL_TYPE_INSPECTION &&
             interval.type != SERVICE_INTERVAL_TYPE_GREASE
@@ -44,6 +47,7 @@ class ServiceIntervalRepository @Inject constructor(
                 } else {
                     interval.trackedTimeSeconds
                 },
+                lastCompletedAt = completedAt,
             ),
         )
         return true
