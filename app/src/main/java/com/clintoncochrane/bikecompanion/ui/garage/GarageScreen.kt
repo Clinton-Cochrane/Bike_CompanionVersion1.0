@@ -17,8 +17,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -51,11 +55,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -242,11 +248,8 @@ fun GarageScreen(
 
             when (uiState.selectedTab) {
                 GarageTab.Bikes -> BikesContent(
-                    bikes = uiState.bikes,
-                    bikeHealth = uiState.bikeHealth,
-                    bikeHasAlert = uiState.bikeHasAlert,
-                    totalDistanceKm = uiState.totalDistanceKm,
-                    lastRiddenBikeId = uiState.lastRiddenBikeId,
+                    state = uiState.bikesOverview,
+                    onBikeSelected = viewModel::selectBike,
                     navController = navController,
                 )
                 GarageTab.Components -> ComponentsContent(
@@ -267,14 +270,11 @@ fun GarageScreen(
 
 @Composable
 private fun BikesContent(
-    bikes: List<BikeEntity>,
-    bikeHealth: Map<Long, Int?>,
-    bikeHasAlert: Set<Long>,
-    totalDistanceKm: Double,
-    lastRiddenBikeId: Long?,
+    state: GarageBikesUiState,
+    onBikeSelected: (Int) -> Unit,
     navController: NavController,
 ) {
-    if (bikes.isEmpty()) {
+    if (state.bikes.isEmpty()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -294,23 +294,199 @@ private fun BikesContent(
             )
         }
     } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp),
+        BikeOverviewPager(
+            state = state,
+            onBikeSelected = onBikeSelected,
+            onBikeClick = { navController.navigate(Screen.BikeDetail.withId(it.id)) },
+            onRideClick = { navController.navigate(Screen.EditRide.withId(it.id)) },
+        )
+    }
+}
+
+@Composable
+private fun BikeOverviewPager(
+    state: GarageBikesUiState,
+    onBikeSelected: (Int) -> Unit,
+    onBikeClick: (BikeEntity) -> Unit,
+    onRideClick: (com.clintoncochrane.bikecompanion.data.ride.RideEntity) -> Unit,
+) {
+    val pagerState = rememberPagerState(pageCount = { state.bikes.size })
+    val previousBikeDescription = stringResource(R.string.garage_previous_bike)
+    val nextBikeDescription = stringResource(R.string.garage_next_bike)
+    val positionDescription = stringResource(
+        R.string.garage_bike_position,
+        state.selectedBikeIndex + 1,
+        state.bikes.size,
+    )
+
+    LaunchedEffect(state.selectedBikeIndex) {
+        if (pagerState.currentPage != state.selectedBikeIndex) {
+            pagerState.animateScrollToPage(state.selectedBikeIndex)
+        }
+    }
+    LaunchedEffect(pagerState.currentPage, pagerState.isScrollInProgress) {
+        if (!pagerState.isScrollInProgress && pagerState.currentPage != state.selectedBikeIndex) {
+            onBikeSelected(pagerState.currentPage)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxWidth(),
+            key = { state.bikes[it].id },
+        ) { page ->
+            val bike = state.bikes[page]
+            BikeOverviewCard(bike = bike, onClick = { onBikeClick(bike) })
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            item(key = "spec_summary") {
-                GarageSpecSummaryCard(totalDistanceKm = totalDistanceKm)
+            IconButton(
+                onClick = { onBikeSelected(state.selectedBikeIndex - 1) },
+                enabled = state.selectedBikeIndex > 0,
+                modifier = Modifier.semantics {
+                    contentDescription = previousBikeDescription
+                },
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
             }
-            items(bikes, key = { it.id }) { bike ->
-                BikeCard(
-                    bike = bike,
-                    healthPercent = bikeHealth[bike.id],
-                    hasAlert = bike.id in bikeHasAlert,
-                    isLastRidden = bike.id == lastRiddenBikeId,
-                    onClick = { navController.navigate(Screen.BikeDetail.withId(bike.id)) },
+            Text(
+                text = positionDescription,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.semantics {
+                    contentDescription = positionDescription
+                },
+            )
+            IconButton(
+                onClick = { onBikeSelected(state.selectedBikeIndex + 1) },
+                enabled = state.selectedBikeIndex < state.bikes.lastIndex,
+                modifier = Modifier.semantics {
+                    contentDescription = nextBikeDescription
+                },
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+            }
+        }
+
+        GarageBikeStatusCard(status = state.status)
+
+        Text(
+            text = stringResource(R.string.garage_recent_rides),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        if (state.recentRides.isEmpty()) {
+            Text(
+                text = stringResource(R.string.garage_recent_rides_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            state.recentRides.forEach { ride ->
+                RecentRideRow(ride = ride, onClick = { onRideClick(ride) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun BikeOverviewCard(bike: BikeEntity, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(text = bike.name, style = MaterialTheme.typography.headlineMedium)
+            val details = listOf(bike.make, bike.model, bike.year).filter(String::isNotBlank)
+            if (details.isNotEmpty()) {
+                Text(
+                    text = details.joinToString(" "),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            Text(
+                text = stringResource(R.string.bike_odometer_km, bike.totalDistanceKm),
+                modifier = Modifier.padding(top = 12.dp),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+    }
+}
+
+@Composable
+private fun GarageBikeStatusCard(status: GarageBikeStatusSummary) {
+    val (label, color) = when (status.level) {
+        GarageBikeStatus.ReadyToRide -> stringResource(R.string.garage_status_ready_to_ride) to MaterialTheme.colorScheme.primary
+        GarageBikeStatus.InspectSoon -> stringResource(R.string.garage_status_inspect_soon) to Color(0xFFB26A00)
+        GarageBikeStatus.ServiceDue -> stringResource(R.string.garage_status_service_due) to MaterialTheme.colorScheme.error
+    }
+    val description = if (status.affectedComponentNames.isEmpty()) {
+        label
+    } else {
+        stringResource(
+            R.string.garage_status_affected_components,
+            label,
+            status.affectedComponentNames.joinToString(),
+        )
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = description },
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = label, style = MaterialTheme.typography.titleMedium, color = color)
+            if (status.affectedComponentNames.isNotEmpty()) {
+                Text(
+                    text = stringResource(
+                        R.string.garage_status_components,
+                        status.affectedComponentNames.joinToString(),
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentRideRow(
+    ride: com.clintoncochrane.bikecompanion.data.ride.RideEntity,
+    onClick: () -> Unit,
+) {
+    val date = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(ride.endedAt))
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = date,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                text = stringResource(R.string.trip_ride_distance, ride.distanceKm),
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
     }
 }
