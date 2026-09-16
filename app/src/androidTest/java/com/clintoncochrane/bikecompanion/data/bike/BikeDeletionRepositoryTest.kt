@@ -37,6 +37,7 @@ class BikeDeletionRepositoryTest {
             database.componentSwapDao(),
             database.bikeDao(),
             ComponentLifecycleTransaction(database),
+            database.serviceHistoryDao(),
         )
         repository = BikeDeletionRepository(
             database,

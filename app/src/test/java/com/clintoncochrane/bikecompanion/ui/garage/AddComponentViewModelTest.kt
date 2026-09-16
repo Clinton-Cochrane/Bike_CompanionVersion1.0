@@ -33,6 +33,7 @@ class AddComponentViewModelTest {
     private val serviceIntervalRepository = mockk<ServiceIntervalRepository>()
     private val appPreferencesRepository = mockk<AppPreferencesRepository>()
     private val rideRepository = mockk<RideRepository>()
+    private val serviceCompletionCoordinator = mockk<ServiceCompletionCoordinator>()
 
     @Before
     fun setUp() {
@@ -80,6 +81,7 @@ class AddComponentViewModelTest {
             serviceIntervalRepository,
             appPreferencesRepository,
             rideRepository,
+            serviceCompletionCoordinator,
         )
         advanceUntilIdle()
 
@@ -117,9 +119,11 @@ class AddComponentViewModelTest {
         every { bikeRepository.getAllBikes() } returns flowOf(emptyList())
         every { componentRepository.getAllComponentsFlow() } returns flowOf(emptyList())
         every { componentRepository.getNonRetiredComponents() } returns flowOf(emptyList())
+        coEvery { componentRepository.getNonRetiredComponentsOnce() } returns emptyList()
         every { componentSwapRepository.getAllSwaps() } returns flowOf(emptyList())
         every { appPreferencesRepository.closeToServiceHealthThreshold } returns flowOf(20)
         every { rideRepository.getAllRides() } returns flowOf(emptyList())
+        every { serviceIntervalRepository.getAllIntervals() } returns flowOf(emptyList())
     }
 
     private fun request() = AddComponentRequest(

@@ -336,10 +336,43 @@ object BikeCompanionMigrations {
         }
     }
 
+    /** Adds immutable service snapshots used by Garage bulk completion. */
+    val MIGRATION_19_20 = object : Migration(19, 20) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS service_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    sessionId TEXT NOT NULL,
+                    serviceIntervalId INTEGER,
+                    serviceName TEXT NOT NULL,
+                    serviceType TEXT NOT NULL,
+                    componentId INTEGER NOT NULL,
+                    replacementComponentId INTEGER,
+                    bikeId INTEGER NOT NULL,
+                    completedAt INTEGER NOT NULL,
+                    bikeOdometerKm REAL NOT NULL
+                )
+                """.trimIndent(),
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS index_service_history_sessionId_serviceIntervalId " +
+                    "ON service_history(sessionId, serviceIntervalId)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS index_service_history_componentId ON service_history(componentId)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS index_service_history_bikeId ON service_history(bikeId)",
+            )
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
         MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
         MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
         MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19,
+        MIGRATION_19_20,
     )
 }

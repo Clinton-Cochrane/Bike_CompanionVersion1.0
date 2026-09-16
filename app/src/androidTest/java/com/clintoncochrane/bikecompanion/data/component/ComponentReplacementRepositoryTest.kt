@@ -20,6 +20,86 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ComponentReplacementRepositoryTest {
     @Test
+    fun replaceComponentForService_movesOldToGarageAndClonesActualPoliciesAtZero() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val database = Room.inMemoryDatabaseBuilder(context, BikeCompanionDatabase::class.java).build()
+        try {
+            val bikeId = database.bikeDao().insert(
+                BikeEntity(name = "Bike", totalDistanceKm = 4_321.0, createdAt = 1L),
+            )
+            val oldId = database.componentDao().insert(
+                ComponentEntity(
+                    bikeId = bikeId,
+                    type = "chain",
+                    name = "Summer chain",
+                    make = "Shimano",
+                    model = "HG-701",
+                    lifespanKm = 4_000.0,
+                    distanceUsedKm = 4_000.0,
+                    totalTimeSeconds = 80_000L,
+                    position = "none",
+                    installedAt = 1L,
+                ),
+            )
+            database.componentSwapDao().insert(ComponentSwapEntity(componentId = oldId, bikeId = bikeId, installedAt = 1L))
+            database.serviceIntervalDao().insert(
+                ServiceIntervalEntity(
+                    componentId = oldId,
+                    name = "Custom clean",
+                    intervalKm = 321.0,
+                    trackedKm = 300.0,
+                    type = SERVICE_INTERVAL_TYPE_GREASE,
+                    intervalTimeSeconds = 7_777L,
+                    trackedTimeSeconds = 7_000L,
+                ),
+            )
+            val replaceIntervalId = database.serviceIntervalDao().insert(
+                ServiceIntervalEntity(
+                    componentId = oldId,
+                    name = "Custom replacement",
+                    intervalKm = 4_000.0,
+                    trackedKm = 4_000.0,
+                    type = SERVICE_INTERVAL_TYPE_REPLACE,
+                ),
+            )
+            val repository = ComponentRepository(
+                database.componentDao(), database.serviceIntervalDao(), database.componentSwapDao(), database.bikeDao(),
+                ComponentLifecycleTransaction(database), database.serviceHistoryDao(),
+            )
+
+            val replacementId = requireNotNull(
+                repository.replaceComponentForService(replaceIntervalId, "session", completedAt = 10_000L),
+            )
+
+            val old = requireNotNull(database.componentDao().getComponentById(oldId))
+            val replacement = requireNotNull(database.componentDao().getComponentById(replacementId))
+            val replacementIntervals = database.serviceIntervalDao().getIntervalsByComponentIdOnce(replacementId)
+            val history = database.serviceHistoryDao().getBySessionId("session").single()
+            assertEquals(ComponentLifecycleStatus.IN_GARAGE, old.lifecycleStatus)
+            assertNull(old.bikeId)
+            assertEquals(ComponentLifecycleStatus.INSTALLED, replacement.lifecycleStatus)
+            assertEquals(bikeId, replacement.bikeId)
+            assertEquals("", replacement.name)
+            assertEquals("Shimano", replacement.make)
+            assertEquals("HG-701", replacement.model)
+            assertEquals("chain", replacement.type)
+            assertEquals("none", replacement.position)
+            assertEquals(0.0, replacement.lifetimeDistanceKm, 0.0)
+            assertEquals(2, replacementIntervals.size)
+            assertEquals(setOf("Custom clean", "Custom replacement"), replacementIntervals.map { it.name }.toSet())
+            assertTrue(replacementIntervals.all { it.trackedKm == 0.0 })
+            assertEquals(0L, replacementIntervals.single { it.name == "Custom clean" }.trackedTimeSeconds)
+            assertEquals(321.0, replacementIntervals.single { it.name == "Custom clean" }.intervalKm, 0.0)
+            assertEquals(7_777L, replacementIntervals.single { it.name == "Custom clean" }.intervalTimeSeconds)
+            assertEquals(oldId, history.componentId)
+            assertEquals(replacementId, history.replacementComponentId)
+            assertEquals(4_321.0, history.bikeOdometerKm, 0.0)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun replaceComponent_retiresOldComponentAndInstallsIndependentReplacement() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val database = Room.inMemoryDatabaseBuilder(context, BikeCompanionDatabase::class.java).build()
@@ -31,7 +111,7 @@ class ComponentReplacementRepositoryTest {
             database.componentSwapDao().insert(ComponentSwapEntity(componentId = oldId, bikeId = bikeId, installedAt = 1L))
             val repository = ComponentRepository(
                 database.componentDao(), database.serviceIntervalDao(), database.componentSwapDao(), database.bikeDao(),
-                ComponentLifecycleTransaction(database),
+                ComponentLifecycleTransaction(database), database.serviceHistoryDao(),
             )
 
             val replacementId = repository.replaceComponent(
@@ -114,7 +194,7 @@ class ComponentReplacementRepositoryTest {
             )
             val repository = ComponentRepository(
                 database.componentDao(), database.serviceIntervalDao(), database.componentSwapDao(), database.bikeDao(),
-                ComponentLifecycleTransaction(database),
+                ComponentLifecycleTransaction(database), database.serviceHistoryDao(),
             )
 
             val result = runCatching {

@@ -37,6 +37,7 @@ class ComponentSeedingIdempotencyTest {
             db.componentSwapDao(),
             db.bikeDao(),
             ComponentLifecycleTransaction(db),
+            db.serviceHistoryDao(),
         )
     }
 

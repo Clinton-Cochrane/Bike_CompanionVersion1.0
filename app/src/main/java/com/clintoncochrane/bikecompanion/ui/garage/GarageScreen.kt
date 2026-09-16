@@ -77,6 +77,7 @@ import com.clintoncochrane.bikecompanion.data.component.ComponentCategory
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.ui.navigation.Screen
+import com.clintoncochrane.bikecompanion.ui.LocalBottomNavigationLiftController
 import com.clintoncochrane.bikecompanion.util.ComponentSortOrder
 import com.clintoncochrane.bikecompanion.util.minimumComponentHealthPercent
 import com.clintoncochrane.bikecompanion.util.componentTypeIcon
@@ -92,6 +93,7 @@ fun GarageScreen(
 ) {
     val viewModel = androidx.hilt.navigation.compose.hiltViewModel<GarageViewModel>()
     val uiState by viewModel.uiState.collectAsState()
+    val bottomNavigationLiftController = LocalBottomNavigationLiftController.current
     var showAddComponentDialog by remember { mutableStateOf(false) }
 
     val fabContentDesc = when (uiState.selectedTab) {
@@ -113,7 +115,8 @@ fun GarageScreen(
         )
     }
 
-    Scaffold(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
         topBar = {
             var garageMenuExpanded by remember { mutableStateOf(false) }
             val garageMenuContentDesc = stringResource(R.string.settings_content_description)
@@ -202,6 +205,7 @@ fun GarageScreen(
                 GarageTab.Bikes -> BikesContent(
                     state = uiState.bikesOverview,
                     onBikeSelected = viewModel::selectBike,
+                    onServiceDueClick = viewModel::openServiceSheet,
                     navController = navController,
                 )
                 GarageTab.Components -> PartsDirectoryContent(
@@ -213,6 +217,17 @@ fun GarageScreen(
                 )
             }
         }
+        }
+        GarageServiceSheetHost(
+            state = uiState.serviceSheet,
+            onDismiss = viewModel::dismissServiceSheet,
+            onToggle = viewModel::toggleServiceRequirement,
+            onShowConfirmation = viewModel::showServiceConfirmation,
+            onShowChecklist = viewModel::showServiceChecklist,
+            onConfirm = viewModel::completeSelectedServiceRequirements,
+            onRetry = viewModel::retryFailedServiceRequirements,
+            onLiftChanged = bottomNavigationLiftController.onLiftChanged,
+        )
     }
 }
 
@@ -384,6 +399,7 @@ private fun PartDirectoryListRow(
 private fun BikesContent(
     state: GarageBikesUiState,
     onBikeSelected: (Int) -> Unit,
+    onServiceDueClick: () -> Unit,
     navController: NavController,
 ) {
     if (state.bikes.isEmpty()) {
@@ -409,6 +425,7 @@ private fun BikesContent(
         BikeOverviewPager(
             state = state,
             onBikeSelected = onBikeSelected,
+            onServiceDueClick = onServiceDueClick,
             onBikeClick = { navController.navigate(Screen.BikeDetail.withId(it.id)) },
             onRideClick = { navController.navigate(Screen.RideDetail.withId(it.id)) },
         )
@@ -419,6 +436,7 @@ private fun BikesContent(
 private fun BikeOverviewPager(
     state: GarageBikesUiState,
     onBikeSelected: (Int) -> Unit,
+    onServiceDueClick: () -> Unit,
     onBikeClick: (BikeEntity) -> Unit,
     onRideClick: (com.clintoncochrane.bikecompanion.data.ride.RideEntity) -> Unit,
 ) {
@@ -490,7 +508,11 @@ private fun BikeOverviewPager(
             }
         }
 
-        GarageBikeStatusCard(status = state.status)
+        GarageBikeStatusCard(
+            status = state.status,
+            isActionable = state.dueServiceRequirements.isNotEmpty(),
+            onClick = onServiceDueClick,
+        )
 
         Text(
             text = stringResource(R.string.garage_recent_rides),
@@ -541,7 +563,11 @@ private fun BikeOverviewCard(bike: BikeEntity, onClick: () -> Unit) {
 }
 
 @Composable
-private fun GarageBikeStatusCard(status: GarageBikeStatusSummary) {
+internal fun GarageBikeStatusCard(
+    status: GarageBikeStatusSummary,
+    isActionable: Boolean,
+    onClick: () -> Unit,
+) {
     val (label, color) = when (status.level) {
         GarageBikeStatus.ReadyToRide -> stringResource(R.string.garage_status_ready_to_ride) to MaterialTheme.colorScheme.primary
         GarageBikeStatus.InspectSoon -> stringResource(R.string.garage_status_inspect_soon) to Color(0xFFB26A00)
@@ -560,6 +586,7 @@ private fun GarageBikeStatusCard(status: GarageBikeStatusSummary) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(enabled = isActionable, onClick = onClick)
             .semantics { contentDescription = description },
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
