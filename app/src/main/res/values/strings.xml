@@ -213,6 +213,12 @@
     <string name="garage_assigned_none">None</string>
     <string name="garage_add_component">Add component</string>
     <string name="garage_add_component_content_description">Add a component to garage</string>
+    <string name="component_add_title">Add component</string>
+    <string name="component_add_type">Type</string>
+    <string name="component_add_display_name">Display name (optional)</string>
+    <string name="component_add_prior_distance">Prior distance (km) (optional)</string>
+    <string name="component_add_approximate">Approximate</string>
+    <string name="component_add_action">Add</string>
     <string name="garage_add_bike">Add bike</string>
     <string name="garage_add_bike_content_description">Add a new bike</string>
     <string name="add_bike_choose_mode">How do you want to add your bike?</string>
