@@ -8,6 +8,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
+import com.clintoncochrane.bikecompanion.util.DisplayFormatHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -59,7 +60,9 @@ class TripStartSplashViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             if (bikeId > 0L) {
-                _assignedBikeName.value = bikeRepository.getBikeById(bikeId)?.name
+                _assignedBikeName.value = bikeRepository.getBikeById(bikeId)?.let {
+                    DisplayFormatHelper.bikeLabels(it.name, it.make, it.model).primary
+                }
             }
         }
         ProcessLifecycleOwner.get().lifecycle.addObserver(

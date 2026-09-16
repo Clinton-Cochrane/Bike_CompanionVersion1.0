@@ -7,7 +7,8 @@ import androidx.room.PrimaryKey
 data class BikeEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-    val name: String,
+    /** Optional human-readable display name, persisted in the legacy `name` column. */
+    val name: String = "",
     val make: String = "",
     val model: String = "",
     val year: String = "",
@@ -40,6 +41,9 @@ data class BikeEntity(
     /** Free-form notes for the bike. */
     val notes: String = "",
 )
+
+val BikeEntity.displayName: String
+    get() = name
 
 /** Distance represented by persisted ride accounting rather than the starting odometer. */
 val BikeEntity.recordedDistanceKm: Double

@@ -30,6 +30,7 @@ sealed interface PartAssociation {
 data class PartsDirectoryRow(
     val componentId: Long,
     val displayName: String,
+    val secondaryLabel: String?,
     val typeKey: String,
     val association: PartAssociation,
     val isRetired: Boolean,
@@ -64,7 +65,12 @@ object PartsDirectoryPresenter {
                 val typeKey = component.type.lowercase(Locale.ROOT)
                 PartsDirectoryRow(
                     componentId = component.id,
-                    displayName = DisplayFormatHelper.formatForDisplay(component.name),
+                    displayName = DisplayFormatHelper.componentLabels(
+                        component.name, component.make, component.model, component.type,
+                    ).primary,
+                    secondaryLabel = DisplayFormatHelper.componentLabels(
+                        component.name, component.make, component.model, component.type,
+                    ).secondary,
                     typeKey = typeKey,
                     association = associationFor(
                         component = component,
@@ -105,11 +111,15 @@ object PartsDirectoryPresenter {
         latestSwap: ComponentSwapEntity?,
     ): PartAssociation {
         if (component.lifecycleStatus == ComponentLifecycleStatus.RETIRED) {
-            val lastBikeName = latestSwap?.bikeId?.let(bikesById::get)?.name
+            val lastBikeName = latestSwap?.bikeId?.let(bikesById::get)?.let {
+                DisplayFormatHelper.bikeLabels(it.name, it.make, it.model).primary
+            }
             return lastBikeName?.let(PartAssociation::LastBike) ?: PartAssociation.Retired
         }
 
-        val currentBikeName = component.bikeId?.let(bikesById::get)?.name
+        val currentBikeName = component.bikeId?.let(bikesById::get)?.let {
+            DisplayFormatHelper.bikeLabels(it.name, it.make, it.model).primary
+        }
         return currentBikeName?.let(PartAssociation::CurrentBike) ?: PartAssociation.NoBike
     }
 }

@@ -392,6 +392,13 @@ private fun PartDirectoryListRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            row.secondaryLabel?.let { secondaryLabel ->
+                Text(
+                    text = secondaryLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
                 text = association,
                 style = MaterialTheme.typography.bodySmall,
@@ -548,7 +555,10 @@ private fun BikeOverviewCard(bike: BikeEntity, onClick: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(text = bike.name, style = MaterialTheme.typography.headlineMedium)
+            Text(
+                text = DisplayFormatHelper.bikeLabels(bike.name, bike.make, bike.model).primary,
+                style = MaterialTheme.typography.headlineMedium,
+            )
             val details = listOf(bike.make, bike.model, bike.year).filter(String::isNotBlank)
             if (details.isNotEmpty()) {
                 Text(
@@ -694,7 +704,7 @@ private fun ComponentsContent(
     val typeSummary = typeFilter?.let { DisplayFormatHelper.formatComponentTypeForDisplay(it) }
         ?: stringResource(R.string.garage_filter_all)
     val bikeSummary = bikeFilterId?.let { id ->
-        bikes.find { it.id == id }?.name
+        bikes.find { it.id == id }?.let { DisplayFormatHelper.bikeLabels(it.name, it.make, it.model).primary }
     } ?: stringResource(R.string.garage_filter_bike_all)
     val sortSummary = when (componentSortOrder) {
         ComponentSortOrder.TYPE_AZ -> stringResource(R.string.component_sort_type_az)
@@ -790,7 +800,7 @@ private fun ComponentsContent(
                             FilterChip(
                                 selected = bikeFilterId == bike.id,
                                 onClick = { onBikeFilterChange(bike.id) },
-                                label = { Text(bike.name) },
+                                label = { Text(DisplayFormatHelper.bikeLabels(bike.name, bike.make, bike.model).primary) },
                             )
                         }
                     }
@@ -948,7 +958,9 @@ private fun GarageCategorySection(
                 ) {
                     components.forEach { component ->
                         val assignedTo = component.bikeId?.let { bid ->
-                            bikes.find { it.id == bid }?.name
+                            bikes.find { it.id == bid }?.let {
+                                DisplayFormatHelper.bikeLabels(it.name, it.make, it.model).primary
+                            }
                         } ?: stringResource(R.string.garage_assigned_none)
                         GarageComponentCard(
                             component = component,
@@ -994,12 +1006,16 @@ private fun GarageComponentCard(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = DisplayFormatHelper.formatForDisplay(component.name),
+                    text = DisplayFormatHelper.componentLabels(
+                        component.name, component.make, component.model, component.type,
+                    ).primary,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = DisplayFormatHelper.formatComponentTypeForDisplay(component.type),
+                    text = DisplayFormatHelper.componentLabels(
+                        component.name, component.make, component.model, component.type,
+                    ).secondary ?: DisplayFormatHelper.formatComponentTypeForDisplay(component.type),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1074,7 +1090,7 @@ private fun BikeCard(
                     size = 40.dp,
                     placeholder = {
                         Text(
-                            text = "${bike.name.firstOrNull()?.uppercaseChar() ?: "?"}",
+                            text = "${DisplayFormatHelper.bikeLabels(bike.name, bike.make, bike.model).primary.firstOrNull()?.uppercaseChar() ?: "?"}",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -1086,7 +1102,7 @@ private fun BikeCard(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = bike.name,
+                            text = DisplayFormatHelper.bikeLabels(bike.name, bike.make, bike.model).primary,
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onSurface,
                         )

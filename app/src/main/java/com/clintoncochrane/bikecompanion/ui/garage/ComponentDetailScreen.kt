@@ -132,9 +132,8 @@ fun ComponentDetailScreen(
                 showComponentEdit = false
                 componentEditValidationError = null
             },
-            onSave = { name, mileageStr, certainty, baselineKmStr, timeStr, resetSpeeds ->
+            onSave = { name, make, model, mileageStr, certainty, baselineKmStr, timeStr, resetSpeeds ->
                 componentEditValidationError = null
-                val nameTrimmed = name.trim()
                 val mileage = mileageStr.trim().toDoubleOrNull()
                 val baselineKm = if (certainty == PriorUsageCertainty.UNKNOWN) {
                     0.0
@@ -145,13 +144,14 @@ fun ComponentDetailScreen(
                     if (t.isEmpty()) 0L else DurationFormatHelper.parseDurationToSeconds(t)
                 }
                 when {
-                    nameTrimmed.isBlank() -> componentEditValidationError = nameEmptyMsg
                     mileage == null || !mileage.isFinite() || mileage < 0 -> componentEditValidationError = mileageInvalidMsg
                     baselineKm == null || !baselineKm.isFinite() || baselineKm < 0 -> componentEditValidationError = mileageInvalidMsg
                     timeStr.isNotBlank() && timeSeconds == null -> componentEditValidationError = timeInvalidMsg
                     else -> {
                         viewModel.updateComponent(
-                            nameTrimmed,
+                            name,
+                            make,
+                            model,
                             mileage ?: 0.0,
                             certainty,
                             baselineKm ?: 0.0,
@@ -167,7 +167,9 @@ fun ComponentDetailScreen(
 
     if (showContextEdit && uiState.component != null) {
         ComponentContextEditDialog(
-            componentName = DisplayFormatHelper.formatForDisplay(uiState.component!!.name),
+            componentName = uiState.component!!.let {
+                DisplayFormatHelper.componentLabels(it.name, it.make, it.model, it.type).primary
+            },
             initialContext = uiState.context,
             componentId = uiState.component!!.id,
             validationError = contextValidationError,
@@ -293,7 +295,7 @@ fun ComponentDetailScreen(
                                     verticalArrangement = Arrangement.spacedBy(2.dp),
                                     horizontalAlignment = Alignment.Start,
                                 ) {
-                                    Text(bike.name)
+                                    Text(DisplayFormatHelper.bikeLabels(bike.name, bike.make, bike.model).primary)
                                     if (!canInstall) {
                                         Text(
                                             stringResource(R.string.component_swap_duplicate_hint, DisplayFormatHelper.formatComponentTypeForDisplay(component.type)),
@@ -325,7 +327,7 @@ fun ComponentDetailScreen(
     val screenTitle = if (uiState.component?.lifecycleStatus == ComponentLifecycleStatus.RETIRED) {
         stringResource(R.string.component_retired)
     } else uiState.component?.bikeId?.let { bid ->
-        uiState.bikes.find { it.id == bid }?.name
+        uiState.bikes.find { it.id == bid }?.let { DisplayFormatHelper.bikeLabels(it.name, it.make, it.model).primary }
     } ?: stringResource(R.string.component_in_garage)
     Scaffold(
         topBar = {
@@ -395,7 +397,9 @@ fun ComponentDetailScreen(
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 val bikeName = component.bikeId?.let { bid ->
-                                    uiState.bikes.find { it.id == bid }?.name
+                                    uiState.bikes.find { it.id == bid }?.let {
+                                        DisplayFormatHelper.bikeLabels(it.name, it.make, it.model).primary
+                                    }
                                 }
                                 Text(
                                     if (component.lifecycleStatus == ComponentLifecycleStatus.RETIRED) {
@@ -406,15 +410,18 @@ fun ComponentDetailScreen(
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                val labels = DisplayFormatHelper.componentLabels(
+                                    component.name, component.make, component.model, component.type,
+                                )
                                 Text(
-                                    DisplayFormatHelper.formatComponentTypeForDisplay(component.type),
+                                    labels.primary,
                                     style = MaterialTheme.typography.titleLarge,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                 )
-                                if (component.makeModel.isNotBlank()) {
+                                if (labels.secondary != null) {
                                     Text(
-                                        component.makeModel,
+                                        labels.secondary,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -594,7 +601,9 @@ fun ComponentDetailScreen(
                 Text(stringResource(R.string.component_swaps_section), style = MaterialTheme.typography.titleMedium)
             }
             items(uiState.swaps, key = { it.id }) { swap ->
-                val bikeName = uiState.bikes.find { it.id == swap.bikeId }?.name
+                val bikeName = uiState.bikes.find { it.id == swap.bikeId }?.let {
+                    DisplayFormatHelper.bikeLabels(it.name, it.make, it.model).primary
+                }
                     ?: stringResource(R.string.component_swap_deleted_bike)
                 val dateFormat = SimpleDateFormat("M/d/yyyy 'at' h:mm a", Locale.getDefault())
                 Card(
@@ -761,6 +770,8 @@ private fun ComponentEditDialog(
     onDismiss: () -> Unit,
     onSave: (
         name: String,
+        make: String,
+        model: String,
         mileageStr: String,
         priorUsageCertainty: PriorUsageCertainty,
         baselineKmStr: String,
@@ -769,6 +780,8 @@ private fun ComponentEditDialog(
     ) -> Unit,
 ) {
     var name by remember(component.id) { mutableStateOf(component.name) }
+    var make by remember(component.id) { mutableStateOf(component.make) }
+    var model by remember(component.id) { mutableStateOf(component.model) }
     var mileageStr by remember(component.id) { mutableStateOf(component.distanceUsedKm.toString()) }
     var priorUsageCertainty by remember(component.id) { mutableStateOf(component.priorUsageCertainty) }
     var baselineKmStr by remember(component.id) { mutableStateOf(component.baselineKm.toString()) }
@@ -802,6 +815,20 @@ private fun ComponentEditDialog(
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.component_edit_display_name)) },
                     placeholder = { Text(stringResource(R.string.component_edit_display_name_hint)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = make,
+                    onValueChange = { make = it },
+                    label = { Text(stringResource(R.string.component_make)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = model,
+                    onValueChange = { model = it },
+                    label = { Text(stringResource(R.string.component_model)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
@@ -852,6 +879,8 @@ private fun ComponentEditDialog(
             TextButton(onClick = {
                 onSave(
                     name,
+                    make,
+                    model,
                     mileageStr,
                     priorUsageCertainty,
                     baselineKmStr,

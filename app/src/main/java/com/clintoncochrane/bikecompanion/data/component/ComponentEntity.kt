@@ -31,8 +31,10 @@ data class ComponentEntity(
     },
     /** Component type for display and grouping (e.g. chain, cassette, tires). */
     val type: String,
-    val name: String,
-    val makeModel: String = "",
+    /** Optional human-readable display name, persisted in the legacy `name` column. */
+    val name: String = "",
+    val make: String = "",
+    val model: String = "",
     /** Expected lifespan in km. Used to compute health %. */
     val lifespanKm: Double,
     /** Distance tracked by Bike Companion since this component was added. */
@@ -68,3 +70,6 @@ data class ComponentEntity(
     val lifetimeDistanceKm: Double
         get() = distanceUsedKm + if (priorUsageCertainty == PriorUsageCertainty.UNKNOWN) 0.0 else baselineKm
 }
+
+val ComponentEntity.displayName: String
+    get() = name

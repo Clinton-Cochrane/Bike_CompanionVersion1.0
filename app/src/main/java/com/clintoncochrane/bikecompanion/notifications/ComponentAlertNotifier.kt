@@ -43,7 +43,9 @@ class ComponentAlertNotifier @Inject constructor(
         if (needAlert.isEmpty()) return@withContext
         ensureChannel()
         val title = context.getString(R.string.garage_components_attention, needAlert.size)
-        val text = needAlert.joinToString { DisplayFormatHelper.formatForDisplay(it.name) }
+        val text = needAlert.joinToString {
+            DisplayFormatHelper.componentLabels(it.name, it.make, it.model, it.type).primary
+        }
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle(title)

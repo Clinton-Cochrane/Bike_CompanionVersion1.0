@@ -323,10 +323,23 @@ object BikeCompanionMigrations {
         }
     }
 
+    /** Splits component identification into optional display name, make, and model fields. */
+    val MIGRATION_18_19 = object : Migration(18, 19) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("PRAGMA foreign_keys=OFF")
+            db.execSQL("CREATE TABLE components_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, bikeId INTEGER, lifecycleStatus TEXT NOT NULL, type TEXT NOT NULL, name TEXT NOT NULL, make TEXT NOT NULL, model TEXT NOT NULL, lifespanKm REAL NOT NULL, distanceUsedKm REAL NOT NULL, totalTimeSeconds INTEGER NOT NULL, position TEXT NOT NULL, baselineKm REAL NOT NULL, priorUsageCertainty TEXT NOT NULL, baselineTimeSeconds INTEGER NOT NULL, alertThresholdPercent INTEGER NOT NULL, alertSnoozeUntilKm REAL, alertSnoozeUntilTime INTEGER, alertsEnabled INTEGER NOT NULL, installedAt INTEGER NOT NULL, notes TEXT NOT NULL, avgSpeedKmh REAL NOT NULL, maxSpeedKmh REAL NOT NULL, maxSpeedBikeId INTEGER, FOREIGN KEY(bikeId) REFERENCES bikes(id) ON DELETE SET NULL)")
+            db.execSQL("INSERT INTO components_new (id, bikeId, lifecycleStatus, type, name, make, model, lifespanKm, distanceUsedKm, totalTimeSeconds, position, baselineKm, priorUsageCertainty, baselineTimeSeconds, alertThresholdPercent, alertSnoozeUntilKm, alertSnoozeUntilTime, alertsEnabled, installedAt, notes, avgSpeedKmh, maxSpeedKmh, maxSpeedBikeId) SELECT id, bikeId, lifecycleStatus, type, name, '', makeModel, lifespanKm, distanceUsedKm, totalTimeSeconds, position, baselineKm, priorUsageCertainty, baselineTimeSeconds, alertThresholdPercent, alertSnoozeUntilKm, alertSnoozeUntilTime, alertsEnabled, installedAt, notes, avgSpeedKmh, maxSpeedKmh, maxSpeedBikeId FROM components")
+            db.execSQL("DROP TABLE components")
+            db.execSQL("ALTER TABLE components_new RENAME TO components")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_components_bikeId ON components(bikeId)")
+            db.execSQL("PRAGMA foreign_keys=ON")
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
         MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
         MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
-        MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18,
+        MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19,
     )
 }

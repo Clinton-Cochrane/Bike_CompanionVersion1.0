@@ -176,11 +176,13 @@ class ComponentDetailViewModel @Inject constructor(
     }
 
     /**
-     * Updates component display name, mileage, time, and optionally resets avg/max speed.
+     * Updates component identification, mileage, time, and optionally resets avg/max speed.
      * Refreshes UI state after a successful update.
      */
     fun updateComponent(
         name: String,
+        make: String,
+        model: String,
         distanceUsedKm: Double,
         priorUsageCertainty: PriorUsageCertainty,
         baselineKm: Double,
@@ -193,6 +195,8 @@ class ComponentDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val updated = component.copy(
                 name = name.trim(),
+                make = make.trim(),
+                model = model.trim(),
                 distanceUsedKm = distanceUsedKm.coerceAtLeast(0.0),
                 baselineKm = if (priorUsageCertainty == PriorUsageCertainty.UNKNOWN) 0.0 else baselineKm,
                 priorUsageCertainty = priorUsageCertainty,

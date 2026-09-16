@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Before
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class AddEditBikeViewModelTest {
@@ -67,5 +68,18 @@ class AddEditBikeViewModelTest {
         advanceUntilIdle()
 
         coVerify { componentRepository.seedDefaultComponentsIfEmpty(42L, 750.0) }
+    }
+
+    @Test
+    fun saveBike_blankDisplayName_insertsBike() = runTest(dispatcher) {
+        coEvery { bikeRepository.insertBike(any()) } returns 42L
+        coEvery { componentRepository.seedDefaultComponentsIfEmpty(42L, 0.0) } returns Unit
+        val viewModel = AddEditBikeViewModel(SavedStateHandle(), bikeRepository, componentRepository)
+
+        viewModel.saveBike(BikeEntity(name = "", createdAt = 1_000L))
+        advanceUntilIdle()
+
+        coVerify { bikeRepository.insertBike(match { it.name.isEmpty() }) }
+        assertEquals(SaveOutcome.NewBike(42L), viewModel.uiState.value.saveOutcome)
     }
 }
