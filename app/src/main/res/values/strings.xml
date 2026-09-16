@@ -221,14 +221,10 @@
     <string name="component_add_action">Add</string>
     <string name="garage_add_bike">Add bike</string>
     <string name="garage_add_bike_content_description">Add a new bike</string>
-    <string name="add_bike_choose_mode">How do you want to add your bike?</string>
     <string name="add_bike_quick_add">Quick add</string>
     <string name="add_bike_quick_add_subtitle">Name, drivetrain, and brakes. We’ll add suggested components.</string>
     <string name="add_bike_quick_add_content_description">Quick add: name, drivetrain, brakes</string>
     <string name="add_bike_quick_add_hint">We’ll add suggested components (chain, cassette, tires, etc.) with general service intervals.</string>
-    <string name="add_bike_full_setup">Full setup</string>
-    <string name="add_bike_full_setup_subtitle">Customize everything: details, component names, and service intervals.</string>
-    <string name="add_bike_full_setup_content_description">Full setup: customize all details</string>
     <string name="add_bike_drivetrain_label">Drivetrain</string>
     <string name="add_bike_drivetrain_1x">1x</string>
     <string name="add_bike_drivetrain_single_speed">Single speed</string>
