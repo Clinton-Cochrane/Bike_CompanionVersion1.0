@@ -1,20 +1,16 @@
 # Google Play v1 declarations
 
-- Status: **Prepared but blocked from submission**
-- Engineering baseline: `6d72a5a` (`main`, September 13, 2026)
+- Status: **Prepared; complete the release-candidate evidence below before submission**
+- Engineering baseline: `56693b1` (`main`, September 16, 2026)
 - Privacy audit baseline: issue #64 / PR #99
-- Last reviewed: September 13, 2026
+- Last reviewed: September 16, 2026
 
 This checklist records the answers for package `com.clintoncochrane.bikecompanion`.
 Revalidate it against the release AAB, not only the source manifest, immediately before
 submission. Google Play declarations apply to every active artifact for the package.
 
-## Submission blockers and dependencies
+## Remaining submission prerequisites
 
-- Issue #101 removed the deferred v1 photo picker, thumbnail display, and photo persistence.
-- Complete #56. The manifest declares `POST_NOTIFICATIONS`, component alerts default to enabled,
-  and notifications have implemented purposes, but v1 does not yet implement the planned
-  contextual opt-in/permission flow for maintenance alerts. Recheck this declaration after #56.
 - Publish the final privacy policy at one stable, active, publicly accessible, non-geofenced,
   non-editable HTML URL. Enter that exact URL in Play Console. The hosted page and the in-app
   policy opened from Settings and Health Connect must state the same facts and effective date.
@@ -23,6 +19,13 @@ submission. Google Play declarations apply to every active artifact for the pack
   tracking while Bike Companion is not visible, and the user stopping the ride.
 - Complete the remaining Pixel 5 and Pixel 8 checks in `docs/privacy-release-checklist.md` against
   the release candidate. Record the release commit, device/Android versions, and results.
+
+### Verified non-blockers
+
+- Issue #101 removed the deferred v1 photo picker, thumbnail display, and photo persistence.
+- Maintenance notification permission is requested contextually from Settings rather than at
+  first launch (#56, closed). It does not add a Data Safety data type; recheck only if notification
+  behavior changes before release.
 
 Issue #59 remains open administratively, but its required Health Connect review, explicit bike
 assignment, cancel-without-save, and exactly-once save behavior is present on this baseline in
@@ -174,7 +177,8 @@ Fill this in without changing the prepared answers silently:
 - Hosted privacy-policy URL:
 - Foreground-service demonstration video URL:
 - Photo mismatch follow-up resolution: #101 removed the deferred v1 photo flow and legacy photo storage.
-- #56 resolution / notification behavior recheck:
+- Notification-permission flow review: #56 closed; verified contextual Settings request on
+  September 16, 2026.
 - Play Console Data Safety submitted by / date:
 - Play Console Health apps and Health Connect submitted by / date:
 - Foreground-service declaration submitted by / date:
