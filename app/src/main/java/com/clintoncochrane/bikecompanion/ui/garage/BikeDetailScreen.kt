@@ -106,7 +106,6 @@ fun BikeDetailScreen(
     backStackEntry: NavBackStackEntry,
 ) {
     var showAddComponentDialog by remember { mutableStateOf(false) }
-    var componentToAdd by remember { mutableStateOf<DefaultComponentType?>(null) }
     var componentToReplace by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentIdForInstallPicker by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentForRemoveDialog by remember { mutableStateOf<ComponentEntity?>(null) }
@@ -131,7 +130,11 @@ fun BikeDetailScreen(
                     DefaultComponentTypes.SUGGESTED.forEach { suggested ->
                         TextButton(
                             onClick = {
-                                componentToAdd = suggested
+                                viewModel.addComponent(
+                                    suggested.type,
+                                    suggested.displayName,
+                                    suggested.defaultLifespanKm,
+                                )
                                 showAddComponentDialog = false
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -147,23 +150,6 @@ fun BikeDetailScreen(
                 TextButton(onClick = { showAddComponentDialog = false }) {
                     Text(stringResource(R.string.component_done))
                 }
-            },
-        )
-    }
-
-    componentToAdd?.let { component ->
-        PriorUsageDialog(
-            componentName = component.displayName,
-            onDismiss = { componentToAdd = null },
-            onSave = { certainty, baselineKm ->
-                viewModel.addComponent(
-                    component.type,
-                    component.displayName,
-                    component.defaultLifespanKm,
-                    certainty,
-                    baselineKm,
-                )
-                componentToAdd = null
             },
         )
     }

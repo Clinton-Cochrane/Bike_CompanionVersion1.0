@@ -27,15 +27,14 @@ import javax.inject.Inject
  * If the app is backgrounded during the countdown, on resume the countdown resets to 10.
  */
 data class SplashState(
-    val countdown: Int = INITIAL_COUNTDOWN,
+    val countdown: Int = TripStartCountdown.INITIAL_COUNTDOWN,
     val isCancelled: Boolean = false,
     val hasStarted: Boolean = false,
+    val isCountdownAuthorized: Boolean = false,
 )
 
 /** One-shot event: trip should start (countdown reached 0 and not cancelled). */
 object StartTripEvent
-
-private const val INITIAL_COUNTDOWN = 10
 
 @HiltViewModel
 class TripStartSplashViewModel @Inject constructor(
@@ -63,22 +62,27 @@ class TripStartSplashViewModel @Inject constructor(
                 _assignedBikeName.value = bikeRepository.getBikeById(bikeId)?.name
             }
         }
-        startCountdown()
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_START) startCountdown()
+                if (event == Lifecycle.Event.ON_START && _state.value.isCountdownAuthorized) {
+                    startCountdown()
+                }
             }
         )
     }
 
     /**
-     * Starts the countdown from [INITIAL_COUNTDOWN] down to 0.
+     * Starts the countdown from [TripStartCountdown.INITIAL_COUNTDOWN] down to 0.
      * When the app is resumed from background, the lifecycle observer resets and calls this again.
      */
+    fun beginCountdown() {
+        startCountdown()
+    }
+
     private fun startCountdown() {
         if (_state.value.isCancelled || _state.value.hasStarted) return
         countdownJob?.cancel()
-        _state.update { it.copy(countdown = INITIAL_COUNTDOWN) }
+        _state.update(TripStartCountdown::start)
         countdownJob = viewModelScope.launch {
             while (!_state.value.isCancelled && !_state.value.hasStarted) {
                 delay(1000)

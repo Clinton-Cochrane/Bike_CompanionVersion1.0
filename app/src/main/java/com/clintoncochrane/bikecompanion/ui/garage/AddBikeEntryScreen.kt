@@ -35,7 +35,6 @@ fun AddBikeEntryScreen(
     navController: NavController,
 ) {
     val backContentDesc = stringResource(R.string.common_back_content_description)
-    val quickAddDesc = stringResource(R.string.add_bike_quick_add_content_description)
     val fullSetupDesc = stringResource(R.string.add_bike_full_setup_content_description)
     Scaffold(
         topBar = {
@@ -70,29 +69,6 @@ fun AddBikeEntryScreen(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Card(
-                onClick = { navController.navigate(Screen.AddBikeSimple.route) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics { contentDescription = quickAddDesc },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            ) {
-                Column(
-                    modifier = Modifier.padding(PaddingValues(20.dp)),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.add_bike_quick_add),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = stringResource(R.string.add_bike_quick_add_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
             Card(
                 onClick = { navController.navigate(Screen.AddBikeAdvanced.route) },
                 modifier = Modifier

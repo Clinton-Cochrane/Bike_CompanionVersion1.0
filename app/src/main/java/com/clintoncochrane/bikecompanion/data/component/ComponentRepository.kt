@@ -87,7 +87,13 @@ class ComponentRepository @Inject constructor(
      * Seeds the bike with components filtered by drivetrain and brake type (Simple Add flow).
      * Call only for a newly created bike with no components.
      */
-    suspend fun seedComponentsForBikeType(bikeId: Long, drivetrainType: String, brakeType: String) {
+    suspend fun seedComponentsForBikeType(
+        bikeId: Long,
+        drivetrainType: String,
+        brakeType: String,
+        startingOdometerKm: Double = 0.0,
+    ) {
+        require(startingOdometerKm.isFinite() && startingOdometerKm >= 0.0)
         val list = DefaultSeedComponents.seedListFor(drivetrainType, brakeType)
         val now = System.currentTimeMillis()
         list.forEach { template ->
@@ -98,12 +104,19 @@ class ComponentRepository @Inject constructor(
                 lifespanKm = template.defaultLifespanKm,
                 distanceUsedKm = 0.0,
                 position = template.position,
-                baselineKm = 0.0,
+                baselineKm = startingOdometerKm,
+                priorUsageCertainty = PriorUsageCertainty.KNOWN,
                 baselineTimeSeconds = 0L,
                 installedAt = now,
             )
             val id = componentDao.insert(entity)
-            insertServiceIntervalsForComponent(id, entity.type, entity.lifespanKm, 0.0, 0L)
+            insertServiceIntervalsForComponent(
+                id,
+                entity.type,
+                entity.lifespanKm,
+                entity.lifetimeDistanceKm,
+                0L,
+            )
         }
     }
 
@@ -111,7 +124,8 @@ class ComponentRepository @Inject constructor(
      * Seeds the bike with default components if it has none.
      * Idempotent: calling again for the same bike does not duplicate components.
      */
-    suspend fun seedDefaultComponentsIfEmpty(bikeId: Long) {
+    suspend fun seedDefaultComponentsIfEmpty(bikeId: Long, startingOdometerKm: Double = 0.0) {
+        require(startingOdometerKm.isFinite() && startingOdometerKm >= 0.0)
         if (componentDao.getComponentCountByBikeId(bikeId) > 0) return
         val now = System.currentTimeMillis()
         val entities = DefaultSeedComponents.LIST.map { template ->
@@ -122,14 +136,21 @@ class ComponentRepository @Inject constructor(
                 lifespanKm = template.defaultLifespanKm,
                 distanceUsedKm = 0.0,
                 position = template.position,
-                baselineKm = 0.0,
+                baselineKm = startingOdometerKm,
+                priorUsageCertainty = PriorUsageCertainty.KNOWN,
                 baselineTimeSeconds = 0L,
                 installedAt = now,
             )
         }
         entities.forEach { entity ->
             val id = componentDao.insert(entity)
-            insertServiceIntervalsForComponent(id, entity.type, entity.lifespanKm, 0.0, 0L)
+            insertServiceIntervalsForComponent(
+                id,
+                entity.type,
+                entity.lifespanKm,
+                entity.lifetimeDistanceKm,
+                0L,
+            )
         }
     }
 

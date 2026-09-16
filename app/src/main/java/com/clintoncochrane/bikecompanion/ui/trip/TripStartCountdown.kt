@@ -7,11 +7,19 @@ data class CountdownTickResult(
 
 /** Pure countdown state transitions, kept separate from the ViewModel clock for JVM coverage. */
 object TripStartCountdown {
+    const val INITIAL_COUNTDOWN = 10
+
+    fun start(state: SplashState): SplashState =
+        if (state.isCancelled || state.hasStarted) state else state.copy(
+            countdown = INITIAL_COUNTDOWN,
+            isCountdownAuthorized = true,
+        )
+
     fun extend(state: SplashState): SplashState =
         if (state.isCancelled || state.hasStarted) state else state.copy(countdown = state.countdown + 10)
 
     fun tick(state: SplashState): CountdownTickResult {
-        if (state.isCancelled || state.hasStarted) {
+        if (!state.isCountdownAuthorized || state.isCancelled || state.hasStarted) {
             return CountdownTickResult(state = state, shouldStartRide = false)
         }
 

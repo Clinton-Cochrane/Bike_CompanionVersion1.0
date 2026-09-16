@@ -43,7 +43,7 @@ class SimpleAddBikeViewModelTest {
     fun saveBike_createsBikeWithDrivetrainAndBrakeType() = runTest(testDispatcher) {
         val bikeSlot = slot<com.clintoncochrane.bikecompanion.data.bike.BikeEntity>()
         coEvery { bikeRepository.insertBike(capture(bikeSlot)) } returns 42L
-        coEvery { componentRepository.seedComponentsForBikeType(any(), any(), any()) } returns Unit
+        coEvery { componentRepository.seedComponentsForBikeType(any(), any(), any(), any()) } returns Unit
         val viewModel = SimpleAddBikeViewModel(bikeRepository, componentRepository)
 
         viewModel.saveBike("Commuter", "1x", "disc_hydraulic", "850.5")
@@ -56,7 +56,7 @@ class SimpleAddBikeViewModelTest {
         assertEquals(850.5, bike.baselineDistanceKm, 0.0)
         assertEquals(850.5, bike.totalDistanceKm, 0.0)
         coVerify { bikeRepository.insertBike(any()) }
-        coVerify { componentRepository.seedComponentsForBikeType(42L, "1x", "disc_hydraulic") }
+        coVerify { componentRepository.seedComponentsForBikeType(42L, "1x", "disc_hydraulic", 850.5) }
     }
 
     @Test
@@ -69,14 +69,14 @@ class SimpleAddBikeViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify(exactly = 0) { bikeRepository.insertBike(any()) }
-        coVerify(exactly = 0) { componentRepository.seedComponentsForBikeType(any(), any(), any()) }
+        coVerify(exactly = 0) { componentRepository.seedComponentsForBikeType(any(), any(), any(), any()) }
     }
 
     @Test
     fun saveBike_zeroStartingOdometer_createsBikeAtZeroWithoutRideHistory() = runTest(testDispatcher) {
         val bikeSlot = slot<com.clintoncochrane.bikecompanion.data.bike.BikeEntity>()
         coEvery { bikeRepository.insertBike(capture(bikeSlot)) } returns 1L
-        coEvery { componentRepository.seedComponentsForBikeType(any(), any(), any()) } returns Unit
+        coEvery { componentRepository.seedComponentsForBikeType(any(), any(), any(), any()) } returns Unit
         val viewModel = SimpleAddBikeViewModel(bikeRepository, componentRepository)
 
         viewModel.saveBike("New bike", "1x", "rim", "0")
@@ -89,19 +89,19 @@ class SimpleAddBikeViewModelTest {
     @Test
     fun saveBike_singleSpeed_callsSeedWithSingleSpeedAndRim() = runTest(testDispatcher) {
         coEvery { bikeRepository.insertBike(any()) } returns 1L
-        coEvery { componentRepository.seedComponentsForBikeType(any(), any(), any()) } returns Unit
+        coEvery { componentRepository.seedComponentsForBikeType(any(), any(), any(), any()) } returns Unit
         val viewModel = SimpleAddBikeViewModel(bikeRepository, componentRepository)
 
         viewModel.saveBike("Fixie", "single_speed", "rim")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { componentRepository.seedComponentsForBikeType(1L, "single_speed", "rim") }
+        coVerify { componentRepository.seedComponentsForBikeType(1L, "single_speed", "rim", 0.0) }
     }
 
     @Test
     fun saveBike_emitsNewBikeOutcome() = runTest(testDispatcher) {
         coEvery { bikeRepository.insertBike(any()) } returns 99L
-        coEvery { componentRepository.seedComponentsForBikeType(any(), any(), any()) } returns Unit
+        coEvery { componentRepository.seedComponentsForBikeType(any(), any(), any(), any()) } returns Unit
         val viewModel = SimpleAddBikeViewModel(bikeRepository, componentRepository)
 
         viewModel.saveBike("Road", "multi_speed", "disc_mechanical")
@@ -119,13 +119,13 @@ class SimpleAddBikeViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify(exactly = 0) { bikeRepository.insertBike(any()) }
-        coVerify(exactly = 0) { componentRepository.seedComponentsForBikeType(any(), any(), any()) }
+        coVerify(exactly = 0) { componentRepository.seedComponentsForBikeType(any(), any(), any(), any()) }
     }
 
     @Test
     fun clearSaveOutcome_clearsState() = runTest(testDispatcher) {
         coEvery { bikeRepository.insertBike(any()) } returns 1L
-        coEvery { componentRepository.seedComponentsForBikeType(any(), any(), any()) } returns Unit
+        coEvery { componentRepository.seedComponentsForBikeType(any(), any(), any(), any()) } returns Unit
         val viewModel = SimpleAddBikeViewModel(bikeRepository, componentRepository)
         viewModel.saveBike("Bike", "1x", "rim")
         testDispatcher.scheduler.advanceUntilIdle()

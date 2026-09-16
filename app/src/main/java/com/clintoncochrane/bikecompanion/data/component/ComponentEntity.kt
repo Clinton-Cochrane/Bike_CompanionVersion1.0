@@ -44,10 +44,10 @@ data class ComponentEntity(
      * Used for paired components (tires, brake pads, etc.).
      */
     val position: String = "none",
-    /** Prior component usage entered when tracking began; zero when prior usage is unknown. */
+    /** Prior component usage at the time tracking began. */
     val baselineKm: Double = 0.0,
     /** Certainty of the prior usage stored in [baselineKm]. */
-    val priorUsageCertainty: PriorUsageCertainty = PriorUsageCertainty.UNKNOWN,
+    val priorUsageCertainty: PriorUsageCertainty = PriorUsageCertainty.KNOWN,
     /** Time-based baseline when component was installed, in seconds (for future use). */
     val baselineTimeSeconds: Long = 0L,
     /** Alert when remaining % is at or below this (e.g. 10 = alert when 90% used). */

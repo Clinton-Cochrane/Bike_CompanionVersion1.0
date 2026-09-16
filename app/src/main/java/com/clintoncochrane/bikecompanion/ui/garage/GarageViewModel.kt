@@ -212,8 +212,6 @@ class GarageViewModel @Inject constructor(
         type: String,
         name: String,
         lifespanKm: Double,
-        priorUsageCertainty: PriorUsageCertainty,
-        baselineKm: Double,
     ) {
         viewModelScope.launch {
             componentRepository.insertComponent(
@@ -222,8 +220,8 @@ class GarageViewModel @Inject constructor(
                     type = type,
                     name = name,
                     lifespanKm = lifespanKm,
-                    baselineKm = baselineKm,
-                    priorUsageCertainty = priorUsageCertainty,
+                    baselineKm = 0.0,
+                    priorUsageCertainty = PriorUsageCertainty.KNOWN,
                     installedAt = System.currentTimeMillis(),
                 ),
             )

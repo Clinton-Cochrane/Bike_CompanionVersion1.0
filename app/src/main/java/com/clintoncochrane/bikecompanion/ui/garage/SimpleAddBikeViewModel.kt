@@ -44,7 +44,12 @@ class SimpleAddBikeViewModel @Inject constructor(
                 createdAt = System.currentTimeMillis(),
             ).withBaselineDistanceKm(startingOdometerKm)
             val newId = bikeRepository.insertBike(bike)
-            componentRepository.seedComponentsForBikeType(newId, drivetrainType, brakeType)
+            componentRepository.seedComponentsForBikeType(
+                newId,
+                drivetrainType,
+                brakeType,
+                startingOdometerKm,
+            )
             _uiState.update { it.copy(saveOutcome = SaveOutcome.NewBike(newId)) }
         }
     }
