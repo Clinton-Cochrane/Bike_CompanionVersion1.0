@@ -1,6 +1,8 @@
 package com.clintoncochrane.bikecompanion.ui.trip
 
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -48,6 +50,25 @@ fun TripStartSplashScreen(
     val assignedBikeName by viewModel.assignedBikeName.collectAsState()
     val context = LocalContext.current
     var showPermissionLostDialog by remember { mutableStateOf(false) }
+    var showPermissionDeniedDialog by remember { mutableStateOf(false) }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        if (RideLocationPermission.isFineLocationGranted(grants)) {
+            viewModel.beginCountdown()
+        } else {
+            showPermissionDeniedDialog = true
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (RideLocationPermission.isGranted(context)) {
+            viewModel.beginCountdown()
+        } else {
+            locationPermissionLauncher.launch(RideLocationPermission.REQUEST_PERMISSIONS)
+        }
+    }
 
     LaunchedEffect(viewModel.startTripEvents) {
         viewModel.startTripEvents.collectLatest {
@@ -77,6 +98,24 @@ fun TripStartSplashScreen(
                 Button(
                     onClick = {
                         showPermissionLostDialog = false
+                        navController.popBackStack()
+                    },
+                ) {
+                    Text(stringResource(R.string.common_back))
+                }
+            },
+        )
+    }
+
+    if (showPermissionDeniedDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { },
+            title = { Text(stringResource(R.string.trip_location_permission_title)) },
+            text = { Text(stringResource(R.string.trip_location_permission_denied)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showPermissionDeniedDialog = false
                         navController.popBackStack()
                     },
                 ) {

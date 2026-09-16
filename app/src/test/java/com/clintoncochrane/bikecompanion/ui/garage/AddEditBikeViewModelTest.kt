@@ -56,4 +56,16 @@ class AddEditBikeViewModelTest {
 
         coVerify(exactly = 0) { bikeRepository.insertBike(any()) }
     }
+
+    @Test
+    fun saveBike_newBike_seedsComponentsWithStartingOdometer() = runTest(dispatcher) {
+        val viewModel = AddEditBikeViewModel(SavedStateHandle(), bikeRepository, componentRepository)
+        coEvery { bikeRepository.insertBike(any()) } returns 42L
+        coEvery { componentRepository.seedDefaultComponentsIfEmpty(42L, 750.0) } returns Unit
+
+        viewModel.saveBike(BikeEntity(name = "Test", createdAt = 1_000L), "750")
+        advanceUntilIdle()
+
+        coVerify { componentRepository.seedDefaultComponentsIfEmpty(42L, 750.0) }
+    }
 }

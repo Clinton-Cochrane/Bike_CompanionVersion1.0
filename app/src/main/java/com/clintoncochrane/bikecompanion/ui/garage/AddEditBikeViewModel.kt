@@ -72,7 +72,7 @@ class AddEditBikeViewModel @Inject constructor(
                 }
             } else {
                 val newId = bikeRepository.insertBike(bikeToSave)
-                componentRepository.seedDefaultComponentsIfEmpty(newId)
+                componentRepository.seedDefaultComponentsIfEmpty(newId, bikeToSave.baselineDistanceKm)
                 _uiState.update {
                     it.copy(saveOutcome = SaveOutcome.NewBike(newId))
                 }

@@ -159,6 +159,21 @@
     <string name="ride_edit_title">Edit ride</string>
     <string name="ride_edit_coming_soon">Edit ride coming soon</string>
 
+    <!-- Ride detail screen -->
+    <string name="ride_detail_title">Ride details</string>
+    <string name="ride_detail_not_found">Ride not found.</string>
+    <string name="ride_detail_bike">Bike</string>
+    <string name="ride_detail_distance">Distance</string>
+    <string name="ride_detail_duration">Duration</string>
+    <string name="ride_detail_average_speed">Average speed</string>
+    <string name="ride_detail_max_speed">Max speed</string>
+    <string name="ride_detail_elevation_gain">Elevation gain</string>
+    <string name="ride_detail_source">Source</string>
+    <string name="ride_detail_edit_action">Edit ride</string>
+    <string name="ride_detail_source_app">Bike Companion</string>
+    <string name="ride_detail_source_health_connect">Health Connect</string>
+    <string name="ride_detail_source_manual">Manual</string>
+
     <!-- Garage screen -->
     <string name="garage_title">Bike garage</string>
     <string name="garage_tab_bikes">Bikes</string>

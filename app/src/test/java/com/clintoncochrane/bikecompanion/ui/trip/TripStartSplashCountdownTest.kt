@@ -19,6 +19,14 @@ class TripStartSplashCountdownTest {
     }
 
     @Test
+    fun tick_beforeLocationPermissionIsGranted_doesNotStartTheRide() {
+        val result = TripStartCountdown.tick(SplashState(countdown = 1))
+
+        assertEquals(false, result.shouldStartRide)
+        assertEquals(1, result.state.countdown)
+    }
+
+    @Test
     fun tick_afterCancel_doesNotStartTheRide() {
         val result = TripStartCountdown.tick(SplashState(countdown = 1, isCancelled = true))
 
@@ -28,7 +36,9 @@ class TripStartSplashCountdownTest {
 
     @Test
     fun tick_atZero_startsTheRideOnlyOnce() {
-        val firstTick = TripStartCountdown.tick(SplashState(countdown = 1))
+        val firstTick = TripStartCountdown.tick(
+            SplashState(countdown = 1, isCountdownAuthorized = true),
+        )
         val repeatedTick = TripStartCountdown.tick(firstTick.state)
 
         assertEquals(true, firstTick.shouldStartRide)
