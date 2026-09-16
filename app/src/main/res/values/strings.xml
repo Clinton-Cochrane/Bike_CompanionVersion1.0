@@ -258,7 +258,6 @@
     <string name="component_sort_label">Sort by</string>
     <string name="component_sort_type_az">Type (A–Z)</string>
     <string name="component_sort_next_service">Next service</string>
-    <string name="component_sort_health">Health</string>
     <string name="garage_rides">Rides</string>
     <string name="garage_edit_bike">Edit bike</string>
     <string name="garage_start_ride">Start ride with this bike</string>

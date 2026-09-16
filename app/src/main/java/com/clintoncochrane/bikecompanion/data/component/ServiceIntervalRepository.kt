@@ -1,6 +1,7 @@
 package com.clintoncochrane.bikecompanion.data.component
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,6 +18,10 @@ class ServiceIntervalRepository @Inject constructor(
     suspend fun getIntervalsByComponentIdsOnce(componentIds: List<Long>): List<ServiceIntervalEntity> =
         if (componentIds.isEmpty()) emptyList()
         else serviceIntervalDao.getIntervalsByComponentIdsOnce(componentIds)
+
+    fun getIntervalsByComponentIds(componentIds: List<Long>): Flow<List<ServiceIntervalEntity>> =
+        if (componentIds.isEmpty()) flowOf(emptyList())
+        else serviceIntervalDao.getIntervalsByComponentIds(componentIds)
 
     suspend fun insertInterval(interval: ServiceIntervalEntity): Long =
         serviceIntervalDao.insert(interval)

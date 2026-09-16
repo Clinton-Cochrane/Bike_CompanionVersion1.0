@@ -12,8 +12,6 @@ enum class ComponentSortOrder {
     TYPE_AZ,
     /** Sort by next service due (soonest first). Considers both distance and time intervals. */
     NEXT_SERVICE,
-    /** Sort by health (lowest first, most urgent). */
-    HEALTH,
 }
 
 /**
@@ -40,14 +38,40 @@ fun sortComponents(
                 val intervals = intervalsByComponentId[component.id] ?: emptyList()
                 ServiceIntervalHelper.minHealthForSort(intervals)
             }
-        ComponentSortOrder.HEALTH ->
-            components.sortedWith(
-                compareBy<ComponentEntity, Int?>(nullsLast()) { component ->
-                    componentHealthPercent(component)
-                },
-            )
     }
 }
+
+/**
+ * Returns the maintenance inbox: components with a configured interval at or below [thresholdPercent].
+ * Results are ordered by urgency, then type and name so equal-urgency rows remain stable.
+ */
+fun nextServiceInbox(
+    components: List<ComponentEntity>,
+    intervalsByComponentId: Map<Long, List<ServiceIntervalEntity>>,
+    thresholdPercent: Int,
+): List<ComponentEntity> = components
+    .filter { component ->
+        val intervals = intervalsByComponentId[component.id].orEmpty()
+        intervals.isNotEmpty() && ServiceIntervalHelper.minHealthForSort(intervals) <= thresholdPercent
+    }
+    .sortedWith(
+        compareBy<ComponentEntity> { component ->
+            ServiceIntervalHelper.minHealthForSort(intervalsByComponentId[component.id].orEmpty())
+        }
+            .thenBy(String.CASE_INSENSITIVE_ORDER, ComponentEntity::type)
+            .thenBy(String.CASE_INSENSITIVE_ORDER, ComponentEntity::name),
+    )
+
+/** Keeps the selected view valid when the maintenance inbox has no items. */
+fun availableComponentSortOrder(
+    requestedOrder: ComponentSortOrder,
+    hasNextServiceItems: Boolean,
+): ComponentSortOrder =
+    if (requestedOrder == ComponentSortOrder.NEXT_SERVICE && !hasNextServiceItems) {
+        ComponentSortOrder.TYPE_AZ
+    } else {
+        requestedOrder
+    }
 
 /**
  * Computes health percent from remaining lifespan. 100 = new, 0 = expected interval reached.
