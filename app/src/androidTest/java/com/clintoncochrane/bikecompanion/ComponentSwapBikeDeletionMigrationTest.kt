@@ -15,12 +15,12 @@ import org.junit.runner.RunWith
 class ComponentSwapBikeDeletionMigrationTest {
 
     @Test
-    fun migration16To17_repairsActiveInstallationsAndEnforcesUniqueness() {
+    fun migration20To21_repairsActiveInstallationsAndEnforcesUniqueness() {
         val helper = FrameworkSQLiteOpenHelperFactory().create(
             SupportSQLiteOpenHelper.Configuration.builder(ApplicationProvider.getApplicationContext())
                 .name(null)
                 .callback(
-                    object : SupportSQLiteOpenHelper.Callback(16) {
+                    object : SupportSQLiteOpenHelper.Callback(20) {
                         override fun onCreate(database: SupportSQLiteDatabase) {
                             database.execSQL("CREATE TABLE bikes (id INTEGER PRIMARY KEY NOT NULL)")
                             database.execSQL(
@@ -52,7 +52,7 @@ class ComponentSwapBikeDeletionMigrationTest {
         database.execSQL("INSERT INTO component_swaps VALUES (1, 1, 2, 5, NULL)")
         database.execSQL("INSERT INTO component_swaps VALUES (2, 2, 1, 6, NULL)")
 
-        BikeCompanionMigrations.MIGRATION_16_17.migrate(database)
+        BikeCompanionMigrations.MIGRATION_20_21.migrate(database)
 
         assertActiveSwap(database, componentId = 1L, expectedBikeId = 1L)
         assertActiveSwap(database, componentId = 2L, expectedBikeId = null)

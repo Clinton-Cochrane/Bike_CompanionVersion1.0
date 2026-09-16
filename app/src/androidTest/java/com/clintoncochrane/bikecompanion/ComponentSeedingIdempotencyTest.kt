@@ -8,10 +8,11 @@ import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
 import com.clintoncochrane.bikecompanion.data.component.ComponentLifecycleTransaction
 import com.clintoncochrane.bikecompanion.data.component.DefaultSeedComponents
-import com.clintoncochrane.bikecompanion.data.image.ImageRepository
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,8 +37,8 @@ class ComponentSeedingIdempotencyTest {
             db.serviceIntervalDao(),
             db.componentSwapDao(),
             db.bikeDao(),
-            ImageRepository(context.cacheDir.resolve("component-seeding-images")) { null },
             ComponentLifecycleTransaction(db),
+            db.serviceHistoryDao(),
         )
     }
 
@@ -68,5 +69,31 @@ class ComponentSeedingIdempotencyTest {
             expectedCount,
             db.componentDao().getComponentCountByBikeId(bikeId),
         )
+    }
+
+    @Test
+    fun seedDefaultComponentsIfEmpty_intervalFailure_rollsBackEntireSeed() = runBlocking {
+        val bikeId = db.bikeDao().insert(
+            BikeEntity(name = "Rollback Bike", createdAt = System.currentTimeMillis()),
+        )
+        db.openHelper.writableDatabase.execSQL(
+            """
+            CREATE TRIGGER fail_second_seed_interval
+            BEFORE INSERT ON service_intervals
+            WHEN (SELECT COUNT(*) FROM service_intervals) >= 1
+            BEGIN
+                SELECT RAISE(ABORT, 'forced seed interval failure');
+            END
+            """.trimIndent(),
+        )
+
+        val result = runCatching {
+            componentRepository.seedDefaultComponentsIfEmpty(bikeId)
+        }
+
+        assertTrue(result.isFailure)
+        assertTrue(db.componentDao().getComponentsByBikeIdOnce(bikeId).isEmpty())
+        assertTrue(db.serviceIntervalDao().getAllIntervalsOnce().isEmpty())
+        assertTrue(db.componentSwapDao().getAllSwaps().first().isEmpty())
     }
 }

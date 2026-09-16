@@ -5,7 +5,7 @@ package com.clintoncochrane.bikecompanion.data.component
  * Kept in one place so it can be replaced later (e.g. AI or DB lookup by bike type).
  *
  * Each entry defines type, display name, position (none/front/rear), and default lifespan in km.
- * Seeded instances get baselineKm = 0 and baselineTimeSeconds = 0.
+ * Seeded instances inherit the bike's starting odometer as baselineKm and get baselineTimeSeconds = 0.
  * Names use "Default " + item type/description so they are easy to identify and cheap to access
  * when creating new bikes; later we can allow users to edit default definitions.
  *

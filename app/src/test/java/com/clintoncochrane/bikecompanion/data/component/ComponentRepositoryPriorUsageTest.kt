@@ -1,7 +1,6 @@
 package com.clintoncochrane.bikecompanion.data.component
 
 import com.clintoncochrane.bikecompanion.data.bike.BikeDao
-import com.clintoncochrane.bikecompanion.data.image.ImageRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -31,8 +30,8 @@ class ComponentRepositoryPriorUsageTest {
             serviceIntervalDao = serviceIntervalDao,
             componentSwapDao = componentSwapDao,
             bikeDao = mockk<BikeDao>(),
-            imageRepository = mockk<ImageRepository>(),
             lifecycleTransaction = lifecycleTransaction,
+            serviceHistoryDao = mockk(),
         )
     }
 

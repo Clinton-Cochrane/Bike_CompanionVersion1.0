@@ -7,7 +7,6 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.clintoncochrane.bikecompanion.ui.garage.AddBikeEntryScreen
 import com.clintoncochrane.bikecompanion.ui.garage.AddEditBikeScreen
 import com.clintoncochrane.bikecompanion.ui.garage.BikeDetailScreen
 import com.clintoncochrane.bikecompanion.ui.garage.SimpleAddBikeScreen
@@ -21,6 +20,7 @@ import com.clintoncochrane.bikecompanion.ui.trip.TripScreen
 import com.clintoncochrane.bikecompanion.ui.trip.TripStartSplashScreen
 import com.clintoncochrane.bikecompanion.ui.trip.TripSettingsPlaceholderScreen
 import com.clintoncochrane.bikecompanion.ui.trip.EditRidePlaceholderScreen
+import com.clintoncochrane.bikecompanion.ui.trip.RideDetailScreen
 
 sealed class Screen(val route: String) {
     data object Trip : Screen("trip")
@@ -31,7 +31,6 @@ sealed class Screen(val route: String) {
     }
     data object AddBike : Screen("add_bike")
     data object AddBikeSimple : Screen("add_bike_simple")
-    data object AddBikeAdvanced : Screen("add_bike_advanced")
     data object EditBike : Screen("edit_bike/{bikeId}") {
         fun withId(id: Long) = "edit_bike/$id"
     }
@@ -43,8 +42,14 @@ sealed class Screen(val route: String) {
     data object EditRide : Screen("edit_ride/{rideId}") {
         fun withId(rideId: Long) = "edit_ride/$rideId"
     }
+    data object RideDetail : Screen("ride_detail/{rideId}") {
+        fun withId(rideId: Long) = "ride_detail/$rideId"
+    }
     data object ComponentDetail : Screen("component_detail/{componentId}") {
         fun withId(id: Long) = "component_detail/$id"
+    }
+    data object EditComponent : Screen("edit_component/{componentId}") {
+        fun withId(id: Long) = "edit_component/$id"
     }
     data object ServiceList : Screen("service_list")
     data object WallOfHonor : Screen("wall_of_honor")
@@ -55,6 +60,7 @@ sealed class Screen(val route: String) {
 fun BikeCompanionNavGraph(
     navController: NavHostController,
     startDestination: String,
+    onStartRide: () -> Unit,
     modifier: Modifier = Modifier,
     paddingValues: PaddingValues = PaddingValues(),
 ) {
@@ -63,20 +69,17 @@ fun BikeCompanionNavGraph(
         navController = navController,
         startDestination = startDestination,
     ) {
-        composable(Screen.Trip.route) { TripScreen(navController = navController) }
-        composable(Screen.Garage.route) { GarageScreen(navController = navController) }
-        composable(Screen.Stats.route) { StatsScreen(navController = navController) }
+        composable(Screen.Trip.route) { TripScreen(navController = navController, onStartRide = onStartRide) }
+        composable(Screen.Garage.route) { GarageScreen(navController = navController, onStartRide = onStartRide) }
+        composable(Screen.Stats.route) { StatsScreen(navController = navController, onStartRide = onStartRide) }
         composable(Screen.BikeDetail.route) { backStackEntry ->
             BikeDetailScreen(navController = navController, backStackEntry = backStackEntry)
         }
-        composable(Screen.AddBike.route) {
-            AddBikeEntryScreen(navController = navController)
+        composable(Screen.AddBike.route) { backStackEntry ->
+            AddEditBikeScreen(navController = navController, backStackEntry = backStackEntry, bikeId = null)
         }
         composable(Screen.AddBikeSimple.route) { backStackEntry ->
             SimpleAddBikeScreen(navController = navController, backStackEntry = backStackEntry)
-        }
-        composable(Screen.AddBikeAdvanced.route) { backStackEntry ->
-            AddEditBikeScreen(navController = navController, backStackEntry = backStackEntry, bikeId = null)
         }
         composable(Screen.EditBike.route) { backStackEntry ->
             val bikeId = backStackEntry.arguments?.getString("bikeId")?.toLongOrNull() ?: 0L
@@ -98,8 +101,18 @@ fun BikeCompanionNavGraph(
             val rideId = backStackEntry.arguments?.getString("rideId")?.toLongOrNull() ?: 0L
             EditRidePlaceholderScreen(navController = navController, rideId = rideId)
         }
+        composable(Screen.RideDetail.route) { backStackEntry ->
+            RideDetailScreen(navController = navController, backStackEntry = backStackEntry)
+        }
         composable(Screen.ComponentDetail.route) { backStackEntry ->
             ComponentDetailScreen(navController = navController, backStackEntry = backStackEntry)
+        }
+        composable(Screen.EditComponent.route) { backStackEntry ->
+            ComponentDetailScreen(
+                navController = navController,
+                backStackEntry = backStackEntry,
+                openEditorOnLaunch = true,
+            )
         }
         composable(Screen.ServiceList.route) {
             ServiceListScreen(navController = navController)

@@ -35,7 +35,7 @@ class SimpleAddBikeViewModel @Inject constructor(
     ) {
         val trimmedName = name.trim()
         val startingOdometerKm = parseStartingOdometerKm(startingOdometerInput)
-        if (trimmedName.isEmpty() || startingOdometerKm == null) return
+        if (startingOdometerKm == null) return
         viewModelScope.launch {
             val bike = BikeEntity(
                 name = trimmedName,
@@ -44,7 +44,12 @@ class SimpleAddBikeViewModel @Inject constructor(
                 createdAt = System.currentTimeMillis(),
             ).withBaselineDistanceKm(startingOdometerKm)
             val newId = bikeRepository.insertBike(bike)
-            componentRepository.seedComponentsForBikeType(newId, drivetrainType, brakeType)
+            componentRepository.seedComponentsForBikeType(
+                newId,
+                drivetrainType,
+                brakeType,
+                startingOdometerKm,
+            )
             _uiState.update { it.copy(saveOutcome = SaveOutcome.NewBike(newId)) }
         }
     }

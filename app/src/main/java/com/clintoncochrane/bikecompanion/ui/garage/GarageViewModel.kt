@@ -6,9 +6,13 @@ import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
 import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
-import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
+import com.clintoncochrane.bikecompanion.data.component.ComponentSwapEntity
+import com.clintoncochrane.bikecompanion.data.component.ComponentSwapRepository
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalRepository
+import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalEntity
 import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesRepository
+import com.clintoncochrane.bikecompanion.data.ride.RideEntity
+import com.clintoncochrane.bikecompanion.data.ride.RideRepository
 import com.clintoncochrane.bikecompanion.util.ComponentSortOrder
 import com.clintoncochrane.bikecompanion.util.GarageSpecHelper
 import com.clintoncochrane.bikecompanion.util.componentHealthPercent
@@ -18,9 +22,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import java.util.UUID
 
 /** Tab selection for the garage view. */
 enum class GarageTab {
@@ -47,18 +53,31 @@ data class GarageUiState(
     val totalDistanceKm: Double = 0.0,
     /** Bike ID that was ridden most recently; null when no bike has been ridden. */
     val lastRiddenBikeId: Long? = null,
+    /** State for the one-bike-at-a-time Bikes overview. */
+    val bikesOverview: GarageBikesUiState = GarageBikesUiState(),
+    /** State for the complete active, unassigned, and retired Parts directory. */
+    val partsDirectory: PartsDirectoryUiState = PartsDirectoryUiState(),
+    /** Single bottom-sheet workflow for due-service checklist, confirmation, and retry. */
+    val serviceSheet: GarageServiceSheetState = GarageServiceSheetState(),
 )
 
 @HiltViewModel
 class GarageViewModel @Inject constructor(
     private val bikeRepository: BikeRepository,
     private val componentRepository: ComponentRepository,
+    private val componentSwapRepository: ComponentSwapRepository,
     private val serviceIntervalRepository: ServiceIntervalRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
+    private val rideRepository: RideRepository,
+    private val serviceCompletionCoordinator: ServiceCompletionCoordinator,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GarageUiState())
     val uiState: StateFlow<GarageUiState> = _uiState.asStateFlow()
+    private var rides: List<RideEntity> = emptyList()
+    private var allComponents: List<ComponentEntity> = emptyList()
+    private var componentSwaps: List<ComponentSwapEntity> = emptyList()
+    private var serviceIntervals: List<ServiceIntervalEntity> = emptyList()
 
     init {
         viewModelScope.launch {
@@ -72,9 +91,20 @@ class GarageViewModel @Inject constructor(
                         bikeHasAlert = computeBikeAlerts(state.garageComponents, sorted, state.closeToServiceThreshold),
                         totalDistanceKm = GarageSpecHelper.computeTotalDistanceKm(sorted),
                         lastRiddenBikeId = GarageSpecHelper.getLastRiddenBikeId(sorted),
-                    )
+                    ).withBikesOverview().withPartsDirectory()
                 }
             }
+        }
+        viewModelScope.launch {
+            combine(
+                componentRepository.getAllComponentsFlow(),
+                componentSwapRepository.getAllSwaps(),
+            ) { components, swaps -> components to swaps }
+                .collect { (components, swaps) ->
+                    allComponents = components
+                    componentSwaps = swaps
+                    _uiState.update { it.withPartsDirectory() }
+                }
         }
         viewModelScope.launch {
             componentRepository.getNonRetiredComponents().collect { list ->
@@ -93,8 +123,14 @@ class GarageViewModel @Inject constructor(
                         garageComponents = sorted,
                         bikeHealth = health,
                         bikeHasAlert = computeBikeAlerts(sorted, bikes, threshold),
-                    )
+                    ).withBikesOverview()
                 }
+            }
+        }
+        viewModelScope.launch {
+            serviceIntervalRepository.getAllIntervals().collect { intervals ->
+                serviceIntervals = intervals
+                _uiState.update { it.withBikesOverview() }
             }
         }
         viewModelScope.launch {
@@ -107,8 +143,14 @@ class GarageViewModel @Inject constructor(
                             state.bikes,
                             threshold,
                         ),
-                    )
+                    ).withBikesOverview()
                 }
+            }
+        }
+        viewModelScope.launch {
+            rideRepository.getAllRides().collect { updatedRides ->
+                rides = updatedRides
+                _uiState.update { it.withBikesOverview() }
             }
         }
     }
@@ -155,6 +197,103 @@ class GarageViewModel @Inject constructor(
         _uiState.update { it.copy(selectedTab = tab) }
     }
 
+    fun setPartsDirectoryFilter(filter: PartsDirectoryFilter) {
+        _uiState.update { state ->
+            state.copy(partsDirectory = state.partsDirectory.copy(filter = filter))
+                .withPartsDirectory()
+        }
+    }
+
+    fun selectBike(index: Int) {
+        _uiState.update { state ->
+            val selectedBikeId = state.bikes.getOrNull(index)?.id ?: return@update state
+            state.copy(serviceSheet = state.serviceSheet.copy(isVisible = false))
+                .withBikesOverview(selectedBikeId)
+        }
+    }
+
+    fun openServiceSheet() {
+        _uiState.update { state ->
+            val requirements = state.bikesOverview.dueServiceRequirements
+            if (requirements.isEmpty()) state
+            else state.copy(serviceSheet = GarageServiceSheetState.open(requirements))
+        }
+    }
+
+    fun dismissServiceSheet() {
+        _uiState.update { state ->
+            if (state.serviceSheet.isSubmitting) state
+            else state.copy(serviceSheet = state.serviceSheet.copy(isVisible = false))
+        }
+    }
+
+    fun toggleServiceRequirement(intervalId: Long) {
+        _uiState.update { state -> state.copy(serviceSheet = state.serviceSheet.toggle(intervalId)) }
+    }
+
+    fun showServiceConfirmation() {
+        _uiState.update { state -> state.copy(serviceSheet = state.serviceSheet.showConfirmation()) }
+    }
+
+    fun showServiceChecklist() {
+        _uiState.update { state -> state.copy(serviceSheet = state.serviceSheet.showChecklist()) }
+    }
+
+    fun completeSelectedServiceRequirements() {
+        val sheet = _uiState.value.serviceSheet
+        if (!sheet.canCompleteSelected || sheet.isSubmitting) return
+        val requirements = sheet.selectedRequirements
+        if (requirements.isEmpty()) return
+        val sessionId = sheet.sessionId ?: UUID.randomUUID().toString()
+        _uiState.update { state ->
+            state.copy(
+                serviceSheet = state.serviceSheet.copy(
+                    isSubmitting = true,
+                    sessionId = sessionId,
+                ),
+            )
+        }
+        viewModelScope.launch {
+            val result = serviceCompletionCoordinator.complete(requirements, sessionId)
+            serviceIntervals = serviceIntervalRepository.getAllIntervalsOnce()
+            val refreshedComponents = componentRepository.getNonRetiredComponentsOnce()
+            _uiState.update { state ->
+                val intervalsByComponentId = if (state.componentSortOrder == ComponentSortOrder.NEXT_SERVICE) {
+                    serviceIntervals.groupBy { it.componentId }
+                } else {
+                    emptyMap()
+                }
+                val refreshed = state.copy(
+                    garageComponents = sortComponents(
+                        refreshedComponents,
+                        state.componentSortOrder,
+                        intervalsByComponentId,
+                    ),
+                ).withBikesOverview()
+                if (result.failedIntervalIds.isEmpty()) {
+                    refreshed.copy(
+                        serviceSheet = refreshed.serviceSheet.copy(
+                            isVisible = false,
+                            isSubmitting = false,
+                            selectedIntervalIds = emptySet(),
+                        ),
+                    )
+                } else {
+                    refreshed.copy(
+                        serviceSheet = refreshed.serviceSheet.showResult(
+                            successfulIntervalIds = result.successfulIntervalIds,
+                            failedIntervalIds = result.failedIntervalIds,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    fun retryFailedServiceRequirements() {
+        completeSelectedServiceRequirements()
+    }
+
     fun setComponentTypeFilter(type: String?) {
         _uiState.update { it.copy(componentTypeFilter = type) }
     }
@@ -163,25 +302,34 @@ class GarageViewModel @Inject constructor(
         _uiState.update { it.copy(componentBikeFilter = bikeId) }
     }
 
-    fun addComponentToGarage(
-        type: String,
-        name: String,
-        lifespanKm: Double,
-        priorUsageCertainty: PriorUsageCertainty,
-        baselineKm: Double,
-    ) {
+    fun addComponentToGarage(request: AddComponentRequest) {
         viewModelScope.launch {
             componentRepository.insertComponent(
-                ComponentEntity(
-                    bikeId = null,
-                    type = type,
-                    name = name,
-                    lifespanKm = lifespanKm,
-                    baselineKm = baselineKm,
-                    priorUsageCertainty = priorUsageCertainty,
-                    installedAt = System.currentTimeMillis(),
-                ),
+                request.toEntity(bikeId = null, installedAt = System.currentTimeMillis()),
             )
         }
     }
+
+    private fun GarageUiState.withBikesOverview(selectedBikeId: Long? = bikesOverview.selectedBikeId): GarageUiState =
+        copy(
+            bikesOverview = GarageBikesPresenter.build(
+                bikes = bikes,
+                components = garageComponents,
+                rides = rides,
+                closeToServiceThreshold = closeToServiceThreshold,
+                selectedBikeId = selectedBikeId,
+                serviceIntervals = serviceIntervals,
+            ),
+        )
+
+    private fun GarageUiState.withPartsDirectory(): GarageUiState = copy(
+        partsDirectory = partsDirectory.copy(
+            sections = PartsDirectoryPresenter.build(
+                components = allComponents,
+                bikes = bikes,
+                swaps = componentSwaps,
+                filter = partsDirectory.filter,
+            ),
+        ),
+    )
 }

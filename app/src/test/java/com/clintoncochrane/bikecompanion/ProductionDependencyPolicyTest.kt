@@ -15,6 +15,14 @@ class ProductionDependencyPolicyTest {
     }
 
     @Test
+    fun kotlinDependencyAlignment_matchesTheKotlinGradlePlugin() {
+        val rootBuild = File("../build.gradle").readText()
+
+        assertTrue(rootBuild.contains("id(\"org.jetbrains.kotlin.android\") version \"2.0.20\""))
+        assertTrue(rootBuild.contains("useVersion(\"2.0.20\")"))
+    }
+
+    @Test
     fun healthConnect_usesStableClientAndPatchedGuava() {
         val appBuild = File("build.gradle").readText()
 

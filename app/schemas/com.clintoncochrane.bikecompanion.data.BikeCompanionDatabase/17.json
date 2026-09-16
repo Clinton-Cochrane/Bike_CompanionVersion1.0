@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 17,
-    "identityHash": "688ff16b15d2eb636a2fc63675e75c3f",
+    "identityHash": "942bed36219060d2c1adbe9f6e4b2ba7",
     "entities": [
       {
         "tableName": "bikes",
@@ -602,7 +602,7 @@
       },
       {
         "tableName": "service_intervals",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `componentId` INTEGER NOT NULL, `name` TEXT NOT NULL, `intervalKm` REAL NOT NULL, `trackedKm` REAL NOT NULL, `type` TEXT NOT NULL, `intervalTimeSeconds` INTEGER, `trackedTimeSeconds` INTEGER, FOREIGN KEY(`componentId`) REFERENCES `components`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `componentId` INTEGER NOT NULL, `name` TEXT NOT NULL, `intervalKm` REAL NOT NULL, `trackedKm` REAL NOT NULL, `type` TEXT NOT NULL, `intervalTimeSeconds` INTEGER, `trackedTimeSeconds` INTEGER, `lastCompletedAt` INTEGER, FOREIGN KEY(`componentId`) REFERENCES `components`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -649,6 +649,11 @@
             "fieldPath": "trackedTimeSeconds",
             "columnName": "trackedTimeSeconds",
             "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastCompletedAt",
+            "columnName": "lastCompletedAt",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -685,7 +690,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '688ff16b15d2eb636a2fc63675e75c3f')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '942bed36219060d2c1adbe9f6e4b2ba7')"
     ]
   }
 }

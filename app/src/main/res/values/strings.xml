@@ -3,14 +3,32 @@
     <string name="app_name">Bike Companion</string>
 
     <!-- Bottom navigation -->
-    <string name="nav_trip">Trip</string>
+    <string name="nav_trip">Rides</string>
     <string name="nav_garage">Garage</string>
     <string name="nav_stats">Stats</string>
 
     <!-- Trip screen -->
-    <string name="trip_start_button">Start new trip</string>
-    <string name="trip_view_current_trip">View current trip</string>
-    <string name="trip_start_button_content_description">Start a new bike trip</string>
+    <string name="ride_history_title">Rides</string>
+    <plurals name="ride_history_total">
+        <item quantity="one">%d ride total</item>
+        <item quantity="other">%d rides total</item>
+    </plurals>
+    <string name="ride_history_filter_label">Bike</string>
+    <string name="ride_history_all_bikes">All bikes</string>
+    <string name="ride_history_sort_label">Sort</string>
+    <string name="ride_history_sort_newest">Newest</string>
+    <string name="ride_history_sort_distance">Distance</string>
+    <string name="ride_history_sort_duration">Duration</string>
+    <string name="ride_history_empty">No rides yet.</string>
+    <string name="ride_history_filter_empty">No rides match this bike.</string>
+    <string name="ride_history_add_title">Add to your history</string>
+    <string name="ride_history_summary_assigned">%1$s · Rode %2$.1f km on %3$s in %4$s</string>
+    <string name="ride_history_summary_unassigned">%1$s · Rode %2$.1f km in %3$s · No bike assigned</string>
+    <string name="trip_start_button">Start ride</string>
+    <string name="trip_view_current_trip">View current ride</string>
+    <string name="trip_start_button_content_description">Start ride</string>
+    <string name="start_ride_content_description">Start ride</string>
+    <string name="trip_start_ride_hint">Start a ride from here or the bike icon above.</string>
     <string name="trip_location_permission_title">Allow location for ride tracking</string>
     <string name="trip_location_permission_rationale">Bike Companion uses your precise location only during a ride you start to calculate distance, speed, and elevation. It does not track rides passively.</string>
     <string name="trip_location_permission_continue">Continue</string>
@@ -61,12 +79,14 @@
     <string name="trip_start_anyway">Start ride anyway</string>
 
     <!-- Trip start splash (countdown) -->
-    <string name="trip_splash_title">Starting trip</string>
+    <string name="trip_splash_title">Starting ride</string>
     <string name="trip_splash_cancel">Cancel</string>
-    <string name="trip_splash_cancel_content_description">Cancel and return without starting the trip</string>
+    <string name="trip_splash_cancel_content_description">Cancel and return without starting the ride</string>
     <string name="trip_splash_countdown_content_description">Countdown: %1$d seconds</string>
-    <string name="trip_splash_go_now">GO now</string>
-    <string name="trip_splash_go_now_content_description">Start trip immediately</string>
+    <string name="trip_splash_add_ten_seconds">+10 seconds</string>
+    <string name="trip_splash_add_ten_seconds_content_description">Add ten seconds to the countdown</string>
+    <string name="trip_splash_riding_bike">Riding %1$s</string>
+    <string name="trip_splash_no_bike_assigned">No bike assigned</string>
     <string name="trip_splash_action_bike_mode">Bike mode</string>
     <string name="trip_splash_action_auto_pause">Auto-pause</string>
 
@@ -76,6 +96,12 @@
 
     <!-- Active ride screen -->
     <string name="ride_active_title">Ride in progress</string>
+    <string name="ride_elapsed_time">Elapsed time</string>
+    <string name="ride_distance_value">Distance · %1$.2f km</string>
+    <string name="ride_elevation_gain_value">Elevation gain · %1$.0f m</string>
+    <string name="ride_elevation_loss_value">Elevation loss · %1$.0f m</string>
+    <string name="ride_assigned_bike">Bike · %1$s</string>
+    <string name="ride_no_bike_assigned_short">No bike assigned</string>
     <string name="ride_distance">Distance: %1$.2f km</string>
     <string name="ride_duration">Duration: %1$s</string>
     <string name="ride_speed_current">Speed: %1$.1f km/h</string>
@@ -88,7 +114,7 @@
     <string name="ride_paused">Paused</string>
     <string name="ride_auto_paused_no_movement">Your ride was automatically paused because there was no movement for 30 minutes.</string>
     <string name="ride_resume">Resume</string>
-    <string name="ride_stop">Stop ride</string>
+    <string name="ride_stop">Stop</string>
     <string name="ride_stop_confirm_title">Exit ride?</string>
     <string name="ride_stop_confirm_message">Your ride will be saved and you\'ll return to the trip screen. If no bike is assigned, you\'ll choose one before saving.</string>
     <string name="ride_duration_over_24h">>24h</string>
@@ -102,6 +128,10 @@
     <string name="ride_assign_before_save_message">This completed ride is still unsaved. Choose a bike to save it and update mileage.</string>
     <string name="ride_assign_before_save_no_bikes">Add a bike in Garage, then return here to save this ride.</string>
     <string name="ride_save_with_bike">Save with %1$s</string>
+    <string name="ride_go_to_garage">Garage / Add bike</string>
+    <string name="ride_discard">Discard ride</string>
+    <string name="ride_discard_confirm_title">Discard this ride?</string>
+    <string name="ride_discard_confirm_message">This unfinished ride will be permanently deleted and cannot be recovered.</string>
     <string name="ride_continue_tracking">Continue ride</string>
     <string name="ride_recovery_title">Recover unfinished ride?</string>
     <string name="ride_recovery_message">An unfinished ride was found. You can resume it, save what was recorded, or discard it.</string>
@@ -128,11 +158,48 @@
     <string name="ride_placeholder_reminder_dismiss">Don\'t remind again</string>
     <string name="ride_edit_title">Edit ride</string>
     <string name="ride_edit_coming_soon">Edit ride coming soon</string>
+    <string name="ride_detail_title">Ride details</string>
+    <string name="ride_detail_not_found">This ride is no longer available.</string>
+    <string name="ride_detail_bike">Bike</string>
+    <string name="ride_detail_distance">Distance</string>
+    <string name="ride_detail_duration">Duration</string>
+    <string name="ride_detail_average_speed">Average speed</string>
+    <string name="ride_detail_max_speed">Maximum speed</string>
+    <string name="ride_detail_elevation_gain">Elevation gain and loss</string>
+    <string name="ride_detail_source">Source</string>
+    <string name="ride_detail_source_app">Bike Companion</string>
+    <string name="ride_detail_source_health_connect">Health Connect</string>
+    <string name="ride_detail_source_manual">Manual entry</string>
+    <string name="ride_detail_edit_action">Edit ride</string>
 
     <!-- Garage screen -->
     <string name="garage_title">Bike garage</string>
     <string name="garage_tab_bikes">Bikes</string>
-    <string name="garage_tab_components">Components</string>
+    <string name="garage_tab_components">Parts</string>
+    <string name="garage_previous_bike">Previous bike</string>
+    <string name="garage_next_bike">Next bike</string>
+    <string name="garage_bike_position">Bike %1$d of %2$d</string>
+    <string name="garage_status_ready_to_ride">Ready to ride</string>
+    <string name="garage_status_inspect_soon">Inspect soon</string>
+    <string name="garage_status_service_due">Service due</string>
+    <string name="garage_status_components">Affected: %1$s</string>
+    <string name="garage_status_affected_components">%1$s. Affected: %2$s</string>
+    <string name="garage_service_sheet_title">Service due</string>
+    <string name="garage_service_complete_selected">Complete selected</string>
+    <string name="garage_service_confirmation_title">Complete these services?</string>
+    <string name="garage_service_normal_confirmation">Restart this service interval.</string>
+    <string name="garage_service_replacement_confirmation">Move the current component to Garage and install a replacement at 0 km.</string>
+    <string name="garage_service_confirm">Confirm</string>
+    <string name="garage_service_could_not_complete">Could not complete:</string>
+    <string name="garage_service_try_again">Try again</string>
+    <string name="garage_service_requirement_description">%1$s — %2$s</string>
+    <string name="garage_service_bullet_requirement">• %1$s — %2$s</string>
+    <plurals name="garage_service_completed_count">
+        <item quantity="one">%d service completed</item>
+        <item quantity="other">%d services completed</item>
+    </plurals>
+    <string name="garage_recent_rides">Recent rides</string>
+    <string name="garage_recent_rides_empty">No rides recorded for this bike yet.</string>
     <string name="garage_filter_all">All</string>
     <string name="garage_filter_sort_card">Filter &amp; sort</string>
     <string name="garage_filter_sort_summary">%1$s · %2$s · %3$s</string>
@@ -144,23 +211,34 @@
     <string name="garage_spec_total_distance">Combined odometers: %1$.0f km</string>
     <string name="garage_no_bikes">No bikes yet. Add your first bike.</string>
     <string name="garage_no_components">No components yet. Add from the + button or via a bike.</string>
+    <string name="garage_parts_filter_content_description">Filter parts</string>
+    <string name="garage_parts_filter_all">All parts</string>
+    <string name="garage_parts_filter_active">Active</string>
+    <string name="garage_parts_filter_retired">Retired</string>
+    <string name="garage_parts_filter_without_bikes">Without bikes</string>
+    <string name="garage_parts_empty">No parts yet. Add one from the + button or through a bike.</string>
+    <string name="garage_parts_filter_empty">No parts match this filter.</string>
+    <string name="garage_parts_no_bike">No bike</string>
+    <string name="garage_parts_last_bike_retired">Last on %1$s · Retired</string>
+    <string name="garage_parts_retired">Retired</string>
+    <string name="garage_parts_distance">%1$.0f km</string>
+    <string name="garage_parts_distance_tracked">%1$.0f km tracked</string>
     <string name="garage_component_assigned_to">Assigned to: %1$s</string>
     <string name="garage_assigned_none">None</string>
     <string name="garage_add_component">Add component</string>
     <string name="garage_add_component_content_description">Add a component to garage</string>
+    <string name="component_add_title">Add component</string>
+    <string name="component_add_type">Type</string>
+    <string name="component_add_display_name">Display name (optional)</string>
+    <string name="component_add_prior_distance">Prior distance (km) (optional)</string>
+    <string name="component_add_approximate">Approximate</string>
+    <string name="component_add_action">Add</string>
     <string name="garage_add_bike">Add bike</string>
     <string name="garage_add_bike_content_description">Add a new bike</string>
-    <string name="garage_bike_add_photo">Add photo</string>
-    <string name="garage_bike_change_photo">Change photo</string>
-    <string name="garage_bike_remove_photo">Remove photo</string>
-    <string name="add_bike_choose_mode">How do you want to add your bike?</string>
     <string name="add_bike_quick_add">Quick add</string>
     <string name="add_bike_quick_add_subtitle">Name, drivetrain, and brakes. We’ll add suggested components.</string>
     <string name="add_bike_quick_add_content_description">Quick add: name, drivetrain, brakes</string>
     <string name="add_bike_quick_add_hint">We’ll add suggested components (chain, cassette, tires, etc.) with general service intervals.</string>
-    <string name="add_bike_full_setup">Full setup</string>
-    <string name="add_bike_full_setup_subtitle">Customize everything: details, component names, and service intervals.</string>
-    <string name="add_bike_full_setup_content_description">Full setup: customize all details</string>
     <string name="add_bike_drivetrain_label">Drivetrain</string>
     <string name="add_bike_drivetrain_1x">1x</string>
     <string name="add_bike_drivetrain_single_speed">Single speed</string>
@@ -196,13 +274,13 @@
     <string name="component_sort_label">Sort by</string>
     <string name="component_sort_type_az">Type (A–Z)</string>
     <string name="component_sort_next_service">Next service</string>
-    <string name="component_sort_health">Health</string>
     <string name="garage_rides">Rides</string>
     <string name="garage_edit_bike">Edit bike</string>
     <string name="garage_start_ride">Start ride with this bike</string>
 
     <!-- Bike detail / edit -->
     <string name="bike_name">Name</string>
+    <string name="bike_display_name">Display name (optional)</string>
     <string name="bike_make">Make</string>
     <string name="bike_model">Model</string>
     <string name="bike_year">Year</string>
@@ -220,6 +298,7 @@
     <string name="component_health_unavailable_short">Prior usage unknown</string>
     <string name="bike_component_total_time">Total ride time: %1$s</string>
     <string name="bike_component_replaced">Mark replaced</string>
+    <string name="bike_component_replace">Replace</string>
     <string name="component_replace_title">Replace component</string>
     <string name="component_replace_name">Replacement name</string>
     <string name="component_replace_make_model">Replacement make/model</string>
@@ -229,7 +308,7 @@
     <string name="bike_component_last_replaced">Last replaced: %1$s</string>
     <string name="bike_component_make_model">Make/model: %1$s</string>
     <string name="bike_component_snooze">Snooze alert</string>
-    <string name="bike_component_alerts_off">Alerts off</string>
+    <string name="bike_component_alerts">Alerts</string>
     <string name="bike_health_alert_mild_content_description">Close to inspection or service</string>
     <string name="bike_health_alert_danger_content_description">Expected service interval reached</string>
 
@@ -264,6 +343,7 @@
     <string name="component_done">Done</string>
     <string name="component_install">Install</string>
     <string name="component_uninstall">Uninstall</string>
+    <string name="component_move_to_garage">Move to Garage</string>
     <string name="component_retire">Retire</string>
     <string name="component_retired">Retired</string>
     <string name="component_retire_confirm_title">Retire component?</string>
@@ -275,9 +355,9 @@
     <string name="component_install_duplicate_bike">%1$s already has this part type</string>
     <string name="component_install_no_bikes">No other bikes available</string>
     <string name="component_delete_confirm_title">Delete component</string>
-    <string name="component_delete_confirm_message">Delete %1$s? This cannot be undone.</string>
-    <string name="component_edit">Edit component</string>
-    <string name="component_delete">Delete component</string>
+    <string name="component_delete_confirm_message">Are you sure you want to permanently delete %1$s? This cannot be undone.</string>
+    <string name="component_edit">Edit</string>
+    <string name="component_delete">Delete</string>
     <string name="component_remove_dialog_title">How do you want to remove this?</string>
     <string name="component_remove_forever">Forever / Delete</string>
     <string name="component_remove_move_to_garage">Move to garage / Uninstall from bike</string>
@@ -320,15 +400,14 @@
     <string name="component_edit_title_format">Edit %1$s</string>
     <string name="component_edit_display_name">Display name</string>
     <string name="component_edit_display_name_hint">e.g. Chain 1</string>
+    <string name="component_make">Make (optional)</string>
+    <string name="component_model">Model (optional)</string>
     <string name="component_edit_mileage">Bike Companion tracked mileage (km)</string>
     <string name="component_edit_mileage_hint">0</string>
     <string name="component_edit_time">Total ride time</string>
     <string name="component_edit_time_hint">0:00:00 (hours:minutes:seconds)</string>
     <string name="component_edit_reset_speeds">Reset avg and max speed</string>
     <string name="component_edit_reset_speeds_summary">Set avg/max speed to zero</string>
-    <string name="component_add_photo">Add photo</string>
-    <string name="component_change_photo">Change photo</string>
-    <string name="component_remove_photo">Remove photo</string>
     <string name="component_edit_validation_name_empty">Display name is required</string>
     <string name="component_edit_validation_mileage_invalid">Mileage must be 0 or greater</string>
     <string name="component_edit_validation_time_invalid">Time must be in format H:MM:SS or M:SS</string>
@@ -342,13 +421,15 @@
 
     <!-- Stats screen -->
     <string name="stats_title">Stats</string>
-    <string name="stats_filter_all">All</string>
-    <string name="stats_total_distance">Total distance: %1$.1f km</string>
-    <string name="stats_ride_count">Rides: %1$d</string>
-    <string name="stats_avg_distance">Avg distance: %1$.1f km</string>
-    <string name="stats_avg_speed">Avg speed: %1$.1f km/h</string>
-    <string name="stats_elevation_gain">Elevation gain: %1$.0f m</string>
-    <string name="stats_no_data">No ride data for this bike yet.</string>
+    <string name="stats_all_bikes">All bikes</string>
+    <string name="stats_distance">Distance: %1$.1f km</string>
+    <string name="stats_ride_time">Ride time: %1$s</string>
+    <string name="stats_rides">Rides: %1$d</string>
+    <string name="stats_services">Services: %1$d</string>
+    <string name="stats_no_bikes">Add a bike to see per-bike lifetime totals.</string>
+    <string name="stats_bike_position">Bike %1$d of %2$d</string>
+    <string name="stats_previous_bike">Show previous bike</string>
+    <string name="stats_next_bike">Show next bike</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
@@ -388,6 +469,11 @@
     <string name="settings_health_alert_threshold_subtitle">Show a mild alert when bike health is at or below this percentage. At 0%%, the app shows that the expected interval was reached. Default: 20%%.</string>
     <string name="settings_health_alert_threshold_value">%1$d%%</string>
     <string name="settings_health_alert_slider_content_description">Mild alert threshold, percentage</string>
+    <string name="settings_maintenance_notifications_title">Maintenance reminders</string>
+    <string name="settings_maintenance_notifications_subtitle">Tap to receive optional advisory reminders about components that may need attention.</string>
+    <string name="settings_maintenance_notifications_off_title">Maintenance reminders are off</string>
+    <string name="settings_maintenance_notifications_off_message">Allow notifications in app settings to receive maintenance reminders. Bike and maintenance tracking continue without them.</string>
+    <string name="settings_maintenance_notifications_open_settings">Open settings</string>
     <string name="settings_maintenance_estimates_title">About maintenance estimates</string>
     <string name="settings_maintenance_estimates_disclaimer">Maintenance intervals are estimates. Inspect actual component condition and follow manufacturer guidance.</string>
     <string name="settings_privacy_title">Privacy and data</string>

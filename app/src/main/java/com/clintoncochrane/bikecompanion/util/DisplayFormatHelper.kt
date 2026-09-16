@@ -29,4 +29,38 @@ object DisplayFormatHelper {
             .joinToString(" ") { word ->
                 word.replaceFirstChar { it.uppercaseChar() }
             }
+
+    fun makeModel(make: String, model: String): String =
+        listOf(make, model)
+            .map(String::trim)
+            .filter(String::isNotBlank)
+            .joinToString(" ")
+
+    fun bikeLabels(displayName: String, make: String, model: String): DisplayLabels =
+        labels(displayName, makeModel(make, model), "Bike")
+
+    fun componentLabels(
+        displayName: String,
+        make: String,
+        model: String,
+        type: String,
+    ): DisplayLabels = labels(
+        displayName,
+        makeModel(make, model),
+        formatComponentTypeForDisplay(type),
+    )
+
+    private fun labels(displayName: String, makeModel: String, fallback: String): DisplayLabels = when {
+        displayName.isNotBlank() -> DisplayLabels(
+            primary = displayName.trim(),
+            secondary = makeModel.ifBlank { fallback },
+        )
+        makeModel.isNotBlank() -> DisplayLabels(primary = makeModel, secondary = fallback)
+        else -> DisplayLabels(primary = fallback, secondary = null)
+    }
 }
+
+data class DisplayLabels(
+    val primary: String,
+    val secondary: String?,
+)

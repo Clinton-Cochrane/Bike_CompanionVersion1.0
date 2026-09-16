@@ -11,7 +11,6 @@ import com.clintoncochrane.bikecompanion.data.component.ComponentLifecycleTransa
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
 import com.clintoncochrane.bikecompanion.data.component.ComponentSwapEntity
 import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
-import com.clintoncochrane.bikecompanion.data.image.ImageRepository
 import com.clintoncochrane.bikecompanion.data.ride.RideEntity
 import com.clintoncochrane.bikecompanion.data.ride.RidePersistenceTransaction
 import com.clintoncochrane.bikecompanion.data.ride.RideRepository
@@ -44,7 +43,7 @@ class PersistedDataIntegrityTest {
                     createdAt = 1L,
                 ),
             )
-            val componentRepository = componentRepository(context, firstDatabase)
+            val componentRepository = componentRepository(firstDatabase)
             val componentId = componentRepository.insertComponent(
                 ComponentEntity(
                     bikeId = bikeId,
@@ -110,16 +109,13 @@ class PersistedDataIntegrityTest {
         .addCallback(BikeCompanionDatabaseCallback)
         .build()
 
-    private fun componentRepository(
-        context: Context,
-        database: BikeCompanionDatabase,
-    ) = ComponentRepository(
+    private fun componentRepository(database: BikeCompanionDatabase) = ComponentRepository(
         database.componentDao(),
         database.serviceIntervalDao(),
         database.componentSwapDao(),
         database.bikeDao(),
-        ImageRepository(context.cacheDir.resolve("persisted-data-images")) { null },
         ComponentLifecycleTransaction(database),
+        database.serviceHistoryDao(),
     )
 
     private fun rideRepository(

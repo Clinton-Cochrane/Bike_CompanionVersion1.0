@@ -18,14 +18,17 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -38,13 +41,17 @@ import com.clintoncochrane.bikecompanion.ui.navigation.BikeCompanionNavGraph
 import com.clintoncochrane.bikecompanion.ui.navigation.Screen
 
 @Composable
-fun MainScaffold(modifier: Modifier = Modifier) {
+fun MainScaffold(
+    modifier: Modifier = Modifier,
+    startDestination: String? = null,
+) {
     val context = LocalContext.current
     val appViewModel: AppViewModel = androidx.hilt.navigation.compose.hiltViewModel(
         viewModelStoreOwner = context as ComponentActivity,
     )
     val isInitialized by appViewModel.isInitialized.collectAsState()
     val hasAnyBike by appViewModel.hasAnyBike.collectAsState()
+    val rideableBikes by appViewModel.rideableBikes.collectAsState()
 
     if (!isInitialized) {
         Box(
@@ -64,8 +71,8 @@ fun MainScaffold(modifier: Modifier = Modifier) {
         return
     }
 
-    val startDestination =
-        if (hasAnyBike) Screen.Trip.route else Screen.Garage.route
+    val resolvedStartDestination = startDestination
+        ?: if (hasAnyBike) Screen.Trip.route else Screen.Garage.route
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -91,11 +98,21 @@ fun MainScaffold(modifier: Modifier = Modifier) {
         Screen.Garage to (Icons.Filled.DirectionsBike to R.string.nav_garage),
         Screen.Stats to (Icons.Filled.StackedBarChart to R.string.nav_stats),
     )
+    val isCountdown = currentDestination?.route == Screen.TripStartSplash.route
+    var bottomNavigationLiftPx by remember { mutableFloatStateOf(0f) }
+    val liftController = remember {
+        BottomNavigationLiftController { liftPx -> bottomNavigationLiftPx = liftPx }
+    }
 
-    androidx.compose.material3.Scaffold(
-        modifier = modifier,
-        bottomBar = {
-            NavigationBar {
+    CompositionLocalProvider(LocalBottomNavigationLiftController provides liftController) {
+        androidx.compose.material3.Scaffold(
+            modifier = modifier,
+            bottomBar = {
+                if (!isCountdown) NavigationBar(
+                    modifier = Modifier.graphicsLayer {
+                        translationY = bottomNavigationTranslationY(bottomNavigationLiftPx)
+                    },
+                ) {
                 bottomNavItems.forEach { (screen, pair) ->
                     val (icon, labelRes) = pair
                     val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
@@ -120,13 +137,19 @@ fun MainScaffold(modifier: Modifier = Modifier) {
                         ),
                     )
                 }
-            }
-        },
-    ) { paddingValues ->
-        BikeCompanionNavGraph(
-            navController = navController,
-            startDestination = startDestination,
-            paddingValues = paddingValues,
-        )
+                }
+            },
+        ) { paddingValues ->
+            BikeCompanionNavGraph(
+                navController = navController,
+                startDestination = resolvedStartDestination,
+                paddingValues = paddingValues,
+                onStartRide = {
+                    val bikeId = com.clintoncochrane.bikecompanion.ui.trip.InitialRideAssignmentPolicy
+                        .initialBikeId(rideableBikes)
+                    navController.navigate(Screen.TripStartSplash.withId(bikeId))
+                },
+            )
+        }
     }
 }

@@ -10,7 +10,6 @@ import com.clintoncochrane.bikecompanion.data.component.ComponentLifecycleStatus
 import com.clintoncochrane.bikecompanion.data.component.ComponentLifecycleTransaction
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
 import com.clintoncochrane.bikecompanion.data.component.ComponentSwapEntity
-import com.clintoncochrane.bikecompanion.data.image.ImageRepository
 import com.clintoncochrane.bikecompanion.data.ride.RideEntity
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -37,14 +36,13 @@ class BikeDeletionRepositoryTest {
             database.serviceIntervalDao(),
             database.componentSwapDao(),
             database.bikeDao(),
-            ImageRepository(context.cacheDir.resolve("bike-deletion-component-images")) { null },
             ComponentLifecycleTransaction(database),
+            database.serviceHistoryDao(),
         )
         repository = BikeDeletionRepository(
             database,
             database.bikeDao(),
             componentRepository,
-            ImageRepository(context.cacheDir.resolve("bike-deletion-bike-images")) { null },
         )
         bikeId = database.bikeDao().insert(BikeEntity(name = "Bike A", createdAt = 1L))
     }

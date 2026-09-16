@@ -17,7 +17,13 @@ class ServiceIntervalRepositoryTest {
     @Before
     fun setUp() {
         serviceIntervalDao = mockk()
-        repository = ServiceIntervalRepository(serviceIntervalDao)
+        repository = ServiceIntervalRepository(
+            serviceIntervalDao,
+            mockk(),
+            mockk(),
+            mockk(),
+            mockk(),
+        )
     }
 
     @Test
@@ -45,7 +51,7 @@ class ServiceIntervalRepositoryTest {
         coEvery { serviceIntervalDao.getIntervalById(11L) } returns selectedInterval
         coEvery { serviceIntervalDao.update(any()) } returns Unit
 
-        val completed = repository.completeServiceInterval(11L)
+        val completed = repository.completeServiceInterval(11L, completedAt = 1_000L)
 
         assertTrue(completed)
         coVerify(exactly = 1) {
@@ -53,6 +59,7 @@ class ServiceIntervalRepositoryTest {
                 selectedInterval.copy(
                     trackedKm = 0.0,
                     trackedTimeSeconds = 0L,
+                    lastCompletedAt = 1_000L,
                 ),
             )
         }
@@ -74,11 +81,11 @@ class ServiceIntervalRepositoryTest {
         coEvery { serviceIntervalDao.getIntervalById(21L) } returns interval
         coEvery { serviceIntervalDao.update(any()) } returns Unit
 
-        val completed = repository.completeServiceInterval(21L)
+        val completed = repository.completeServiceInterval(21L, completedAt = 2_000L)
 
         assertTrue(completed)
         coVerify(exactly = 1) {
-            serviceIntervalDao.update(interval.copy(trackedTimeSeconds = 0L))
+            serviceIntervalDao.update(interval.copy(trackedTimeSeconds = 0L, lastCompletedAt = 2_000L))
         }
     }
 
@@ -115,9 +122,14 @@ class ServiceIntervalRepositoryTest {
         coEvery { serviceIntervalDao.getIntervalById(41L) } returns completedInterval
         coEvery { serviceIntervalDao.update(any()) } returns Unit
 
-        assertTrue(repository.completeServiceInterval(41L))
-        assertTrue(repository.completeServiceInterval(41L))
+        assertTrue(repository.completeServiceInterval(41L, completedAt = 3_000L))
+        assertTrue(repository.completeServiceInterval(41L, completedAt = 4_000L))
 
-        coVerify(exactly = 2) { serviceIntervalDao.update(completedInterval) }
+        coVerify(exactly = 1) {
+            serviceIntervalDao.update(completedInterval.copy(lastCompletedAt = 3_000L))
+        }
+        coVerify(exactly = 1) {
+            serviceIntervalDao.update(completedInterval.copy(lastCompletedAt = 4_000L))
+        }
     }
 }

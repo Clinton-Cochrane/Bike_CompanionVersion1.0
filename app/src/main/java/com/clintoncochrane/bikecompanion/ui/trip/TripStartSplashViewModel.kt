@@ -7,6 +7,8 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
+import com.clintoncochrane.bikecompanion.util.DisplayFormatHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -26,19 +28,20 @@ import javax.inject.Inject
  * If the app is backgrounded during the countdown, on resume the countdown resets to 10.
  */
 data class SplashState(
-    val countdown: Int = INITIAL_COUNTDOWN,
+    val countdown: Int = TripStartCountdown.INITIAL_COUNTDOWN,
     val isCancelled: Boolean = false,
+    val hasStarted: Boolean = false,
+    val isCountdownAuthorized: Boolean = false,
 )
 
 /** One-shot event: trip should start (countdown reached 0 and not cancelled). */
 object StartTripEvent
 
-private const val INITIAL_COUNTDOWN = 10
-
 @HiltViewModel
 class TripStartSplashViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     application: Application,
+    private val bikeRepository: BikeRepository,
 ) : ViewModel() {
 
     val bikeId: Long = savedStateHandle.get<String>("bikeId")?.toLongOrNull() ?: -1L
@@ -46,55 +49,64 @@ class TripStartSplashViewModel @Inject constructor(
     private val _state = MutableStateFlow(SplashState())
     val state: StateFlow<SplashState> = _state.asStateFlow()
 
+    private val _assignedBikeName = MutableStateFlow<String?>(null)
+    val assignedBikeName: StateFlow<String?> = _assignedBikeName.asStateFlow()
+
     private val _startTripEvents = MutableSharedFlow<StartTripEvent>(replay = 0, extraBufferCapacity = 1)
     val startTripEvents: SharedFlow<StartTripEvent> = _startTripEvents.asSharedFlow()
 
     private var countdownJob: Job? = null
 
     init {
-        startCountdown()
+        viewModelScope.launch {
+            if (bikeId > 0L) {
+                _assignedBikeName.value = bikeRepository.getBikeById(bikeId)?.let {
+                    DisplayFormatHelper.bikeLabels(it.name, it.make, it.model).primary
+                }
+            }
+        }
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_START) startCountdown()
+                if (event == Lifecycle.Event.ON_START && _state.value.isCountdownAuthorized) {
+                    startCountdown()
+                }
             }
         )
     }
 
     /**
-     * Starts the countdown from [INITIAL_COUNTDOWN] down to 0.
+     * Starts the countdown from [TripStartCountdown.INITIAL_COUNTDOWN] down to 0.
      * When the app is resumed from background, the lifecycle observer resets and calls this again.
      */
+    fun beginCountdown() {
+        startCountdown()
+    }
+
     private fun startCountdown() {
+        if (_state.value.isCancelled || _state.value.hasStarted) return
         countdownJob?.cancel()
-        _state.update { it.copy(countdown = INITIAL_COUNTDOWN, isCancelled = it.isCancelled) }
+        _state.update(TripStartCountdown::start)
         countdownJob = viewModelScope.launch {
-            var current = INITIAL_COUNTDOWN
-            while (current > 0) {
+            while (!_state.value.isCancelled && !_state.value.hasStarted) {
                 delay(1000)
-                if (_state.value.isCancelled) return@launch
-                current--
-                _state.update { it.copy(countdown = current) }
-            }
-            if (!_state.value.isCancelled) {
-                _startTripEvents.emit(StartTripEvent)
+                var shouldStartRide = false
+                _state.update { state ->
+                    TripStartCountdown.tick(state).also { shouldStartRide = it.shouldStartRide }.state
+                }
+                if (shouldStartRide) {
+                    _startTripEvents.emit(StartTripEvent)
+                }
             }
         }
     }
 
     fun cancel() {
         _state.update { it.copy(isCancelled = true) }
-    }
-
-    /**
-     * Skips the countdown and starts the trip immediately, if not already cancelled.
-     */
-    fun goNow() {
-        if (_state.value.isCancelled) return
         countdownJob?.cancel()
         countdownJob = null
-        _state.update { it.copy(countdown = 0) }
-        viewModelScope.launch {
-            _startTripEvents.emit(StartTripEvent)
-        }
+    }
+
+    fun addTenSeconds() {
+        _state.update(TripStartCountdown::extend)
     }
 }

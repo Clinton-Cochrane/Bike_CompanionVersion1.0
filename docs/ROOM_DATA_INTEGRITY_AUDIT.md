@@ -1,44 +1,45 @@
 # Room and Persisted-Data Integrity Audit
 
-Issue: #63  
-Audit date: 2026-09-14  
-Database version after audit: 17
+Issue: #63
+
+Audit date: 2026-09-16
+
+Database version after audit: 21
 
 ## Invariant checklist
 
-- PASS — Production has one Room builder, registers every migration, and has no destructive fallback.
-- PASS — The reconstructed version-1 database and the existing version-3 fixture migrate to version 17 without losing representative bike, ride, or component data.
-- PASS — Every exported schema fixture (versions 12 through 17) opens and migrates to the current schema.
-- PASS — Bike deletion preserves rides and swap history with null bike references; component deletion cascades contexts, swaps, and service intervals.
-- PASS — Ride save, edit, delete, and reassignment use the shared Room transaction boundary. Commit, rollback, no-op, validation, and exactly-once cases are covered.
+- PASS — Production has one Room builder, registers the complete 1→21 migration chain, and has no destructive migration fallback.
+- PASS — The reconstructed version-1 database and every committed schema fixture (versions 12 through 21) open and migrate without losing representative bike, ride, component, baseline, or lifecycle data.
+- PASS — Bike deletion preserves rides and component swap history with null bike references; component deletion cascades contexts, swaps, and service intervals.
+- PASS — Ride save, edit, delete, and reassignment use the shared Room transaction boundary. Commit, rollback, no-op, validation, exactly-once, installation-history, and service-reset-boundary cases are covered.
 - PASS — Bike totals preserve odometer baselines and rebuild from authoritative ride history without becoming negative.
 - PASS — Component and service totals are guarded against negative values and duplicate ride application by the covered repository paths.
-- PASS — New installed components and seeded components atomically create service intervals and one active installation record.
-- PASS — Migration 16→17 repairs missing or inconsistent active installation records. Database triggers reject overlapping active installations on migrated and fresh production databases.
+- PASS — New installed components and seeded component batches atomically create components, service intervals, and one active installation record; a mid-seed failure rolls back the entire batch.
+- PASS — Migration 20→21 repairs missing or inconsistent active installation records. Database triggers reject overlapping active installations on migrated and fresh production databases.
 - PASS — Known, approximate, and unknown component prior-use states and baselines survive persistence.
+- PASS — Service-completion history and reset boundaries survive persistence and prevent older ride edits, deletes, or reassignments from corrupting post-service progress.
 - PASS — Health Connect record identity remains unique across database close/reopen and prevents repeated mileage application.
 - PASS — Representative bikes, rides, components, context, service intervals, swaps, baselines, and import identity survive database close/reopen with no foreign-key violations.
 
 ## Fixes made during the audit
 
-- Added an atomic component-creation boundary covering the component, initial service intervals, and initial swap row.
-- Added version 17 to replace a Room-incompatible partial index with equivalent SQLite triggers and repair existing active installation history.
+- Added an atomic component-creation boundary covering the component, initial service intervals, initial swap row, and bulk default seeding.
+- Added version 21 to replace a Room-incompatible partial index with equivalent SQLite triggers and repair existing active installation history while preserving the current 16→20 migration chain.
 - Removed the obsolete direct bike-deletion repository path so production deletion cannot bypass component disposition and lifecycle reconciliation.
 - Repaired invalid JUnit `@Before` signatures that had prevented seven Room instrumentation classes from running.
 - Corrected the completed-ride edit fixture so its starting aggregates match its seeded ride history.
-- Added complete migration-chain, all-exported-fixture, active-installation, rollback, foreign-key, dedupe, and close/reopen regression coverage.
+- Added complete migration-chain, all-exported-fixture, active-installation, rollback, foreign-key, dedupe, service-boundary, atomic-seeding, and close/reopen regression coverage.
 
-## Follow-up issues
+## Follow-ups
 
-These are substantive model changes and were intentionally not folded into this audit.
-
-1. #111 — Persist service-completion boundaries for historical ride reconciliation (P0 before the Pixel alpha). Current service intervals store only progress since the latest reset. Deleting, editing, or reassigning a ride that predates a completed service can subtract that ride from post-service progress because the reset timestamp/history is not persisted.
-2. #112 — Reconcile component membership when an edited ride crosses installation boundaries (P1 before timestamp editing ships). The edit operation adjusts components installed at the original ride end time; changing the end time across a swap should remove the original ride from the old component set and apply the replacement ride to the new set.
+- No open P0 persisted-data finding remains.
+- #111 and #112, originally identified by this audit, are closed. Service reset boundaries are persisted and covered; completed-ride timestamp editing remains outside the exposed v1 behavior.
+- #156 tracks a reproducible, non-Room Stats Compose navigation test failure found by the broad instrumentation run. It does not affect the Room acceptance result.
 
 ## Verification
 
-- `./gradlew assembleDebug --no-daemon`
-- `./gradlew testDebugUnitTest lintDebug --no-daemon`
-- `./gradlew connectedDebugAndroidTest --no-daemon`
-
-The final verification runs completed successfully. Instrumentation executed on the API 35 emulator (`emulator-5554`).
+- `./gradlew testDebugUnitTest --no-daemon --stacktrace` — PASS.
+- `./gradlew assembleDebugAndroidTest --no-daemon --stacktrace` — PASS.
+- Focused Room/migration/accounting instrumentation suite on API 35 emulator — PASS, 53/53.
+- Full instrumentation suite on API 35 emulator — Room coverage passed; 62/63 passed overall with only #156 failing outside this audit's scope.
+- The connected OnePlus 7 Pro was not modified because an installed build has a different signing key; uninstalling it would erase app data.

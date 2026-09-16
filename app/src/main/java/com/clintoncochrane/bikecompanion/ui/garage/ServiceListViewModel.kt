@@ -144,9 +144,6 @@ class ServiceListViewModel @Inject constructor(
             ComponentSortOrder.NEXT_SERVICE -> filtered.sortedWith(
                 compareBy<DueServiceItem, Int?>(nullsLast()) { it.healthPercent },
             )
-            ComponentSortOrder.HEALTH -> filtered.sortedWith(
-                compareBy<DueServiceItem, Int?>(nullsLast()) { it.healthPercent },
-            )
             ComponentSortOrder.TYPE_AZ -> filtered.sortedWith(
                 compareBy(String.CASE_INSENSITIVE_ORDER) { item: DueServiceItem -> item.component.type }
                     .thenBy(String.CASE_INSENSITIVE_ORDER) { item: DueServiceItem -> item.component.name },

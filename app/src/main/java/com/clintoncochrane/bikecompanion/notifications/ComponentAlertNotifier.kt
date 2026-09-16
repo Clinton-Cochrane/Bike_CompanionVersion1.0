@@ -1,14 +1,18 @@
 package com.clintoncochrane.bikecompanion.notifications
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.clintoncochrane.bikecompanion.R
 import com.clintoncochrane.bikecompanion.data.component.ComponentDao
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.util.DisplayFormatHelper
-import com.clintoncochrane.bikecompanion.util.componentHealthPercent
+import com.clintoncochrane.bikecompanion.util.isComponentAlertActionable
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,6 +27,14 @@ class ComponentAlertNotifier @Inject constructor(
     private val componentDao: ComponentDao,
 ) {
     suspend fun notifyIfNeeded(bikeId: Long) = withContext(Dispatchers.IO) {
+        if (!canPostMaintenanceNotifications(
+                sdkInt = Build.VERSION.SDK_INT,
+                permissionGranted = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS,
+                ) == PackageManager.PERMISSION_GRANTED,
+            )
+        ) return@withContext
         val components = componentDao.getComponentsByBikeIdOnce(bikeId)
         val nowMillis = System.currentTimeMillis()
         val needAlert = components.filter { component ->
@@ -31,7 +43,9 @@ class ComponentAlertNotifier @Inject constructor(
         if (needAlert.isEmpty()) return@withContext
         ensureChannel()
         val title = context.getString(R.string.garage_components_attention, needAlert.size)
-        val text = needAlert.joinToString { DisplayFormatHelper.formatForDisplay(it.name) }
+        val text = needAlert.joinToString {
+            DisplayFormatHelper.componentLabels(it.name, it.make, it.model, it.type).primary
+        }
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle(title)
@@ -60,10 +74,5 @@ class ComponentAlertNotifier @Inject constructor(
 }
 
 internal fun shouldNotifyForComponent(component: ComponentEntity, nowMillis: Long): Boolean {
-    if (!component.alertsEnabled) return false
-    if (component.alertSnoozeUntilKm?.let { component.lifetimeDistanceKm < it } == true) return false
-    if (component.alertSnoozeUntilTime?.let { nowMillis < it } == true) return false
-    return componentHealthPercent(component)?.let { health ->
-        health <= component.alertThresholdPercent
-    } == true
+    return isComponentAlertActionable(component, nowMillis)
 }

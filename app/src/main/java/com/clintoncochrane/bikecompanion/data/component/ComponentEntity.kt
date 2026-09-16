@@ -31,8 +31,10 @@ data class ComponentEntity(
     },
     /** Component type for display and grouping (e.g. chain, cassette, tires). */
     val type: String,
-    val name: String,
-    val makeModel: String = "",
+    /** Optional human-readable display name, persisted in the legacy `name` column. */
+    val name: String = "",
+    val make: String = "",
+    val model: String = "",
     /** Expected lifespan in km. Used to compute health %. */
     val lifespanKm: Double,
     /** Distance tracked by Bike Companion since this component was added. */
@@ -44,10 +46,10 @@ data class ComponentEntity(
      * Used for paired components (tires, brake pads, etc.).
      */
     val position: String = "none",
-    /** Prior component usage entered when tracking began; zero when prior usage is unknown. */
+    /** Prior component usage at the time tracking began. */
     val baselineKm: Double = 0.0,
     /** Certainty of the prior usage stored in [baselineKm]. */
-    val priorUsageCertainty: PriorUsageCertainty = PriorUsageCertainty.UNKNOWN,
+    val priorUsageCertainty: PriorUsageCertainty = PriorUsageCertainty.KNOWN,
     /** Time-based baseline when component was installed, in seconds (for future use). */
     val baselineTimeSeconds: Long = 0L,
     /** Alert when remaining % is at or below this (e.g. 10 = alert when 90% used). */
@@ -57,8 +59,6 @@ data class ComponentEntity(
     val alertsEnabled: Boolean = true,
     val installedAt: Long,
     val notes: String = "",
-    /** Thumbnail URI for display; null uses type icon. */
-    val thumbnailUri: String? = null,
     /** Average speed in km/h across all rides. Denormalized for fast reads. */
     val avgSpeedKmh: Double = 0.0,
     /** Max speed in km/h across all rides. */
@@ -70,3 +70,6 @@ data class ComponentEntity(
     val lifetimeDistanceKm: Double
         get() = distanceUsedKm + if (priorUsageCertainty == PriorUsageCertainty.UNKNOWN) 0.0 else baselineKm
 }
+
+val ComponentEntity.displayName: String
+    get() = name

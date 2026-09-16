@@ -42,6 +42,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -82,10 +83,9 @@ import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.util.DisplayFormatHelper
 import com.clintoncochrane.bikecompanion.util.RideDisplayHelper
 import com.clintoncochrane.bikecompanion.util.componentTypeIcon
-import com.clintoncochrane.bikecompanion.data.component.DefaultComponentTypes
-import com.clintoncochrane.bikecompanion.data.component.DefaultComponentType
 import com.clintoncochrane.bikecompanion.util.ComponentSortOrder
 import com.clintoncochrane.bikecompanion.util.componentHealthPercent
+import com.clintoncochrane.bikecompanion.util.isComponentAlertActionable
 import com.clintoncochrane.bikecompanion.util.minimumComponentHealthPercent
 import com.clintoncochrane.bikecompanion.ui.garage.ThumbnailAvatar
 import com.clintoncochrane.bikecompanion.data.ride.RideEntity
@@ -106,12 +106,10 @@ fun BikeDetailScreen(
     backStackEntry: NavBackStackEntry,
 ) {
     var showAddComponentDialog by remember { mutableStateOf(false) }
-    var componentToAdd by remember { mutableStateOf<DefaultComponentType?>(null) }
     var componentToReplace by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentIdForInstallPicker by remember { mutableStateOf<ComponentEntity?>(null) }
-    var componentForRemoveDialog by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentForDeleteConfirm by remember { mutableStateOf<ComponentEntity?>(null) }
-    var componentContextMenuExpanded by remember { mutableStateOf<Long?>(null) }
+    var componentAlertMenuState by remember { mutableStateOf<ComponentAlertMenuState?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val viewModel: BikeDetailViewModel = androidx.hilt.navigation.compose.hiltViewModel(
@@ -122,48 +120,34 @@ fun BikeDetailScreen(
     val backContentDesc = stringResource(R.string.common_back_content_description)
     val editContentDesc = stringResource(R.string.common_edit)
 
-    if (showAddComponentDialog) {
-        AlertDialog(
-            onDismissRequest = { showAddComponentDialog = false },
-            title = { Text(stringResource(R.string.component_suggested_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DefaultComponentTypes.SUGGESTED.forEach { suggested ->
-                        TextButton(
-                            onClick = {
-                                componentToAdd = suggested
-                                showAddComponentDialog = false
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(
-                                "${suggested.displayName} — ${stringResource(R.string.component_lifespan_km, suggested.defaultLifespanKm)}",
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showAddComponentDialog = false }) {
-                    Text(stringResource(R.string.component_done))
-                }
-            },
-        )
+    fun closeComponentContextMenu(persistAlerts: Boolean = true) {
+        val menuState = componentAlertMenuState ?: return
+        if (persistAlerts && menuState.shouldPersist) {
+            uiState.components.firstOrNull { it.id == menuState.componentId }?.let { component ->
+                viewModel.setAlertsEnabled(component, menuState.pendingAlertsEnabled)
+            }
+        }
+        componentAlertMenuState = null
     }
 
-    componentToAdd?.let { component ->
-        PriorUsageDialog(
-            componentName = component.displayName,
-            onDismiss = { componentToAdd = null },
-            onSave = { certainty, baselineKm ->
-                viewModel.addComponent(
-                    component.type,
-                    component.displayName,
-                    component.defaultLifespanKm,
-                    certainty,
-                    baselineKm,
-                )
-                componentToAdd = null
+    fun toggleComponentContextMenu(component: ComponentEntity) {
+        if (componentAlertMenuState?.componentId == component.id) {
+            closeComponentContextMenu()
+        } else {
+            closeComponentContextMenu()
+            componentAlertMenuState = ComponentAlertMenuState(
+                componentId = component.id,
+                initialAlertsEnabled = component.alertsEnabled,
+            )
+        }
+    }
+
+    if (showAddComponentDialog) {
+        AddComponentDialog(
+            onDismiss = { showAddComponentDialog = false },
+            onAdd = { request ->
+                viewModel.addComponent(request)
+                showAddComponentDialog = false
             },
         )
     }
@@ -214,7 +198,7 @@ fun BikeDetailScreen(
                                 onClick = { viewModel.installComponent(component, bike.id) },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                Text(bike.name)
+                                Text(DisplayFormatHelper.bikeLabels(bike.name, bike.make, bike.model).primary)
                             }
                         }
                     } else {
@@ -225,52 +209,6 @@ fun BikeDetailScreen(
             confirmButton = {
                 TextButton(onClick = { componentIdForInstallPicker = null }) {
                     Text(stringResource(R.string.component_done))
-                }
-            },
-        )
-    }
-
-    val componentToRemove = componentForRemoveDialog
-    if (componentToRemove != null) {
-        val bikeId = componentToRemove.bikeId ?: uiState.bike?.id ?: 0L
-        AlertDialog(
-            onDismissRequest = { componentForRemoveDialog = null },
-            title = { Text(stringResource(R.string.component_remove_dialog_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(DisplayFormatHelper.formatForDisplay(componentToRemove.name))
-                    TextButton(
-                        onClick = {
-                            viewModel.retireComponent(componentToRemove)
-                            componentForRemoveDialog = null
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(R.string.component_retire), color = MaterialTheme.colorScheme.error)
-                    }
-                    TextButton(
-                        onClick = {
-                            viewModel.uninstallComponent(componentToRemove)
-                            componentForRemoveDialog = null
-                            scope.launch {
-                                val result = snackbarHostState.showSnackbar(
-                                    message = context.getString(R.string.component_moved_to_garage),
-                                    actionLabel = context.getString(R.string.common_undo),
-                                )
-                                if (result == SnackbarResult.ActionPerformed && bikeId > 0) {
-                                    viewModel.installComponent(componentToRemove, bikeId)
-                                }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(R.string.component_remove_move_to_garage))
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { componentForRemoveDialog = null }) {
-                    Text(stringResource(android.R.string.cancel))
                 }
             },
         )
@@ -296,7 +234,7 @@ fun BikeDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { componentForDeleteConfirm = null }) {
-                    Text(stringResource(android.R.string.cancel))
+                    Text(stringResource(R.string.common_cancel))
                 }
             },
         )
@@ -305,7 +243,7 @@ fun BikeDetailScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(uiState.bike?.name ?: stringResource(R.string.garage_title)) },
+                title = { Text(uiState.bike?.let { DisplayFormatHelper.bikeLabels(it.name, it.make, it.model).primary } ?: stringResource(R.string.garage_title)) },
                 navigationIcon = {
                     IconButton(
                         onClick = { navController.navigateUp() },
@@ -372,18 +310,17 @@ fun BikeDetailScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             ThumbnailAvatar(
-                                thumbnailUri = bike.thumbnailUri,
                                 size = 48.dp,
                                 placeholder = {
                                     Text(
-                                        text = "${bike.name.firstOrNull()?.uppercaseChar() ?: "?"}",
+                                        text = "${DisplayFormatHelper.bikeLabels(bike.name, bike.make, bike.model).primary.firstOrNull()?.uppercaseChar() ?: "?"}",
                                         style = MaterialTheme.typography.titleLarge,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 },
                             )
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(bike.name, style = MaterialTheme.typography.titleLarge)
+                                Text(DisplayFormatHelper.bikeLabels(bike.name, bike.make, bike.model).primary, style = MaterialTheme.typography.titleLarge)
                                 if (bike.make.isNotEmpty() || bike.model.isNotEmpty() || bike.year.isNotEmpty()) {
                                     Text(
                                         listOf(bike.make, bike.model, bike.year).filter { it.isNotEmpty() }.joinToString(" "),
@@ -431,17 +368,15 @@ fun BikeDetailScreen(
                                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
                             )
                         }
-                        Row(
+                        BikeStatsGrid(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            BikeStatChip(label = stringResource(R.string.bike_stat_odometer), value = stringResource(R.string.bike_stat_km, bike.totalDistanceKm))
-                            BikeStatChip(label = stringResource(R.string.bike_stat_moving_time), value = DurationFormatHelper.formatDurationBreakdownSeconds(bike.totalTimeSeconds))
-                            BikeStatChip(label = stringResource(R.string.bike_stat_avg_speed), value = stringResource(R.string.bike_stat_kmh, bike.avgSpeedKmh))
-                            BikeStatChip(label = stringResource(R.string.bike_stat_max_speed), value = stringResource(R.string.bike_stat_kmh, bike.maxSpeedKmh))
-                        }
+                            odometerValue = stringResource(R.string.bike_stat_km, bike.totalDistanceKm),
+                            movingTimeValue = DurationFormatHelper.formatDurationBreakdownSeconds(bike.totalTimeSeconds),
+                            averageSpeedValue = stringResource(R.string.bike_stat_kmh, bike.avgSpeedKmh),
+                            maxSpeedValue = stringResource(R.string.bike_stat_kmh, bike.maxSpeedKmh),
+                        )
                         Text(
                             text = stringResource(
                                 R.string.bike_distance_breakdown,
@@ -504,6 +439,7 @@ fun BikeDetailScreen(
                 }
             }
             item {
+                val isNextServiceView = uiState.componentSortOrder == ComponentSortOrder.NEXT_SERVICE
                 val componentsByCategory = remember(uiState.components) {
                     uiState.components
                         .groupBy { ComponentCategory.fromComponentType(it.type) }
@@ -541,48 +477,70 @@ fun BikeDetailScreen(
                             )
                         }
                         item {
-                            FilterChip(
-                                selected = uiState.componentSortOrder == ComponentSortOrder.NEXT_SERVICE,
-                                onClick = { viewModel.setComponentSortOrder(ComponentSortOrder.NEXT_SERVICE) },
-                                label = { Text(stringResource(R.string.component_sort_next_service)) },
-                            )
-                        }
-                        item {
-                            FilterChip(
-                                selected = uiState.componentSortOrder == ComponentSortOrder.HEALTH,
-                                onClick = { viewModel.setComponentSortOrder(ComponentSortOrder.HEALTH) },
-                                label = { Text(stringResource(R.string.component_sort_health)) },
-                            )
+                            if (uiState.hasNextServiceItems) {
+                                FilterChip(
+                                    selected = isNextServiceView,
+                                    onClick = { viewModel.setComponentSortOrder(ComponentSortOrder.NEXT_SERVICE) },
+                                    label = { Text(stringResource(R.string.component_sort_next_service)) },
+                                )
+                            }
                         }
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        categoriesToShow.forEach { category ->
-                            val categoryComponents = componentsByCategory[category] ?: emptyList()
-                            val minHealth = minimumComponentHealthPercent(categoryComponents)
-                            val isExpanded = category in expandedCategories
-                            ComponentCategorySection(
-                                category = category,
-                                components = categoryComponents,
-                                minHealth = minHealth,
-                                isExpanded = isExpanded,
-                                onToggleExpanded = {
-                                    expandedCategories = if (isExpanded) {
-                                        expandedCategories - category
-                                    } else {
-                                        expandedCategories + category
-                                    }
-                                },
-                                currentBikeId = bike.id,
-                                componentContextMenuExpanded = componentContextMenuExpanded,
-                                onContextMenuClick = { id -> componentContextMenuExpanded = if (componentContextMenuExpanded == id) null else id },
-                                onMarkReplaced = { componentToReplace = it },
-                                onSnooze = { viewModel.snoozeComponent(it, 500.0) },
-                                onAlertsOff = viewModel::turnOffAlerts,
-                                onInstall = { componentIdForInstallPicker = it },
-                                onUninstall = viewModel::uninstallComponent,
-                                onViewDetails = { navController.navigate(Screen.ComponentDetail.withId(it.id)) },
-                                onDelete = { componentForRemoveDialog = it },
-                            )
+                        if (isNextServiceView) {
+                            uiState.nextServiceComponents.forEach { component ->
+                                ComponentHealthCard(
+                                    component = component,
+                                    currentBikeId = bike.id,
+                                    onMarkReplaced = { componentToReplace = component },
+                                    onSnooze = { alertsEnabled ->
+                                        viewModel.snoozeComponent(component.copy(alertsEnabled = alertsEnabled), 500.0)
+                                    },
+                                    onInstall = { componentIdForInstallPicker = component },
+                                    onMoveToGarage = { viewModel.uninstallComponent(component) },
+                                    onViewDetails = { navController.navigate(Screen.ComponentDetail.withId(component.id)) },
+                                    onEdit = { navController.navigate(Screen.EditComponent.withId(component.id)) },
+                                    onDelete = { componentForDeleteConfirm = component },
+                                    contextMenuExpanded = componentAlertMenuState?.componentId == component.id,
+                                    pendingAlertsEnabled = componentAlertMenuState?.pendingAlertsEnabled ?: component.alertsEnabled,
+                                    onAlertsEnabledChange = { enabled ->
+                                        componentAlertMenuState = componentAlertMenuState?.copy(pendingAlertsEnabled = enabled)
+                                    },
+                                    onContextMenuClick = { toggleComponentContextMenu(component) },
+                                    onContextMenuDismiss = ::closeComponentContextMenu,
+                                )
+                            }
+                        } else {
+                            categoriesToShow.forEach { category ->
+                                val categoryComponents = componentsByCategory[category] ?: emptyList()
+                                val minHealth = minimumComponentHealthPercent(categoryComponents)
+                                val isExpanded = category in expandedCategories
+                                ComponentCategorySection(
+                                    category = category,
+                                    components = categoryComponents,
+                                    minHealth = minHealth,
+                                    isExpanded = isExpanded,
+                                    onToggleExpanded = {
+                                        expandedCategories = if (isExpanded) expandedCategories - category else expandedCategories + category
+                                    },
+                                    currentBikeId = bike.id,
+                                    componentAlertMenuState = componentAlertMenuState,
+                                    onContextMenuClick = ::toggleComponentContextMenu,
+                                    onContextMenuDismiss = ::closeComponentContextMenu,
+                                    onAlertsEnabledChange = { enabled ->
+                                        componentAlertMenuState = componentAlertMenuState?.copy(pendingAlertsEnabled = enabled)
+                                    },
+                                    onMarkReplaced = { componentToReplace = it },
+                                    onSnooze = { component, alertsEnabled ->
+                                        viewModel.snoozeComponent(component.copy(alertsEnabled = alertsEnabled), 500.0)
+                                    },
+                                    onInstall = { componentIdForInstallPicker = it },
+                                    onMoveToGarage = viewModel::uninstallComponent,
+                                    onViewDetails = { navController.navigate(Screen.ComponentDetail.withId(it.id)) },
+                                    onEdit = { navController.navigate(Screen.EditComponent.withId(it.id)) },
+                                    onDelete = { componentForDeleteConfirm = it },
+                                )
+                            }
                         }
                     }
                 }
@@ -614,14 +572,16 @@ private fun ComponentCategorySection(
     isExpanded: Boolean,
     onToggleExpanded: () -> Unit,
     currentBikeId: Long,
-    componentContextMenuExpanded: Long?,
-    onContextMenuClick: (Long) -> Unit,
+    componentAlertMenuState: ComponentAlertMenuState?,
+    onContextMenuClick: (ComponentEntity) -> Unit,
+    onContextMenuDismiss: (Boolean) -> Unit,
+    onAlertsEnabledChange: (Boolean) -> Unit,
     onMarkReplaced: (ComponentEntity) -> Unit,
-    onSnooze: (ComponentEntity) -> Unit,
-    onAlertsOff: (ComponentEntity) -> Unit,
+    onSnooze: (ComponentEntity, Boolean) -> Unit,
     onInstall: (ComponentEntity) -> Unit,
-    onUninstall: (ComponentEntity) -> Unit,
+    onMoveToGarage: (ComponentEntity) -> Unit,
     onViewDetails: (ComponentEntity) -> Unit,
+    onEdit: (ComponentEntity) -> Unit,
     onDelete: (ComponentEntity) -> Unit,
 ) {
     val categoryTitle = when (category) {
@@ -687,19 +647,23 @@ private fun ComponentCategorySection(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     components.forEach { component ->
-                        val showContextMenu = componentContextMenuExpanded == component.id
+                        val menuState = componentAlertMenuState
+                            ?.takeIf { it.componentId == component.id }
                         ComponentHealthCard(
                             component = component,
                             currentBikeId = currentBikeId,
                             onMarkReplaced = { onMarkReplaced(component) },
-                            onSnooze = { onSnooze(component) },
-                            onAlertsOff = { onAlertsOff(component) },
+                            onSnooze = { alertsEnabled -> onSnooze(component, alertsEnabled) },
                             onInstall = { onInstall(component) },
-                            onUninstall = { onUninstall(component) },
+                            onMoveToGarage = { onMoveToGarage(component) },
                             onViewDetails = { onViewDetails(component) },
+                            onEdit = { onEdit(component) },
                             onDelete = { onDelete(component) },
-                            contextMenuExpanded = showContextMenu,
-                            onContextMenuClick = { onContextMenuClick(component.id) },
+                            contextMenuExpanded = menuState != null,
+                            pendingAlertsEnabled = menuState?.pendingAlertsEnabled ?: component.alertsEnabled,
+                            onAlertsEnabledChange = onAlertsEnabledChange,
+                            onContextMenuClick = { onContextMenuClick(component) },
+                            onContextMenuDismiss = onContextMenuDismiss,
                         )
                     }
                 }
@@ -709,8 +673,57 @@ private fun ComponentCategorySection(
 }
 
 @Composable
-private fun BikeStatChip(label: String, value: String) {
-    Column {
+internal fun BikeStatsGrid(
+    odometerValue: String,
+    movingTimeValue: String,
+    averageSpeedValue: String,
+    maxSpeedValue: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            BikeStatChip(
+                label = stringResource(R.string.bike_stat_odometer),
+                value = odometerValue,
+                modifier = Modifier.weight(1f),
+            )
+            BikeStatChip(
+                label = stringResource(R.string.bike_stat_moving_time),
+                value = movingTimeValue,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            BikeStatChip(
+                label = stringResource(R.string.bike_stat_avg_speed),
+                value = averageSpeedValue,
+                modifier = Modifier.weight(1f),
+            )
+            BikeStatChip(
+                label = stringResource(R.string.bike_stat_max_speed),
+                value = maxSpeedValue,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun BikeStatChip(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.labelLarge)
     }
@@ -721,18 +734,19 @@ private fun ComponentHealthCard(
     component: ComponentEntity,
     currentBikeId: Long,
     onMarkReplaced: () -> Unit,
-    onSnooze: () -> Unit,
-    onAlertsOff: () -> Unit,
+    onSnooze: (Boolean) -> Unit,
     onInstall: () -> Unit,
-    onUninstall: () -> Unit,
+    onMoveToGarage: () -> Unit,
     onViewDetails: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
     contextMenuExpanded: Boolean,
+    pendingAlertsEnabled: Boolean,
+    onAlertsEnabledChange: (Boolean) -> Unit,
     onContextMenuClick: () -> Unit,
+    onContextMenuDismiss: (Boolean) -> Unit,
 ) {
     val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-    val isInGarage = component.bikeId == null
-    val isOnCurrentBike = component.bikeId == currentBikeId
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -759,7 +773,7 @@ private fun ComponentHealthCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = DisplayFormatHelper.formatForDisplay(component.name),
+                        text = DisplayFormatHelper.componentLabels(component.name, component.make, component.model, component.type).primary,
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.weight(1f),
                     )
@@ -773,49 +787,72 @@ private fun ComponentHealthCard(
                         }
                         DropdownMenu(
                             expanded = contextMenuExpanded,
-                            onDismissRequest = onContextMenuClick,
+                            onDismissRequest = { onContextMenuDismiss(true) },
                         ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.bike_component_replaced)) },
-                                onClick = {
-                                    onMarkReplaced()
-                                    onContextMenuClick()
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.bike_component_snooze)) },
-                                onClick = {
-                                    onSnooze()
-                                    onContextMenuClick()
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.bike_component_alerts_off)) },
-                                onClick = {
-                                    onAlertsOff()
-                                    onContextMenuClick()
-                                },
-                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.component_edit)) },
                                 onClick = {
-                                    onViewDetails()
-                                    onContextMenuClick()
+                                    onEdit()
+                                    onContextMenuDismiss(true)
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.component_delete)) },
+                                text = { Text(stringResource(R.string.component_move_to_garage)) },
+                                onClick = {
+                                    onMoveToGarage()
+                                    onContextMenuDismiss(true)
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.bike_component_replace)) },
+                                onClick = {
+                                    onMarkReplaced()
+                                    onContextMenuDismiss(true)
+                                },
+                            )
+                            if (isComponentAlertActionable(
+                                    component = component,
+                                    nowMillis = System.currentTimeMillis(),
+                                    alertsEnabled = pendingAlertsEnabled,
+                                )
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.bike_component_snooze)) },
+                                    onClick = {
+                                        onSnooze(pendingAlertsEnabled)
+                                        onContextMenuDismiss(false)
+                                    },
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.bike_component_alerts)) },
+                                onClick = { onAlertsEnabledChange(!pendingAlertsEnabled) },
+                                trailingIcon = {
+                                    Switch(
+                                        checked = pendingAlertsEnabled,
+                                        onCheckedChange = onAlertsEnabledChange,
+                                    )
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        stringResource(R.string.component_delete),
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                },
                                 onClick = {
                                     onDelete()
-                                    onContextMenuClick()
+                                    onContextMenuDismiss(true)
                                 },
                             )
                         }
                     }
                 }
-                if (component.makeModel.isNotEmpty()) {
+                val labels = DisplayFormatHelper.componentLabels(component.name, component.make, component.model, component.type)
+                if (labels.secondary != null) {
                     Text(
-                        text = stringResource(R.string.bike_component_make_model, component.makeModel),
+                        text = labels.secondary,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -838,7 +875,8 @@ fun ReplacementComponentDialog(
     onReplace: (ComponentEntity) -> Unit,
 ) {
     var name by remember { mutableStateOf(component.name) }
-    var makeModel by remember { mutableStateOf(component.makeModel) }
+    var make by remember { mutableStateOf(component.make) }
+    var model by remember { mutableStateOf(component.model) }
     var lifespanKmText by remember { mutableStateOf(component.lifespanKm.toString()) }
     var certainty by remember { mutableStateOf(PriorUsageCertainty.UNKNOWN) }
     var baselineKmText by remember { mutableStateOf("0") }
@@ -857,9 +895,16 @@ fun ReplacementComponentDialog(
                     singleLine = true,
                 )
                 OutlinedTextField(
-                    value = makeModel,
-                    onValueChange = { makeModel = it },
-                    label = { Text(stringResource(R.string.component_replace_make_model)) },
+                    value = make,
+                    onValueChange = { make = it },
+                    label = { Text(stringResource(R.string.component_make)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = model,
+                    onValueChange = { model = it },
+                    label = { Text(stringResource(R.string.component_model)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
@@ -887,7 +932,7 @@ fun ReplacementComponentDialog(
             TextButton(onClick = {
                 val lifespanKm = lifespanKmText.toDoubleOrNull()
                 val baselineKm = if (certainty == PriorUsageCertainty.UNKNOWN) 0.0 else baselineKmText.toDoubleOrNull()
-                if (name.isBlank() || lifespanKm == null || !lifespanKm.isFinite() || lifespanKm < 0 ||
+                if (lifespanKm == null || !lifespanKm.isFinite() || lifespanKm < 0 ||
                     baselineKm == null || !baselineKm.isFinite() || baselineKm < 0
                 ) {
                     validationError = true
@@ -897,7 +942,8 @@ fun ReplacementComponentDialog(
                             bikeId = component.bikeId,
                             type = component.type,
                             name = name.trim(),
-                            makeModel = makeModel.trim(),
+                            make = make.trim(),
+                            model = model.trim(),
                             lifespanKm = lifespanKm,
                             position = component.position,
                             baselineKm = baselineKm,

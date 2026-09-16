@@ -46,7 +46,7 @@ class DatabaseSchemaFixtureTest {
 
     @Test
     fun everyCommittedSchemaFixture_opensAndMigratesToLatest() {
-        (12..17).forEach { version ->
+        (12..21).forEach { version ->
             val databaseName = "schema_fixture_v$version.db"
             migrationTestHelper.createDatabase(databaseName, version).close()
 

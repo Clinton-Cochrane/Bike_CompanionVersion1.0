@@ -2,7 +2,6 @@ package com.clintoncochrane.bikecompanion.ui.garage
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -60,6 +59,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -88,7 +88,6 @@ import com.clintoncochrane.bikecompanion.util.DurationFormatHelper
 import com.clintoncochrane.bikecompanion.util.IntervalTimeConstants
 import com.clintoncochrane.bikecompanion.util.ServiceIntervalHelper
 import com.clintoncochrane.bikecompanion.util.componentTypeIcon
-import coil3.compose.AsyncImage
 import com.clintoncochrane.bikecompanion.ui.garage.ThumbnailAvatar
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -101,6 +100,7 @@ import kotlinx.coroutines.launch
 fun ComponentDetailScreen(
     navController: NavController,
     backStackEntry: NavBackStackEntry,
+    openEditorOnLaunch: Boolean = false,
 ) {
     val viewModel: ComponentDetailViewModel = androidx.hilt.navigation.compose.hiltViewModel(
         viewModelStoreOwner = backStackEntry,
@@ -110,13 +110,13 @@ fun ComponentDetailScreen(
 
     var showContextEdit by remember { mutableStateOf(false) }
     var contextValidationError by remember { mutableStateOf<String?>(null) }
-    var showComponentEdit by remember { mutableStateOf(false) }
+    var showComponentEdit by rememberSaveable { mutableStateOf(openEditorOnLaunch) }
     var componentEditValidationError by remember { mutableStateOf<String?>(null) }
     var showInstallPicker by remember { mutableStateOf(false) }
     var showAddIntervalDialog by remember { mutableStateOf(false) }
     var intervalMenuExpanded by remember { mutableStateOf<Long?>(null) }
     var showUninstallConfirm by remember { mutableStateOf(false) }
-    var showRetireConfirm by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     var showSwapPicker by remember { mutableStateOf(false) }
     var intervalToEdit by remember { mutableStateOf<ServiceIntervalEntity?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -134,9 +134,8 @@ fun ComponentDetailScreen(
                 showComponentEdit = false
                 componentEditValidationError = null
             },
-            onSave = { name, mileageStr, certainty, baselineKmStr, timeStr, resetSpeeds, pickedImageUri, removeImage ->
+            onSave = { name, make, model, mileageStr, certainty, baselineKmStr, timeStr, resetSpeeds ->
                 componentEditValidationError = null
-                val nameTrimmed = name.trim()
                 val mileage = mileageStr.trim().toDoubleOrNull()
                 val baselineKm = if (certainty == PriorUsageCertainty.UNKNOWN) {
                     0.0
@@ -147,20 +146,19 @@ fun ComponentDetailScreen(
                     if (t.isEmpty()) 0L else DurationFormatHelper.parseDurationToSeconds(t)
                 }
                 when {
-                    nameTrimmed.isBlank() -> componentEditValidationError = nameEmptyMsg
                     mileage == null || !mileage.isFinite() || mileage < 0 -> componentEditValidationError = mileageInvalidMsg
                     baselineKm == null || !baselineKm.isFinite() || baselineKm < 0 -> componentEditValidationError = mileageInvalidMsg
                     timeStr.isNotBlank() && timeSeconds == null -> componentEditValidationError = timeInvalidMsg
                     else -> {
                         viewModel.updateComponent(
-                            nameTrimmed,
+                            name,
+                            make,
+                            model,
                             mileage ?: 0.0,
                             certainty,
                             baselineKm ?: 0.0,
                             timeSeconds ?: 0L,
                             resetSpeeds,
-                            pickedImageUri,
-                            removeImage,
                         )
                         showComponentEdit = false
                     }
@@ -171,7 +169,9 @@ fun ComponentDetailScreen(
 
     if (showContextEdit && uiState.component != null) {
         ComponentContextEditDialog(
-            componentName = DisplayFormatHelper.formatForDisplay(uiState.component!!.name),
+            componentName = uiState.component!!.let {
+                DisplayFormatHelper.componentLabels(it.name, it.make, it.model, it.type).primary
+            },
             initialContext = uiState.context,
             componentId = uiState.component!!.id,
             validationError = contextValidationError,
@@ -225,24 +225,31 @@ fun ComponentDetailScreen(
         )
     }
 
-    val componentForRetirement = uiState.component
-    if (showRetireConfirm && componentForRetirement != null) {
+    val componentForDelete = uiState.component
+    if (showDeleteConfirm && componentForDelete != null) {
         androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showRetireConfirm = false },
-            title = { Text(stringResource(R.string.component_retire_confirm_title)) },
-            text = { Text(stringResource(R.string.component_retire_confirm_message)) },
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text(stringResource(R.string.component_delete_confirm_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.component_delete_confirm_message,
+                        DisplayFormatHelper.formatForDisplay(componentForDelete.name),
+                    ),
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.retireComponent()
-                        showRetireConfirm = false
+                        viewModel.deleteComponent { navController.navigateUp() }
+                        showDeleteConfirm = false
                     },
                 ) {
-                    Text(stringResource(R.string.component_retire), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showRetireConfirm = false }) {
+                TextButton(onClick = { showDeleteConfirm = false }) {
                     Text(stringResource(R.string.common_cancel))
                 }
             },
@@ -297,7 +304,7 @@ fun ComponentDetailScreen(
                                     verticalArrangement = Arrangement.spacedBy(2.dp),
                                     horizontalAlignment = Alignment.Start,
                                 ) {
-                                    Text(bike.name)
+                                    Text(DisplayFormatHelper.bikeLabels(bike.name, bike.make, bike.model).primary)
                                     if (!canInstall) {
                                         Text(
                                             stringResource(R.string.component_swap_duplicate_hint, DisplayFormatHelper.formatComponentTypeForDisplay(component.type)),
@@ -329,7 +336,7 @@ fun ComponentDetailScreen(
     val screenTitle = if (uiState.component?.lifecycleStatus == ComponentLifecycleStatus.RETIRED) {
         stringResource(R.string.component_retired)
     } else uiState.component?.bikeId?.let { bid ->
-        uiState.bikes.find { it.id == bid }?.name
+        uiState.bikes.find { it.id == bid }?.let { DisplayFormatHelper.bikeLabels(it.name, it.make, it.model).primary }
     } ?: stringResource(R.string.component_in_garage)
     Scaffold(
         topBar = {
@@ -387,7 +394,6 @@ fun ComponentDetailScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             ThumbnailAvatar(
-                                thumbnailUri = component.thumbnailUri,
                                 size = 48.dp,
                                 placeholder = {
                                     Icon(
@@ -400,7 +406,9 @@ fun ComponentDetailScreen(
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 val bikeName = component.bikeId?.let { bid ->
-                                    uiState.bikes.find { it.id == bid }?.name
+                                    uiState.bikes.find { it.id == bid }?.let {
+                                        DisplayFormatHelper.bikeLabels(it.name, it.make, it.model).primary
+                                    }
                                 }
                                 Text(
                                     if (component.lifecycleStatus == ComponentLifecycleStatus.RETIRED) {
@@ -411,15 +419,18 @@ fun ComponentDetailScreen(
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                val labels = DisplayFormatHelper.componentLabels(
+                                    component.name, component.make, component.model, component.type,
+                                )
                                 Text(
-                                    DisplayFormatHelper.formatComponentTypeForDisplay(component.type),
+                                    labels.primary,
                                     style = MaterialTheme.typography.titleLarge,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                 )
-                                if (component.makeModel.isNotBlank()) {
+                                if (labels.secondary != null) {
                                     Text(
-                                        component.makeModel,
+                                        labels.secondary,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -461,12 +472,15 @@ fun ComponentDetailScreen(
                                     stringResource(R.string.component_retired),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                OutlinedButton(onClick = { showDeleteConfirm = true }) {
+                                    Text(stringResource(R.string.component_delete), color = MaterialTheme.colorScheme.error)
+                                }
                             } else if (component.bikeId == null) {
                                 OutlinedButton(onClick = { showInstallPicker = true }) {
                                     Text(stringResource(R.string.component_install))
                                 }
-                                OutlinedButton(onClick = { showRetireConfirm = true }) {
-                                    Text(stringResource(R.string.component_retire))
+                                OutlinedButton(onClick = { showDeleteConfirm = true }) {
+                                    Text(stringResource(R.string.component_delete), color = MaterialTheme.colorScheme.error)
                                 }
                             } else {
                                 if (uiState.bikes.size > 1) {
@@ -475,10 +489,10 @@ fun ComponentDetailScreen(
                                     }
                                 }
                                 OutlinedButton(onClick = { showUninstallConfirm = true }) {
-                                    Text(stringResource(R.string.component_uninstall))
+                                    Text(stringResource(R.string.component_move_to_garage))
                                 }
-                                OutlinedButton(onClick = { showRetireConfirm = true }) {
-                                    Text(stringResource(R.string.component_retire))
+                                OutlinedButton(onClick = { showDeleteConfirm = true }) {
+                                    Text(stringResource(R.string.component_delete), color = MaterialTheme.colorScheme.error)
                                 }
                             }
                         }
@@ -599,7 +613,9 @@ fun ComponentDetailScreen(
                 Text(stringResource(R.string.component_swaps_section), style = MaterialTheme.typography.titleMedium)
             }
             items(uiState.swaps, key = { it.id }) { swap ->
-                val bikeName = uiState.bikes.find { it.id == swap.bikeId }?.name
+                val bikeName = uiState.bikes.find { it.id == swap.bikeId }?.let {
+                    DisplayFormatHelper.bikeLabels(it.name, it.make, it.model).primary
+                }
                     ?: stringResource(R.string.component_swap_deleted_bike)
                 val dateFormat = SimpleDateFormat("M/d/yyyy 'at' h:mm a", Locale.getDefault())
                 Card(
@@ -766,16 +782,18 @@ private fun ComponentEditDialog(
     onDismiss: () -> Unit,
     onSave: (
         name: String,
+        make: String,
+        model: String,
         mileageStr: String,
         priorUsageCertainty: PriorUsageCertainty,
         baselineKmStr: String,
         timeStr: String,
         resetAvgMaxSpeed: Boolean,
-        pickedImageUri: Uri?,
-        removeImage: Boolean,
     ) -> Unit,
 ) {
     var name by remember(component.id) { mutableStateOf(component.name) }
+    var make by remember(component.id) { mutableStateOf(component.make) }
+    var model by remember(component.id) { mutableStateOf(component.model) }
     var mileageStr by remember(component.id) { mutableStateOf(component.distanceUsedKm.toString()) }
     var priorUsageCertainty by remember(component.id) { mutableStateOf(component.priorUsageCertainty) }
     var baselineKmStr by remember(component.id) { mutableStateOf(component.baselineKm.toString()) }
@@ -783,24 +801,6 @@ private fun ComponentEditDialog(
         mutableStateOf(DurationFormatHelper.formatDurationSeconds(component.totalTimeSeconds))
     }
     var resetSpeeds by remember(component.id) { mutableStateOf(false) }
-    var pickedImageUri by remember(component.id) { mutableStateOf<Uri?>(null) }
-    var removeImageRequested by remember(component.id) { mutableStateOf(false) }
-
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-    ) { uri: Uri? ->
-        pickedImageUri = uri
-        removeImageRequested = false
-    }
-
-    val hasImage = !removeImageRequested && (pickedImageUri != null || !component.thumbnailUri.isNullOrBlank())
-    val imageModel = when {
-        removeImageRequested -> null
-        pickedImageUri != null -> pickedImageUri
-        !component.thumbnailUri.isNullOrBlank() -> java.io.File(component.thumbnailUri)
-        else -> null
-    }
-
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -822,56 +822,25 @@ private fun ComponentEditDialog(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        when (imageModel) {
-                            null -> Icon(
-                                imageVector = componentTypeIcon(component.type),
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            else -> AsyncImage(
-                                model = imageModel,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                                contentScale = ContentScale.Crop,
-                            )
-                        }
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        if (hasImage) {
-                            OutlinedButton(onClick = { imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
-                                Text(stringResource(R.string.component_change_photo))
-                            }
-                            OutlinedButton(onClick = { pickedImageUri = null; removeImageRequested = true }) {
-                                Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Text(stringResource(R.string.component_remove_photo))
-                            }
-                        } else {
-                            OutlinedButton(onClick = { imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
-                                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Text(stringResource(R.string.component_add_photo))
-                            }
-                        }
-                    }
-                }
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.component_edit_display_name)) },
                     placeholder = { Text(stringResource(R.string.component_edit_display_name_hint)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = make,
+                    onValueChange = { make = it },
+                    label = { Text(stringResource(R.string.component_make)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = model,
+                    onValueChange = { model = it },
+                    label = { Text(stringResource(R.string.component_model)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
@@ -922,13 +891,13 @@ private fun ComponentEditDialog(
             TextButton(onClick = {
                 onSave(
                     name,
+                    make,
+                    model,
                     mileageStr,
                     priorUsageCertainty,
                     baselineKmStr,
                     timeStr,
                     resetSpeeds,
-                    pickedImageUri,
-                    removeImageRequested,
                 )
             }) {
                 Text(stringResource(R.string.component_context_save))

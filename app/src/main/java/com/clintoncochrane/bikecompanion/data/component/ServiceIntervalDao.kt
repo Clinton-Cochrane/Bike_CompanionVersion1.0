@@ -9,6 +9,12 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ServiceIntervalDao {
+    @Query("SELECT * FROM service_intervals ORDER BY componentId, type, name")
+    fun getAllIntervals(): Flow<List<ServiceIntervalEntity>>
+
+    @Query("SELECT * FROM service_intervals ORDER BY componentId, type, name")
+    suspend fun getAllIntervalsOnce(): List<ServiceIntervalEntity>
+
     @Query("SELECT * FROM service_intervals WHERE id = :id")
     suspend fun getIntervalById(id: Long): ServiceIntervalEntity?
 
@@ -20,6 +26,9 @@ interface ServiceIntervalDao {
 
     @Query("SELECT * FROM service_intervals WHERE componentId IN (:componentIds)")
     suspend fun getIntervalsByComponentIdsOnce(componentIds: List<Long>): List<ServiceIntervalEntity>
+
+    @Query("SELECT * FROM service_intervals WHERE componentId IN (:componentIds)")
+    fun observeIntervalsByComponentIds(componentIds: List<Long>): Flow<List<ServiceIntervalEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(interval: ServiceIntervalEntity): Long

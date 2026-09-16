@@ -22,6 +22,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material3.AlertDialog
@@ -57,18 +59,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.clintoncochrane.bikecompanion.R
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
-import com.clintoncochrane.bikecompanion.data.ride.RideEntity
 import com.clintoncochrane.bikecompanion.healthconnect.HEALTH_CONNECT_READ_PERMISSIONS
 import com.clintoncochrane.bikecompanion.ui.navigation.Screen
 import com.clintoncochrane.bikecompanion.ui.trip.HealthConnectImportResult
@@ -86,6 +87,7 @@ import java.util.Locale
 @Composable
 fun TripScreen(
     navController: NavController,
+    onStartRide: () -> Unit,
 ) {
     val context = LocalContext.current
     val viewModel = androidx.hilt.navigation.compose.hiltViewModel<TripViewModel>()
@@ -315,10 +317,20 @@ fun TripScreen(
         )
     }
 
+    val visibleRideRows = remember(uiState.rides, uiState.bikes, uiState.rideHistory) {
+        RideHistoryPresenter.toRows(
+            rides = RideHistoryPresenter.visibleRides(uiState.rides, uiState.rideHistory),
+            bikes = uiState.bikes,
+        )
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.nav_trip)) },
+                actions = {
+                    com.clintoncochrane.bikecompanion.ui.StartRideAction(onStartRide)
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -343,57 +355,76 @@ fun TripScreen(
                     )
                 }
             }
-            item(key = "start_trip") {
-                StartTripSection(
-                    selectedBike = uiState.selectedBike,
+            item(key = "rides_history_header") {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = stringResource(R.string.ride_history_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = pluralStringResource(
+                            R.plurals.ride_history_total,
+                            uiState.rides.size,
+                            uiState.rides.size,
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            item(key = "rides_history_controls") {
+                RideHistoryControls(
                     bikes = uiState.bikes,
-                    rideIsActive = rideIsActive,
-                    rideActiveBikeId = rideActiveBikeId,
-                    onStartTrip = { startTrip() },
-                    onViewCurrentTrip = {
-                        if (rideActiveBikeId >= 0) ActiveRideActivity.start(context, rideActiveBikeId)
-                    },
-                    onSelectBike = viewModel::selectBike,
-                    onAddManualMileage = { showManualMileageDialog = true },
-                    onImportFromHealthConnect = { viewModel.importFromHealthConnect() },
+                    state = uiState.rideHistory,
+                    onBikeFilterSelected = viewModel::setRideHistoryBikeFilter,
+                    onSortSelected = viewModel::setRideHistorySort,
                 )
             }
-            item(key = "past_rides_header") {
-                Text(
-                    text = stringResource(R.string.trip_past_rides),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-            if (uiState.rides.isEmpty()) {
+            if (visibleRideRows.isEmpty()) {
                 item(key = "past_rides_empty") {
                     Text(
-                        text = stringResource(R.string.trip_no_rides),
+                        text = if (uiState.rides.isEmpty()) {
+                            stringResource(R.string.ride_history_empty)
+                        } else {
+                            stringResource(R.string.ride_history_filter_empty)
+                        },
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             } else {
-                items(uiState.rides, key = { it.id }) { ride ->
-                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                        RideCard(
-                            ride = ride,
-                            bikeName = ride.bikeId?.let { uiState.bikes.associateBy { b -> b.id }[it]?.name } ?: "",
-                            dismissedRideFlagIds = uiState.dismissedRideFlagIds,
-                            dismissedPlaceholderReminderIds = uiState.dismissedPlaceholderReminderIds,
-                            snoozedPlaceholderReminderUntilMs = uiState.snoozedPlaceholderReminderUntilMs,
-                            onEditTrip = { navController.navigate(com.clintoncochrane.bikecompanion.ui.navigation.Screen.EditRide.withId(ride.id)) },
-                            onDismissAlert = { viewModel.dismissRideFlag(ride.id) },
-                            onDeleteRide = { viewModel.deleteRide(ride) },
-                            onEditBike = {
-                                ride.bikeId?.let { bikeId ->
-                                    navController.navigate(com.clintoncochrane.bikecompanion.ui.navigation.Screen.BikeDetail.withId(bikeId))
-                                }
-                            },
-                            onDismissPlaceholderReminder = { viewModel.dismissPlaceholderReminder(ride.id) },
-                            onSnoozePlaceholderReminder = { viewModel.snoozePlaceholderReminder() },
-                        )
-                    }
+                items(visibleRideRows, key = { it.ride.id }) { row ->
+                    RideCard(
+                        row = row,
+                        dismissedRideFlagIds = uiState.dismissedRideFlagIds,
+                        dismissedPlaceholderReminderIds = uiState.dismissedPlaceholderReminderIds,
+                        snoozedPlaceholderReminderUntilMs = uiState.snoozedPlaceholderReminderUntilMs,
+                        onEditRide = {
+                            navController.navigate(
+                                com.clintoncochrane.bikecompanion.ui.navigation.Screen.RideDetail.withId(row.ride.id),
+                            )
+                        },
+                        onDismissAlert = { viewModel.dismissRideFlag(row.ride.id) },
+                        onDeleteRide = { viewModel.deleteRide(row.ride) },
+                        onEditBike = {
+                            row.ride.bikeId?.let { bikeId ->
+                                navController.navigate(
+                                    com.clintoncochrane.bikecompanion.ui.navigation.Screen.BikeDetail.withId(bikeId),
+                                )
+                            }
+                        },
+                        onDismissPlaceholderReminder = { viewModel.dismissPlaceholderReminder(row.ride.id) },
+                        onSnoozePlaceholderReminder = { viewModel.snoozePlaceholderReminder() },
+                    )
+                }
+            }
+            if (uiState.bikes.isNotEmpty()) {
+                item(key = "ride_history_secondary_actions") {
+                    RideHistorySecondaryActions(
+                        onAddManualMileage = { showManualMileageDialog = true },
+                        onImportFromHealthConnect = viewModel::importFromHealthConnect,
+                    )
                 }
             }
         }
@@ -415,6 +446,80 @@ private fun openHealthConnectProviderListing(context: Context) {
 }
 
 private const val HEALTH_CONNECT_PROVIDER_PACKAGE = "com.google.android.apps.healthdata"
+
+@Composable
+private fun RideHistoryControls(
+    bikes: List<com.clintoncochrane.bikecompanion.data.bike.BikeEntity>,
+    state: RideHistoryUiState,
+    onBikeFilterSelected: (Long?) -> Unit,
+    onSortSelected: (RideHistorySort) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = stringResource(R.string.ride_history_filter_label),
+            style = MaterialTheme.typography.labelLarge,
+        )
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilterChip(
+                selected = state.bikeFilterId == null,
+                onClick = { onBikeFilterSelected(null) },
+                label = { Text(stringResource(R.string.ride_history_all_bikes)) },
+            )
+            bikes.forEach { bike ->
+                FilterChip(
+                    selected = state.bikeFilterId == bike.id,
+                    onClick = { onBikeFilterSelected(bike.id) },
+                    label = { Text(bike.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                )
+            }
+        }
+        Text(
+            text = stringResource(R.string.ride_history_sort_label),
+            style = MaterialTheme.typography.labelLarge,
+        )
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            RideHistorySort.entries.forEach { sort ->
+                FilterChip(
+                    selected = state.sort == sort,
+                    onClick = { onSortSelected(sort) },
+                    label = { Text(stringResource(sort.labelRes)) },
+                )
+            }
+        }
+    }
+}
+
+private val RideHistorySort.labelRes: Int
+    get() = when (this) {
+        RideHistorySort.NEWEST -> R.string.ride_history_sort_newest
+        RideHistorySort.DISTANCE -> R.string.ride_history_sort_distance
+        RideHistorySort.DURATION -> R.string.ride_history_sort_duration
+    }
+
+@Composable
+private fun RideHistorySecondaryActions(
+    onAddManualMileage: () -> Unit,
+    onImportFromHealthConnect: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = stringResource(R.string.ride_history_add_title),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        TextButton(onClick = onAddManualMileage) {
+            Text(stringResource(R.string.trip_add_manual_mileage))
+        }
+        TextButton(onClick = onImportFromHealthConnect) {
+            Text(stringResource(R.string.trip_import_health_connect))
+        }
+    }
+}
 
 @Composable
 private fun CurrentRideSection(
@@ -458,13 +563,10 @@ private fun CurrentRideSection(
 
 @Composable
 private fun StartTripSection(
-    selectedBike: com.clintoncochrane.bikecompanion.data.bike.BikeEntity?,
     bikes: List<com.clintoncochrane.bikecompanion.data.bike.BikeEntity>,
     rideIsActive: Boolean,
-    rideActiveBikeId: Long,
     onStartTrip: () -> Unit,
     onViewCurrentTrip: () -> Unit,
-    onSelectBike: (com.clintoncochrane.bikecompanion.data.bike.BikeEntity?) -> Unit,
     onAddManualMileage: () -> Unit,
     onImportFromHealthConnect: () -> Unit,
 ) {
@@ -493,15 +595,9 @@ private fun StartTripSection(
                 modifier = Modifier.padding(start = 12.dp),
             )
         }
-        if (selectedBike != null) {
+        if (!isRideActive) {
             Text(
-                text = stringResource(R.string.trip_ride_bike, selectedBike.name),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        } else {
-            Text(
-                text = stringResource(R.string.trip_no_bike_selected),
+                text = stringResource(R.string.trip_start_ride_hint),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -647,19 +743,19 @@ private fun HealthConnectImportReviewDialog(
 
 @Composable
 private fun RideCard(
-    ride: RideEntity,
-    bikeName: String,
+    row: RideHistoryRow,
     dismissedRideFlagIds: Set<Long>,
     dismissedPlaceholderReminderIds: Set<Long>,
     snoozedPlaceholderReminderUntilMs: Long?,
-    onEditTrip: () -> Unit,
+    onEditRide: () -> Unit,
     onDismissAlert: () -> Unit,
     onDeleteRide: () -> Unit,
     onEditBike: () -> Unit,
     onDismissPlaceholderReminder: () -> Unit,
     onSnoozePlaceholderReminder: () -> Unit,
 ) {
-    val dateFormat = SimpleDateFormat("MMM d, yyyy • HH:mm", Locale.getDefault())
+    val ride = row.ride
+    val dateFormat = SimpleDateFormat("MMM d", Locale.getDefault())
     val flagReason = RideDisplayHelper.getRideFlagReason(ride)
     var showReviewDialog by remember { mutableStateOf(false) }
     var showPlaceholderReminderDialog by remember { mutableStateOf(false) }
@@ -668,7 +764,7 @@ private fun RideCard(
         RideReviewDialog(
             ride = ride,
             flagReason = flagReason,
-            onEditTrip = onEditTrip,
+            onEditTrip = onEditRide,
             onDismissAlert = onDismissAlert,
             onDeleteRide = onDeleteRide,
             onDismiss = { showReviewDialog = false },
@@ -686,101 +782,61 @@ private fun RideCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onEditRide),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = dateFormat.format(Date(ride.endedAt)),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (RideDisplayHelper.shouldShowReviewChip(ride, dismissedRideFlagIds)) {
-                        FilterChip(
-                            selected = false,
-                            onClick = { showReviewDialog = true },
-                            label = { Text(stringResource(R.string.ride_review)) },
-                        )
-                    }
-                    if (RideDisplayHelper.shouldShowPlaceholderReminderChip(
-                            ride,
-                            dismissedPlaceholderReminderIds,
-                            snoozedPlaceholderReminderUntilMs,
-                        )) {
-                        FilterChip(
-                            selected = false,
-                            onClick = { showPlaceholderReminderDialog = true },
-                            label = { Text(stringResource(R.string.ride_placeholder_reminder)) },
-                        )
-                    }
-                }
-            }
             Text(
-                text = stringResource(R.string.trip_ride_distance, ride.distanceKm),
+                text = if (row.hasAssignedBike) {
+                    stringResource(
+                        R.string.ride_history_summary_assigned,
+                        dateFormat.format(Date(ride.endedAt)),
+                        ride.distanceKm,
+                        requireNotNull(row.bikeName),
+                        DurationFormatHelper.formatDurationBreakdownMs(
+                            ride.durationMs,
+                            over24hPlaceholder = stringResource(R.string.ride_duration_over_24h),
+                        ),
+                    )
+                } else {
+                    stringResource(
+                        R.string.ride_history_summary_unassigned,
+                        dateFormat.format(Date(ride.endedAt)),
+                        ride.distanceKm,
+                        DurationFormatHelper.formatDurationBreakdownMs(
+                            ride.durationMs,
+                            over24hPlaceholder = stringResource(R.string.ride_duration_over_24h),
+                        ),
+                    )
+                },
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
-            )
-            if (bikeName.isNotEmpty()) {
-                Text(
-                    text = stringResource(R.string.trip_ride_bike, bikeName),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Text(
-                text = stringResource(
-                    R.string.trip_ride_duration,
-                    DurationFormatHelper.formatDurationBreakdownMs(
-                        ride.durationMs,
-                        over24hPlaceholder = stringResource(R.string.ride_duration_over_24h),
-                    ),
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
             )
             Row(
                 modifier = Modifier.padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                val unavailable = stringResource(R.string.ride_stat_unavailable)
-                Text(
-                    text = stringResource(
-                        R.string.ride_speed_max,
-                        RideDisplayHelper.formatMaxSpeedKmh(ride.maxSpeedKmh, ride.source, unavailable),
-                    ),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                val elevValue = RideDisplayHelper.formatElevationGainLoss(
-                    ride.elevGainM, ride.elevLossM, ride.source, unavailable,
-                )
-                val elevNet = RideDisplayHelper.elevationNetDelta(ride.elevGainM, ride.elevLossM)
-                val elevColor = when {
-                    RideDisplayHelper.isElevationUnavailable(ride.elevGainM, ride.elevLossM, ride.source) ->
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    elevNet > 0 -> Color(0xFF2E7D32)
-                    elevNet < 0 -> MaterialTheme.colorScheme.error
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = stringResource(R.string.ride_elevation_label),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                if (RideDisplayHelper.shouldShowReviewChip(ride, dismissedRideFlagIds)) {
+                    FilterChip(
+                        selected = false,
+                        onClick = { showReviewDialog = true },
+                        label = { Text(stringResource(R.string.ride_review)) },
                     )
-                    Text(
-                        text = elevValue,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = elevColor,
+                }
+                if (RideDisplayHelper.shouldShowPlaceholderReminderChip(
+                        ride,
+                        dismissedPlaceholderReminderIds,
+                        snoozedPlaceholderReminderUntilMs,
+                    )) {
+                    FilterChip(
+                        selected = false,
+                        onClick = { showPlaceholderReminderDialog = true },
+                        label = { Text(stringResource(R.string.ride_placeholder_reminder)) },
                     )
                 }
             }

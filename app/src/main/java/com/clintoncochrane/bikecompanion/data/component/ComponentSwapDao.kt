@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ComponentSwapDao {
+    @Query("SELECT * FROM component_swaps ORDER BY installedAt DESC")
+    fun getAllSwaps(): Flow<List<ComponentSwapEntity>>
+
     @Query("SELECT * FROM component_swaps WHERE componentId = :componentId ORDER BY installedAt DESC")
     fun getSwapsByComponentId(componentId: Long): Flow<List<ComponentSwapEntity>>
 

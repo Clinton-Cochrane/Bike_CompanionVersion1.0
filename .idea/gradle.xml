@@ -9,8 +9,8 @@
         <option name="gradleJvm" value="#GRADLE_LOCAL_JAVA_HOME" />
         <option name="modules">
           <set>
-            <option value="/media/workstation/Storage/code/Bike_CompanionVersion1.0" />
-            <option value="/media/workstation/Storage/code/Bike_CompanionVersion1.0/app" />
+            <option value="$USER_HOME$/Storage/code/repos/Bike_CompanionVersion1.0" />
+            <option value="$USER_HOME$/Storage/code/repos/Bike_CompanionVersion1.0/app" />
           </set>
         </option>
       </GradleProjectSettings>

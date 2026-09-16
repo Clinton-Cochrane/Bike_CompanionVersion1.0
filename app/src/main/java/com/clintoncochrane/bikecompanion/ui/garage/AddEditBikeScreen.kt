@@ -1,9 +1,5 @@
 package com.clintoncochrane.bikecompanion.ui.garage
 
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,7 +41,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -53,7 +48,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
-import coil3.compose.AsyncImage
 import com.clintoncochrane.bikecompanion.R
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
 import com.clintoncochrane.bikecompanion.data.bike.BikeDeletionComponentDisposition
@@ -156,10 +150,6 @@ fun AddEditBikeScreen(
         }
     }
 
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-    ) { uri -> viewModel.setPickedImageUri(uri) }
-
     val backContentDesc = stringResource(R.string.common_back_content_description)
     Scaffold(
         topBar = {
@@ -195,15 +185,8 @@ fun AddEditBikeScreen(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text(stringResource(R.string.bike_name)) },
+                label = { Text(stringResource(R.string.bike_display_name)) },
                 modifier = Modifier.fillMaxWidth(),
-            )
-            BikeImagePickerRow(
-                thumbnailUri = uiState.bike?.thumbnailUri,
-                pickedImageUri = uiState.pickedImageUri,
-                removeImageRequested = uiState.removeImageRequested,
-                onAddPhoto = { imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                onRemovePhoto = { viewModel.setRemoveImageRequested() },
             )
             OutlinedTextField(
                 value = make,
@@ -326,7 +309,7 @@ fun AddEditBikeScreen(
                     viewModel.saveBike(bike, startingOdometerInput)
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = name.trim().isNotEmpty() && startingOdometerKm != null,
+                enabled = startingOdometerKm != null,
             ) {
                 Text(stringResource(R.string.bike_save))
             }
@@ -359,69 +342,6 @@ fun AddEditBikeScreen(
                         popUpTo(Screen.Garage.route) { inclusive = false }
                     }
                     viewModel.clearBikeDeleted()
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun BikeImagePickerRow(
-    thumbnailUri: String?,
-    pickedImageUri: Uri?,
-    removeImageRequested: Boolean,
-    onAddPhoto: () -> Unit,
-    onRemovePhoto: () -> Unit,
-) {
-    val hasImage = !removeImageRequested && (pickedImageUri != null || !thumbnailUri.isNullOrBlank())
-    val imageModel = when {
-        removeImageRequested -> null
-        pickedImageUri != null -> pickedImageUri
-        !thumbnailUri.isNullOrBlank() -> java.io.File(thumbnailUri)
-        else -> null
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            when (imageModel) {
-                null -> Icon(
-                    imageVector = Icons.Filled.DirectionsBike,
-                    contentDescription = null,
-                    modifier = Modifier.size(32.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                else -> AsyncImage(
-                    model = imageModel,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(64.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                    contentScale = ContentScale.Crop,
-                )
-            }
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (hasImage) {
-                OutlinedButton(onClick = onAddPhoto) {
-                    Text(stringResource(R.string.garage_bike_change_photo))
-                }
-                OutlinedButton(onClick = onRemovePhoto) {
-                    Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Text(stringResource(R.string.garage_bike_remove_photo))
-                }
-            } else {
-                OutlinedButton(onClick = onAddPhoto) {
-                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Text(stringResource(R.string.garage_bike_add_photo))
                 }
             }
         }

@@ -197,6 +197,14 @@ class RideTrackingService : Service() {
         return true
     }
 
+    /** Stops location updates and checkpoints the ride while the user decides how to finish it. */
+    fun freezeForPendingStop(): RideState {
+        if (_rideState.value.isTracking && !_rideState.value.isPaused) {
+            pauseTracking(wasAutoPause = false)
+        }
+        return _rideState.value
+    }
+
     private fun restoreTracking() {
         if (_rideState.value.isTracking) return
         serviceScope.launch {
@@ -352,11 +360,11 @@ class RideTrackingService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val pauseResumeAction = if (isPaused) {
-            createActionIntent(ACTION_RESUME, getString(R.string.ride_resume))
+            createNotificationActionIntent(ACTION_RESUME, getString(R.string.ride_resume))
         } else {
-            createActionIntent(ACTION_PAUSE, getString(R.string.ride_pause))
+            createNotificationActionIntent(ACTION_PAUSE, getString(R.string.ride_pause))
         }
-        val stopAction = createActionIntent(ACTION_STOP, getString(R.string.ride_stop))
+        val stopAction = createNotificationActionIntent(ACTION_STOP, getString(R.string.ride_stop))
         val distanceText = "%.2f km".format(state.distanceKm)
         val statusText = if (isPaused) getString(R.string.ride_paused) else getString(R.string.ride_active_title)
         return NotificationCompat.Builder(this, CHANNEL_ID)
@@ -372,7 +380,34 @@ class RideTrackingService : Service() {
             .build()
     }
 
-    private fun createActionIntent(action: String, title: String): Triple<Int, CharSequence, PendingIntent> {
+    private fun createNotificationActionIntent(
+        action: String,
+        title: String,
+    ): Triple<Int, CharSequence, PendingIntent> {
+        if (RideNotificationActionPolicy.destinationFor(action) ==
+            RideNotificationActionDestination.FINISH_RIDE
+        ) {
+            val state = _rideState.value
+            val intent = Intent(this, ActiveRideActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_NEW_TASK
+                putExtra(ActiveRideActivity.BIKE_ID_EXTRA, state.bikeId)
+                putExtra(
+                    ActiveRideActivity.HAD_PLACEHOLDERS_EXTRA,
+                    state.hadPlaceholdersAtStart,
+                )
+                putExtra(ActiveRideActivity.REQUEST_STOP_EXTRA, true)
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                this,
+                action.hashCode(),
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            return Triple(android.R.drawable.ic_menu_mylocation, title, pendingIntent)
+        }
+
         val intent = Intent(this, RideTrackingService::class.java).apply {
             putExtra(ACTION_KEY, action)
         }
@@ -506,6 +541,20 @@ internal object RideTrackingLifecyclePolicy {
     fun canPauseTracking(state: RideState): Boolean = state.isTracking && !state.isPaused
 
     fun canResumeTracking(state: RideState): Boolean = state.isTracking && state.isPaused
+}
+
+internal enum class RideNotificationActionDestination {
+    SERVICE,
+    FINISH_RIDE,
+}
+
+internal object RideNotificationActionPolicy {
+    fun destinationFor(action: String): RideNotificationActionDestination =
+        if (action == RideTrackingService.ACTION_STOP) {
+            RideNotificationActionDestination.FINISH_RIDE
+        } else {
+            RideNotificationActionDestination.SERVICE
+        }
 }
 
 internal object RideAssignmentPolicy {

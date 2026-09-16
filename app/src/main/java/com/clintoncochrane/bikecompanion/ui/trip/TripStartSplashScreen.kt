@@ -1,23 +1,18 @@
 package com.clintoncochrane.bikecompanion.ui.trip
 
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -35,16 +30,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.BackHandler
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.clintoncochrane.bikecompanion.R
 import com.clintoncochrane.bikecompanion.location.RideTrackingService
 import com.clintoncochrane.bikecompanion.location.RideLocationPermission
-import com.clintoncochrane.bikecompanion.ui.navigation.Screen
 import com.clintoncochrane.bikecompanion.ui.ride.ActiveRideActivity
 import kotlinx.coroutines.flow.collectLatest
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripStartSplashScreen(
     navController: NavController,
@@ -53,8 +47,28 @@ fun TripStartSplashScreen(
 ) {
     val viewModel: TripStartSplashViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
+    val assignedBikeName by viewModel.assignedBikeName.collectAsState()
     val context = LocalContext.current
     var showPermissionLostDialog by remember { mutableStateOf(false) }
+    var showPermissionDeniedDialog by remember { mutableStateOf(false) }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        if (RideLocationPermission.isFineLocationGranted(grants)) {
+            viewModel.beginCountdown()
+        } else {
+            showPermissionDeniedDialog = true
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (RideLocationPermission.isGranted(context)) {
+            viewModel.beginCountdown()
+        } else {
+            locationPermissionLauncher.launch(RideLocationPermission.REQUEST_PERMISSIONS)
+        }
+    }
 
     LaunchedEffect(viewModel.startTripEvents) {
         viewModel.startTripEvents.collectLatest {
@@ -93,32 +107,34 @@ fun TripStartSplashScreen(
         )
     }
 
+    if (showPermissionDeniedDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { },
+            title = { Text(stringResource(R.string.trip_location_permission_title)) },
+            text = { Text(stringResource(R.string.trip_location_permission_denied)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showPermissionDeniedDialog = false
+                        navController.popBackStack()
+                    },
+                ) {
+                    Text(stringResource(R.string.common_back))
+                }
+            },
+        )
+    }
+
     val cancelContentDesc = stringResource(R.string.trip_splash_cancel_content_description)
     val countdownDesc = stringResource(R.string.trip_splash_countdown_content_description, state.countdown)
-    val goNowDesc = stringResource(R.string.trip_splash_go_now_content_description)
-    val tripSettingsDesc = stringResource(R.string.trip_settings_title)
+    val addTimeDesc = stringResource(R.string.trip_splash_add_ten_seconds_content_description)
+
+    BackHandler {
+        viewModel.cancel()
+        navController.popBackStack()
+    }
 
     Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.trip_splash_title)) },
-                actions = {
-                    IconButton(
-                        onClick = { navController.navigate(Screen.TripSettings.route) },
-                        modifier = Modifier.semantics { contentDescription = tripSettingsDesc },
-                    ) {
-                        Icon(
-                            Icons.Filled.Settings,
-                            contentDescription = null,
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
-            )
-        },
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -133,7 +149,7 @@ fun TripStartSplashScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = if (state.countdown > 0) state.countdown.toString() else "Go!",
+                    text = state.countdown.toString(),
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontSize = 96.sp,
                         fontWeight = FontWeight.Bold,
@@ -143,44 +159,26 @@ fun TripStartSplashScreen(
                         contentDescription = countdownDesc
                     },
                 )
-                if (state.countdown > 0 && !state.isCancelled) {
+                Text(
+                    text = assignedBikeName?.let { stringResource(R.string.trip_splash_riding_bike, it) }
+                        ?: stringResource(R.string.trip_splash_no_bike_assigned),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 16.dp),
+                )
+                if (state.countdown > 0 && !state.isCancelled && !state.hasStarted) {
                     Button(
-                        onClick = { viewModel.goNow() },
+                        onClick = viewModel::addTenSeconds,
                         modifier = Modifier
                             .padding(top = 24.dp)
-                            .semantics { contentDescription = goNowDesc },
+                            .semantics { contentDescription = addTimeDesc },
                     ) {
-                        Text(stringResource(R.string.trip_splash_go_now))
+                        Text(stringResource(R.string.trip_splash_add_ten_seconds))
                     }
                 }
             }
 
-            val bikeModeDesc = stringResource(R.string.trip_splash_action_bike_mode)
-            val autoPauseDesc = stringResource(R.string.trip_splash_action_auto_pause)
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-                ) {
-                    Button(
-                        onClick = { },
-                        enabled = false,
-                        modifier = Modifier.semantics {
-                            contentDescription = bikeModeDesc
-                        },
-                    ) {
-                        Text(bikeModeDesc)
-                    }
-                    Button(
-                        onClick = { },
-                        enabled = false,
-                        modifier = Modifier.semantics {
-                            contentDescription = autoPauseDesc
-                        },
-                    ) {
-                        Text(autoPauseDesc)
-                    }
-                }
                 Button(
                     onClick = {
                         viewModel.cancel()

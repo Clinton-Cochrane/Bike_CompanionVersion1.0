@@ -4,7 +4,6 @@ import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
 import org.junit.Test
 
 class ComponentHealthHelperTest {
@@ -48,17 +47,6 @@ class ComponentHealthHelperTest {
         val unknown = component(PriorUsageCertainty.UNKNOWN, baselineKm = 0.0, trackedKm = 100.0)
 
         assertNull(minimumComponentHealthPercent(listOf(known, unknown)))
-    }
-
-    @Test
-    fun sortComponents_healthOrder_placesUnknownPercentageLast() {
-        val unknown = component(PriorUsageCertainty.UNKNOWN, baselineKm = 0.0, trackedKm = 900.0)
-        val known = component(PriorUsageCertainty.KNOWN, baselineKm = 100.0, trackedKm = 100.0)
-
-        val sorted = sortComponents(listOf(unknown, known), ComponentSortOrder.HEALTH)
-
-        assertSame(known, sorted.first())
-        assertSame(unknown, sorted.last())
     }
 
     private fun component(

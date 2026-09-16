@@ -1,6 +1,13 @@
 package com.clintoncochrane.bikecompanion.ui.settings
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +21,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +33,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -32,9 +43,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.clintoncochrane.bikecompanion.R
 import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesRepository
+import com.clintoncochrane.bikecompanion.notifications.NotificationPermissionAction
+import com.clintoncochrane.bikecompanion.notifications.notificationPermissionAction
 import com.clintoncochrane.bikecompanion.ui.privacy.PrivacyPolicyActivity
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,6 +61,33 @@ fun SettingsScreen(
     val context = LocalContext.current
     val backContentDesc = stringResource(R.string.common_back_content_description)
     val sliderContentDesc = stringResource(R.string.settings_health_alert_slider_content_description)
+    var showNotificationPermissionGuidance by remember { mutableStateOf(false) }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { granted ->
+            if (!granted) showNotificationPermissionGuidance = true
+        },
+    )
+    if (showNotificationPermissionGuidance) {
+        AlertDialog(
+            onDismissRequest = { showNotificationPermissionGuidance = false },
+            title = { Text(stringResource(R.string.settings_maintenance_notifications_off_title)) },
+            text = { Text(stringResource(R.string.settings_maintenance_notifications_off_message)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                    })
+                    showNotificationPermissionGuidance = false
+                }) { Text(stringResource(R.string.settings_maintenance_notifications_open_settings)) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showNotificationPermissionGuidance = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
+    }
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -116,6 +157,43 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                }
+            }
+            Card(
+                onClick = {
+                    when (
+                        notificationPermissionAction(
+                            sdkInt = Build.VERSION.SDK_INT,
+                            permissionGranted = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.POST_NOTIFICATIONS,
+                            ) == PackageManager.PERMISSION_GRANTED,
+                            hasRequestedPermission = uiState.hasRequestedMaintenanceNotificationPermission,
+                        )
+                    ) {
+                        NotificationPermissionAction.REQUEST -> {
+                            viewModel.recordMaintenanceNotificationPermissionRequest()
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                        NotificationPermissionAction.OPEN_SETTINGS -> showNotificationPermissionGuidance = true
+                        NotificationPermissionAction.NONE -> Unit
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.settings_maintenance_notifications_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_maintenance_notifications_subtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
                 }
             }
             Card(

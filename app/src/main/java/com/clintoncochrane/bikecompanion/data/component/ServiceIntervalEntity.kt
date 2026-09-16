@@ -42,4 +42,6 @@ data class ServiceIntervalEntity(
     val intervalTimeSeconds: Long? = null,
     /** Tracked time in seconds. Null when not tracking time. */
     val trackedTimeSeconds: Long? = null,
+    /** Time when this interval was last completed. Rides before this boundary are excluded. */
+    val lastCompletedAt: Long? = null,
 )

@@ -2,7 +2,6 @@ package com.clintoncochrane.bikecompanion.data.component
 
 import com.clintoncochrane.bikecompanion.data.bike.BikeDao
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
-import com.clintoncochrane.bikecompanion.data.image.ImageRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -13,8 +12,8 @@ class ComponentRepository @Inject constructor(
     private val serviceIntervalDao: ServiceIntervalDao,
     private val componentSwapDao: ComponentSwapDao,
     private val bikeDao: BikeDao,
-    private val imageRepository: ImageRepository,
     private val lifecycleTransaction: ComponentLifecycleTransaction,
+    private val serviceHistoryDao: ServiceHistoryDao,
 ) {
     fun getComponentsByBikeId(bikeId: Long): Flow<List<ComponentEntity>> =
         componentDao.getComponentsByBikeId(bikeId)
@@ -93,8 +92,9 @@ class ComponentRepository @Inject constructor(
     suspend fun updateComponent(component: ComponentEntity) = componentDao.update(component)
 
     suspend fun deleteComponent(component: ComponentEntity) {
-        imageRepository.deleteComponentImage(component.id)
-        componentDao.deleteById(component.id)
+        lifecycleTransaction.run {
+            componentDao.deleteById(component.id)
+        }
     }
 
     suspend fun getAllComponents(): List<ComponentEntity> = componentDao.getAllComponents()
@@ -102,6 +102,8 @@ class ComponentRepository @Inject constructor(
     fun getComponentsInGarage(): Flow<List<ComponentEntity>> = componentDao.getComponentsInGarage()
 
     fun getNonRetiredComponents(): Flow<List<ComponentEntity>> = componentDao.getNonRetiredComponents()
+
+    suspend fun getNonRetiredComponentsOnce(): List<ComponentEntity> = componentDao.getNonRetiredComponentsOnce()
 
     fun getRetiredComponents(): Flow<List<ComponentEntity>> = componentDao.getRetiredComponents()
 
@@ -111,31 +113,41 @@ class ComponentRepository @Inject constructor(
      * Seeds the bike with components filtered by drivetrain and brake type (Simple Add flow).
      * Call only for a newly created bike with no components.
      */
-    suspend fun seedComponentsForBikeType(bikeId: Long, drivetrainType: String, brakeType: String) =
-        lifecycleTransaction.run {
-            val list = DefaultSeedComponents.seedListFor(drivetrainType, brakeType)
-            val now = System.currentTimeMillis()
-            list.forEach { template ->
-                val entity = ComponentEntity(
-                    bikeId = bikeId,
-                    type = template.type,
-                    name = template.name,
-                    lifespanKm = template.defaultLifespanKm,
-                    distanceUsedKm = 0.0,
-                    position = template.position,
-                    baselineKm = 0.0,
-                    baselineTimeSeconds = 0L,
-                    installedAt = now,
-                )
-                insertComponentRecords(entity)
-            }
+    suspend fun seedComponentsForBikeType(
+        bikeId: Long,
+        drivetrainType: String,
+        brakeType: String,
+        startingOdometerKm: Double = 0.0,
+    ) = lifecycleTransaction.run {
+        require(startingOdometerKm.isFinite() && startingOdometerKm >= 0.0)
+        val list = DefaultSeedComponents.seedListFor(drivetrainType, brakeType)
+        val now = System.currentTimeMillis()
+        list.forEach { template ->
+            val entity = ComponentEntity(
+                bikeId = bikeId,
+                type = template.type,
+                name = template.name,
+                lifespanKm = template.defaultLifespanKm,
+                distanceUsedKm = 0.0,
+                position = template.position,
+                baselineKm = startingOdometerKm,
+                priorUsageCertainty = PriorUsageCertainty.KNOWN,
+                baselineTimeSeconds = 0L,
+                installedAt = now,
+            )
+            insertComponentRecords(entity)
         }
+    }
 
     /**
      * Seeds the bike with default components if it has none.
      * Idempotent: calling again for the same bike does not duplicate components.
      */
-    suspend fun seedDefaultComponentsIfEmpty(bikeId: Long) = lifecycleTransaction.run {
+    suspend fun seedDefaultComponentsIfEmpty(
+        bikeId: Long,
+        startingOdometerKm: Double = 0.0,
+    ) = lifecycleTransaction.run {
+        require(startingOdometerKm.isFinite() && startingOdometerKm >= 0.0)
         if (componentDao.getComponentCountByBikeId(bikeId) > 0) return@run
         val now = System.currentTimeMillis()
         val entities = DefaultSeedComponents.LIST.map { template ->
@@ -146,7 +158,8 @@ class ComponentRepository @Inject constructor(
                 lifespanKm = template.defaultLifespanKm,
                 distanceUsedKm = 0.0,
                 position = template.position,
-                baselineKm = 0.0,
+                baselineKm = startingOdometerKm,
+                priorUsageCertainty = PriorUsageCertainty.KNOWN,
                 baselineTimeSeconds = 0L,
                 installedAt = now,
             )
@@ -329,4 +342,101 @@ class ComponentRepository @Inject constructor(
             }
             replacementId
         }
+
+    /**
+     * Completes a due replacement requirement atomically. The old part remains reusable in the
+     * Garage and the installed replacement inherits the persisted interval policies, not defaults.
+     */
+    suspend fun replaceComponentForService(
+        intervalId: Long,
+        sessionId: String,
+        completedAt: Long = System.currentTimeMillis(),
+    ): Long? = lifecycleTransaction.run {
+        serviceHistoryDao.getBySessionAndInterval(sessionId, intervalId)?.let { history ->
+            return@run history.replacementComponentId
+        }
+
+        val replacementInterval = serviceIntervalDao.getIntervalById(intervalId) ?: return@run null
+        if (replacementInterval.type != SERVICE_INTERVAL_TYPE_REPLACE) return@run null
+        val oldComponent = componentDao.getComponentById(replacementInterval.componentId) ?: return@run null
+        val bikeId = oldComponent.bikeId ?: return@run null
+        if (oldComponent.lifecycleStatus != ComponentLifecycleStatus.INSTALLED) return@run null
+        val bike = bikeDao.getBikeById(bikeId) ?: return@run null
+        val oldIntervals = serviceIntervalDao.getIntervalsByComponentIdOnce(oldComponent.id)
+        require(oldIntervals.any { it.id == intervalId })
+        require(componentDao.getComponentsByBikeIdOnce(bikeId).none {
+            it.id != oldComponent.id &&
+                it.type == oldComponent.type &&
+                it.position == oldComponent.position
+        }) { "The bike already has another component in this slot" }
+
+        componentSwapDao.getCurrentSwap(oldComponent.id)?.let { currentSwap ->
+            componentSwapDao.update(currentSwap.copy(uninstalledAt = completedAt))
+        }
+        componentDao.update(
+            oldComponent.copy(
+                bikeId = null,
+                lifecycleStatus = ComponentLifecycleStatus.IN_GARAGE,
+            ),
+        )
+
+        val replacement = ComponentEntity(
+            bikeId = bikeId,
+            lifecycleStatus = ComponentLifecycleStatus.INSTALLED,
+            type = oldComponent.type,
+            name = "",
+            make = oldComponent.make,
+            model = oldComponent.model,
+            lifespanKm = oldComponent.lifespanKm,
+            distanceUsedKm = 0.0,
+            totalTimeSeconds = 0L,
+            position = oldComponent.position,
+            baselineKm = 0.0,
+            priorUsageCertainty = PriorUsageCertainty.KNOWN,
+            baselineTimeSeconds = 0L,
+            alertThresholdPercent = oldComponent.alertThresholdPercent,
+            alertsEnabled = oldComponent.alertsEnabled,
+            installedAt = completedAt,
+        )
+        val replacementId = componentDao.insert(replacement)
+        serviceIntervalDao.insertAll(
+            oldIntervals.map { interval ->
+                interval.copy(
+                    id = 0,
+                    componentId = replacementId,
+                    trackedKm = 0.0,
+                    trackedTimeSeconds = interval.intervalTimeSeconds?.let { 0L },
+                    lastCompletedAt = null,
+                )
+            },
+        )
+        componentSwapDao.insert(
+            ComponentSwapEntity(
+                componentId = replacementId,
+                bikeId = bikeId,
+                installedAt = completedAt,
+            ),
+        )
+
+        when (oldComponent.type) {
+            "chain" -> bikeDao.update(bike.copy(chainReplacementCount = bike.chainReplacementCount + 1))
+            "cassette", "freewheel", "chainring" -> bikeDao.update(bike.copy(chainReplacementCount = 0))
+        }
+        check(
+            serviceHistoryDao.insert(
+                ServiceHistoryEntity(
+                    sessionId = sessionId,
+                    serviceIntervalId = replacementInterval.id,
+                    serviceName = replacementInterval.name,
+                    serviceType = replacementInterval.type,
+                    componentId = oldComponent.id,
+                    replacementComponentId = replacementId,
+                    bikeId = bikeId,
+                    completedAt = completedAt,
+                    bikeOdometerKm = bike.totalDistanceKm,
+                ),
+            ) != -1L,
+        ) { "Replacement history was not written" }
+        replacementId
+    }
 }

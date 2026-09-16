@@ -8,17 +8,20 @@ import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalRepository
-import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesRepository
 import com.clintoncochrane.bikecompanion.data.ride.RideEntity
 import com.clintoncochrane.bikecompanion.data.ride.RideRepository
 import com.clintoncochrane.bikecompanion.util.ComponentSortOrder
+import com.clintoncochrane.bikecompanion.util.availableComponentSortOrder
+import com.clintoncochrane.bikecompanion.util.nextServiceInbox
 import com.clintoncochrane.bikecompanion.util.sortComponents
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -26,11 +29,13 @@ import javax.inject.Inject
 data class BikeDetailUiState(
     val bike: BikeEntity? = null,
     val components: List<ComponentEntity> = emptyList(),
+    val nextServiceComponents: List<ComponentEntity> = emptyList(),
     val rides: List<RideEntity> = emptyList(),
     val bikes: List<BikeEntity> = emptyList(),
     val componentSortOrder: ComponentSortOrder = ComponentSortOrder.TYPE_AZ,
     /** User-configured threshold below which mild alert is shown (default from [AppPreferencesRepository]). */
     val closeToServiceHealthThreshold: Int = AppPreferencesRepository.DEFAULT_CLOSE_TO_SERVICE_THRESHOLD,
+    val hasNextServiceItems: Boolean = false,
     val loading: Boolean = true,
     val installOutcome: BikeDetailViewModel.InstallOutcome? = null,
     /** Ride IDs whose review flags have been dismissed. */
@@ -59,16 +64,30 @@ class BikeDetailViewModel @Inject constructor(
                 _uiState.update { it.copy(bike = bike, loading = false) }
             }
             viewModelScope.launch {
-                componentRepository.getComponentsByBikeId(bikeId).collect { list ->
-                    val order = _uiState.value.componentSortOrder
-                    val intervalsByComponentId = if (order == ComponentSortOrder.NEXT_SERVICE && list.isNotEmpty()) {
-                        val ids = list.map { it.id }
-                        val intervals = serviceIntervalRepository.getIntervalsByComponentIdsOnce(ids)
-                        intervals.groupBy { it.componentId }
-                    } else emptyMap()
-                    val sorted = sortComponents(list, order, intervalsByComponentId)
-                    _uiState.update { it.copy(components = sorted) }
-                }
+                combine(
+                    componentRepository.getComponentsByBikeId(bikeId),
+                    appPreferencesRepository.closeToServiceHealthThreshold,
+                ) { components, threshold -> components to threshold }
+                    .flatMapLatest { (components, threshold) ->
+                        serviceIntervalRepository.getIntervalsByComponentIds(components.map { it.id })
+                            .map { intervals -> Triple(components, intervals, threshold) }
+                    }
+                    .collect { (components, intervals, threshold) ->
+                        val intervalsByComponentId = intervals.groupBy { it.componentId }
+                        val inbox = nextServiceInbox(components, intervalsByComponentId, threshold)
+                        _uiState.update { state ->
+                            state.copy(
+                                components = sortComponents(components, ComponentSortOrder.TYPE_AZ),
+                                nextServiceComponents = inbox,
+                                closeToServiceHealthThreshold = threshold,
+                                hasNextServiceItems = inbox.isNotEmpty(),
+                                componentSortOrder = availableComponentSortOrder(
+                                    state.componentSortOrder,
+                                    inbox.isNotEmpty(),
+                                ),
+                            )
+                        }
+                    }
             }
             viewModelScope.launch {
                 combine(
@@ -98,39 +117,18 @@ class BikeDetailViewModel @Inject constructor(
     }
 
     fun setComponentSortOrder(order: ComponentSortOrder) {
-        viewModelScope.launch {
-            val current = _uiState.value.components
-            val intervalsByComponentId = if (order == ComponentSortOrder.NEXT_SERVICE && current.isNotEmpty()) {
-                val ids = current.map { it.id }
-                val intervals = serviceIntervalRepository.getIntervalsByComponentIdsOnce(ids)
-                intervals.groupBy { it.componentId }
-            } else emptyMap()
-            val sorted = sortComponents(current, order, intervalsByComponentId)
-            _uiState.update {
-                it.copy(componentSortOrder = order, components = sorted)
-            }
+        _uiState.update { state ->
+            state.copy(
+                componentSortOrder = availableComponentSortOrder(order, state.hasNextServiceItems),
+            )
         }
     }
 
-    fun addComponent(
-        type: String,
-        name: String,
-        lifespanKm: Double,
-        priorUsageCertainty: PriorUsageCertainty,
-        baselineKm: Double,
-    ) {
+    fun addComponent(request: AddComponentRequest) {
         if (bikeId <= 0) return
         viewModelScope.launch {
             componentRepository.insertComponent(
-                ComponentEntity(
-                    bikeId = bikeId,
-                    type = type,
-                    name = name,
-                    lifespanKm = lifespanKm,
-                    baselineKm = baselineKm,
-                    priorUsageCertainty = priorUsageCertainty,
-                    installedAt = System.currentTimeMillis(),
-                ),
+                request.toEntity(bikeId = bikeId, installedAt = System.currentTimeMillis()),
             )
         }
     }
@@ -160,9 +158,12 @@ class BikeDetailViewModel @Inject constructor(
         }
     }
 
-    fun turnOffAlerts(component: com.clintoncochrane.bikecompanion.data.component.ComponentEntity) {
+    fun setAlertsEnabled(
+        component: com.clintoncochrane.bikecompanion.data.component.ComponentEntity,
+        enabled: Boolean,
+    ) {
         viewModelScope.launch {
-            componentRepository.updateComponent(component.copy(alertsEnabled = false))
+            componentRepository.updateComponent(component.copy(alertsEnabled = enabled))
         }
     }
 
@@ -191,12 +192,6 @@ class BikeDetailViewModel @Inject constructor(
     fun uninstallComponent(component: ComponentEntity) {
         viewModelScope.launch {
             componentRepository.uninstallComponent(component)
-        }
-    }
-
-    fun retireComponent(component: ComponentEntity) {
-        viewModelScope.launch {
-            componentRepository.retireComponent(component)
         }
     }
 
