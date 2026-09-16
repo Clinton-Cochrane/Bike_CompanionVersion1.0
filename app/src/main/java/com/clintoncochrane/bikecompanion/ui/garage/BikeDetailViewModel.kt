@@ -8,7 +8,6 @@ import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalRepository
-import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesRepository
 import com.clintoncochrane.bikecompanion.data.ride.RideEntity
 import com.clintoncochrane.bikecompanion.data.ride.RideRepository
@@ -125,23 +124,11 @@ class BikeDetailViewModel @Inject constructor(
         }
     }
 
-    fun addComponent(
-        type: String,
-        name: String,
-        lifespanKm: Double,
-    ) {
+    fun addComponent(request: AddComponentRequest) {
         if (bikeId <= 0) return
         viewModelScope.launch {
             componentRepository.insertComponent(
-                ComponentEntity(
-                    bikeId = bikeId,
-                    type = type,
-                    name = name,
-                    lifespanKm = lifespanKm,
-                    baselineKm = 0.0,
-                    priorUsageCertainty = PriorUsageCertainty.KNOWN,
-                    installedAt = System.currentTimeMillis(),
-                ),
+                request.toEntity(bikeId = bikeId, installedAt = System.currentTimeMillis()),
             )
         }
     }

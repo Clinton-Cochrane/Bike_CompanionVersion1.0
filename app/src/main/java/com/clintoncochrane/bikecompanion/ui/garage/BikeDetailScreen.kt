@@ -83,8 +83,6 @@ import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.util.DisplayFormatHelper
 import com.clintoncochrane.bikecompanion.util.RideDisplayHelper
 import com.clintoncochrane.bikecompanion.util.componentTypeIcon
-import com.clintoncochrane.bikecompanion.data.component.DefaultComponentTypes
-import com.clintoncochrane.bikecompanion.data.component.DefaultComponentType
 import com.clintoncochrane.bikecompanion.util.ComponentSortOrder
 import com.clintoncochrane.bikecompanion.util.componentHealthPercent
 import com.clintoncochrane.bikecompanion.util.isComponentAlertActionable
@@ -146,34 +144,11 @@ fun BikeDetailScreen(
     }
 
     if (showAddComponentDialog) {
-        AlertDialog(
-            onDismissRequest = { showAddComponentDialog = false },
-            title = { Text(stringResource(R.string.component_suggested_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DefaultComponentTypes.SUGGESTED.forEach { suggested ->
-                        TextButton(
-                            onClick = {
-                                viewModel.addComponent(
-                                    suggested.type,
-                                    suggested.displayName,
-                                    suggested.defaultLifespanKm,
-                                )
-                                showAddComponentDialog = false
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(
-                                "${suggested.displayName} — ${stringResource(R.string.component_lifespan_km, suggested.defaultLifespanKm)}",
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showAddComponentDialog = false }) {
-                    Text(stringResource(R.string.component_done))
-                }
+        AddComponentDialog(
+            onDismiss = { showAddComponentDialog = false },
+            onAdd = { request ->
+                viewModel.addComponent(request)
+                showAddComponentDialog = false
             },
         )
     }
