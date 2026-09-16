@@ -548,6 +548,7 @@ fun BikeDetailScreen(
                                     onInstall = { componentIdForInstallPicker = component },
                                     onUninstall = { viewModel.uninstallComponent(component) },
                                     onViewDetails = { navController.navigate(Screen.ComponentDetail.withId(component.id)) },
+                                    onEdit = { navController.navigate(Screen.EditComponent.withId(component.id)) },
                                     onDelete = { componentForRemoveDialog = component },
                                     contextMenuExpanded = componentAlertMenuState?.componentId == component.id,
                                     pendingAlertsEnabled = componentAlertMenuState?.pendingAlertsEnabled ?: component.alertsEnabled,
@@ -585,6 +586,7 @@ fun BikeDetailScreen(
                                     onInstall = { componentIdForInstallPicker = it },
                                     onUninstall = viewModel::uninstallComponent,
                                     onViewDetails = { navController.navigate(Screen.ComponentDetail.withId(it.id)) },
+                                    onEdit = { navController.navigate(Screen.EditComponent.withId(it.id)) },
                                     onDelete = { componentForRemoveDialog = it },
                                 )
                             }
@@ -628,6 +630,7 @@ private fun ComponentCategorySection(
     onInstall: (ComponentEntity) -> Unit,
     onUninstall: (ComponentEntity) -> Unit,
     onViewDetails: (ComponentEntity) -> Unit,
+    onEdit: (ComponentEntity) -> Unit,
     onDelete: (ComponentEntity) -> Unit,
 ) {
     val categoryTitle = when (category) {
@@ -703,6 +706,7 @@ private fun ComponentCategorySection(
                             onInstall = { onInstall(component) },
                             onUninstall = { onUninstall(component) },
                             onViewDetails = { onViewDetails(component) },
+                            onEdit = { onEdit(component) },
                             onDelete = { onDelete(component) },
                             contextMenuExpanded = menuState != null,
                             pendingAlertsEnabled = menuState?.pendingAlertsEnabled ?: component.alertsEnabled,
@@ -734,6 +738,7 @@ private fun ComponentHealthCard(
     onInstall: () -> Unit,
     onUninstall: () -> Unit,
     onViewDetails: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
     contextMenuExpanded: Boolean,
     pendingAlertsEnabled: Boolean,
@@ -820,7 +825,7 @@ private fun ComponentHealthCard(
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.component_edit)) },
                                 onClick = {
-                                    onViewDetails()
+                                    onEdit()
                                     onContextMenuDismiss(true)
                                 },
                             )
