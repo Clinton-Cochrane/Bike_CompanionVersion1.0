@@ -709,7 +709,6 @@ private fun ComponentsContent(
     val sortSummary = when (componentSortOrder) {
         ComponentSortOrder.TYPE_AZ -> stringResource(R.string.component_sort_type_az)
         ComponentSortOrder.NEXT_SERVICE -> stringResource(R.string.component_sort_next_service)
-        ComponentSortOrder.HEALTH -> stringResource(R.string.component_sort_health)
     }
     val filterSortSummary = stringResource(
         R.string.garage_filter_sort_summary,
@@ -822,11 +821,6 @@ private fun ComponentsContent(
                             selected = componentSortOrder == ComponentSortOrder.NEXT_SERVICE,
                             onClick = { onSortOrderChange(ComponentSortOrder.NEXT_SERVICE) },
                             label = { Text(stringResource(R.string.component_sort_next_service)) },
-                        )
-                        FilterChip(
-                            selected = componentSortOrder == ComponentSortOrder.HEALTH,
-                            onClick = { onSortOrderChange(ComponentSortOrder.HEALTH) },
-                            label = { Text(stringResource(R.string.component_sort_health)) },
                         )
                     }
                 }

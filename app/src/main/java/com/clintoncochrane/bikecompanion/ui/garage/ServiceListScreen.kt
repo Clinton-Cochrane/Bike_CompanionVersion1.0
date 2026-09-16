@@ -151,7 +151,6 @@ fun ServiceListScreen(
                         val sortSummary = when (uiState.sortOrder) {
                             ComponentSortOrder.TYPE_AZ -> stringResource(R.string.component_sort_type_az)
                             ComponentSortOrder.NEXT_SERVICE -> stringResource(R.string.component_sort_next_service)
-                            ComponentSortOrder.HEALTH -> stringResource(R.string.component_sort_health)
                         }
                         Text(
                             text = "$typeSummary · $bikeSummary · $sortSummary",
@@ -241,11 +240,6 @@ fun ServiceListScreen(
                                 selected = uiState.sortOrder == ComponentSortOrder.NEXT_SERVICE,
                                 onClick = { viewModel.setSortOrder(ComponentSortOrder.NEXT_SERVICE); filterMenuExpanded = false },
                                 label = { Text(stringResource(R.string.component_sort_next_service)) },
-                            )
-                            FilterChip(
-                                selected = uiState.sortOrder == ComponentSortOrder.HEALTH,
-                                onClick = { viewModel.setSortOrder(ComponentSortOrder.HEALTH); filterMenuExpanded = false },
-                                label = { Text(stringResource(R.string.component_sort_health)) },
                             )
                         }
                     }

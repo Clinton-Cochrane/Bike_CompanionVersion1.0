@@ -513,6 +513,7 @@ fun BikeDetailScreen(
                 }
             }
             item {
+                val isNextServiceView = uiState.componentSortOrder == ComponentSortOrder.NEXT_SERVICE
                 val componentsByCategory = remember(uiState.components) {
                     uiState.components
                         .groupBy { ComponentCategory.fromComponentType(it.type) }
@@ -550,58 +551,68 @@ fun BikeDetailScreen(
                             )
                         }
                         item {
-                            FilterChip(
-                                selected = uiState.componentSortOrder == ComponentSortOrder.NEXT_SERVICE,
-                                onClick = { viewModel.setComponentSortOrder(ComponentSortOrder.NEXT_SERVICE) },
-                                label = { Text(stringResource(R.string.component_sort_next_service)) },
-                            )
-                        }
-                        item {
-                            FilterChip(
-                                selected = uiState.componentSortOrder == ComponentSortOrder.HEALTH,
-                                onClick = { viewModel.setComponentSortOrder(ComponentSortOrder.HEALTH) },
-                                label = { Text(stringResource(R.string.component_sort_health)) },
-                            )
+                            if (uiState.hasNextServiceItems) {
+                                FilterChip(
+                                    selected = isNextServiceView,
+                                    onClick = { viewModel.setComponentSortOrder(ComponentSortOrder.NEXT_SERVICE) },
+                                    label = { Text(stringResource(R.string.component_sort_next_service)) },
+                                )
+                            }
                         }
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        categoriesToShow.forEach { category ->
-                            val categoryComponents = componentsByCategory[category] ?: emptyList()
-                            val minHealth = minimumComponentHealthPercent(categoryComponents)
-                            val isExpanded = category in expandedCategories
-                            ComponentCategorySection(
-                                category = category,
-                                components = categoryComponents,
-                                minHealth = minHealth,
-                                isExpanded = isExpanded,
-                                onToggleExpanded = {
-                                    expandedCategories = if (isExpanded) {
-                                        expandedCategories - category
-                                    } else {
-                                        expandedCategories + category
-                                    }
-                                },
-                                currentBikeId = bike.id,
-                                componentAlertMenuState = componentAlertMenuState,
-                                onContextMenuClick = ::toggleComponentContextMenu,
-                                onContextMenuDismiss = ::closeComponentContextMenu,
-                                onAlertsEnabledChange = { enabled ->
-                                    componentAlertMenuState = componentAlertMenuState?.copy(
-                                        pendingAlertsEnabled = enabled,
-                                    )
-                                },
-                                onMarkReplaced = { componentToReplace = it },
-                                onSnooze = { component, alertsEnabled ->
-                                    viewModel.snoozeComponent(
-                                        component.copy(alertsEnabled = alertsEnabled),
-                                        500.0,
-                                    )
-                                },
-                                onInstall = { componentIdForInstallPicker = it },
-                                onUninstall = viewModel::uninstallComponent,
-                                onViewDetails = { navController.navigate(Screen.ComponentDetail.withId(it.id)) },
-                                onDelete = { componentForRemoveDialog = it },
-                            )
+                        if (isNextServiceView) {
+                            uiState.nextServiceComponents.forEach { component ->
+                                ComponentHealthCard(
+                                    component = component,
+                                    currentBikeId = bike.id,
+                                    onMarkReplaced = { componentToReplace = component },
+                                    onSnooze = { alertsEnabled ->
+                                        viewModel.snoozeComponent(component.copy(alertsEnabled = alertsEnabled), 500.0)
+                                    },
+                                    onInstall = { componentIdForInstallPicker = component },
+                                    onUninstall = { viewModel.uninstallComponent(component) },
+                                    onViewDetails = { navController.navigate(Screen.ComponentDetail.withId(component.id)) },
+                                    onDelete = { componentForRemoveDialog = component },
+                                    contextMenuExpanded = componentAlertMenuState?.componentId == component.id,
+                                    pendingAlertsEnabled = componentAlertMenuState?.pendingAlertsEnabled ?: component.alertsEnabled,
+                                    onAlertsEnabledChange = { enabled ->
+                                        componentAlertMenuState = componentAlertMenuState?.copy(pendingAlertsEnabled = enabled)
+                                    },
+                                    onContextMenuClick = { toggleComponentContextMenu(component) },
+                                    onContextMenuDismiss = ::closeComponentContextMenu,
+                                )
+                            }
+                        } else {
+                            categoriesToShow.forEach { category ->
+                                val categoryComponents = componentsByCategory[category] ?: emptyList()
+                                val minHealth = minimumComponentHealthPercent(categoryComponents)
+                                val isExpanded = category in expandedCategories
+                                ComponentCategorySection(
+                                    category = category,
+                                    components = categoryComponents,
+                                    minHealth = minHealth,
+                                    isExpanded = isExpanded,
+                                    onToggleExpanded = {
+                                        expandedCategories = if (isExpanded) expandedCategories - category else expandedCategories + category
+                                    },
+                                    currentBikeId = bike.id,
+                                    componentAlertMenuState = componentAlertMenuState,
+                                    onContextMenuClick = ::toggleComponentContextMenu,
+                                    onContextMenuDismiss = ::closeComponentContextMenu,
+                                    onAlertsEnabledChange = { enabled ->
+                                        componentAlertMenuState = componentAlertMenuState?.copy(pendingAlertsEnabled = enabled)
+                                    },
+                                    onMarkReplaced = { componentToReplace = it },
+                                    onSnooze = { component, alertsEnabled ->
+                                        viewModel.snoozeComponent(component.copy(alertsEnabled = alertsEnabled), 500.0)
+                                    },
+                                    onInstall = { componentIdForInstallPicker = it },
+                                    onUninstall = viewModel::uninstallComponent,
+                                    onViewDetails = { navController.navigate(Screen.ComponentDetail.withId(it.id)) },
+                                    onDelete = { componentForRemoveDialog = it },
+                                )
+                            }
                         }
                     }
                 }
