@@ -22,7 +22,7 @@ interface ServiceIntervalDao {
     suspend fun getIntervalsByComponentIdsOnce(componentIds: List<Long>): List<ServiceIntervalEntity>
 
     @Query("SELECT * FROM service_intervals WHERE componentId IN (:componentIds)")
-    fun getIntervalsByComponentIds(componentIds: List<Long>): Flow<List<ServiceIntervalEntity>>
+    fun observeIntervalsByComponentIds(componentIds: List<Long>): Flow<List<ServiceIntervalEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(interval: ServiceIntervalEntity): Long
