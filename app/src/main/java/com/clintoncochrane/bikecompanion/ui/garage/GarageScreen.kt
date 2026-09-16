@@ -439,7 +439,7 @@ private fun BikesContent(
             state = state,
             onBikeSelected = onBikeSelected,
             onBikeClick = { navController.navigate(Screen.BikeDetail.withId(it.id)) },
-            onRideClick = { navController.navigate(Screen.EditRide.withId(it.id)) },
+            onRideClick = { navController.navigate(Screen.RideDetail.withId(it.id)) },
         )
     }
 }

@@ -158,6 +158,19 @@
     <string name="ride_placeholder_reminder_dismiss">Don\'t remind again</string>
     <string name="ride_edit_title">Edit ride</string>
     <string name="ride_edit_coming_soon">Edit ride coming soon</string>
+    <string name="ride_detail_title">Ride details</string>
+    <string name="ride_detail_not_found">This ride is no longer available.</string>
+    <string name="ride_detail_bike">Bike</string>
+    <string name="ride_detail_distance">Distance</string>
+    <string name="ride_detail_duration">Duration</string>
+    <string name="ride_detail_average_speed">Average speed</string>
+    <string name="ride_detail_max_speed">Maximum speed</string>
+    <string name="ride_detail_elevation_gain">Elevation gain and loss</string>
+    <string name="ride_detail_source">Source</string>
+    <string name="ride_detail_source_app">Bike Companion</string>
+    <string name="ride_detail_source_health_connect">Health Connect</string>
+    <string name="ride_detail_source_manual">Manual entry</string>
+    <string name="ride_detail_edit_action">Edit ride</string>
 
     <!-- Ride detail screen -->
     <string name="ride_detail_title">Ride details</string>
@@ -451,6 +464,11 @@
     <string name="settings_health_alert_threshold_subtitle">Show a mild alert when bike health is at or below this percentage. At 0%%, the app shows that the expected interval was reached. Default: 20%%.</string>
     <string name="settings_health_alert_threshold_value">%1$d%%</string>
     <string name="settings_health_alert_slider_content_description">Mild alert threshold, percentage</string>
+    <string name="settings_maintenance_notifications_title">Maintenance reminders</string>
+    <string name="settings_maintenance_notifications_subtitle">Tap to receive optional advisory reminders about components that may need attention.</string>
+    <string name="settings_maintenance_notifications_off_title">Maintenance reminders are off</string>
+    <string name="settings_maintenance_notifications_off_message">Allow notifications in app settings to receive maintenance reminders. Bike and maintenance tracking continue without them.</string>
+    <string name="settings_maintenance_notifications_open_settings">Open settings</string>
     <string name="settings_maintenance_estimates_title">About maintenance estimates</string>
     <string name="settings_maintenance_estimates_disclaimer">Maintenance intervals are estimates. Inspect actual component condition and follow manufacturer guidance.</string>
     <string name="settings_privacy_title">Privacy and data</string>
