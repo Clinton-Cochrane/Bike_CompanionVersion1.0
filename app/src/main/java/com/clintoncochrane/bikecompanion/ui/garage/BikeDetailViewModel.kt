@@ -158,9 +158,12 @@ class BikeDetailViewModel @Inject constructor(
         }
     }
 
-    fun turnOffAlerts(component: com.clintoncochrane.bikecompanion.data.component.ComponentEntity) {
+    fun setAlertsEnabled(
+        component: com.clintoncochrane.bikecompanion.data.component.ComponentEntity,
+        enabled: Boolean,
+    ) {
         viewModelScope.launch {
-            componentRepository.updateComponent(component.copy(alertsEnabled = false))
+            componentRepository.updateComponent(component.copy(alertsEnabled = enabled))
         }
     }
 

@@ -293,7 +293,7 @@
     <string name="bike_component_last_replaced">Last replaced: %1$s</string>
     <string name="bike_component_make_model">Make/model: %1$s</string>
     <string name="bike_component_snooze">Snooze alert</string>
-    <string name="bike_component_alerts_off">Alerts off</string>
+    <string name="bike_component_alerts">Alerts</string>
     <string name="bike_health_alert_mild_content_description">Close to inspection or service</string>
     <string name="bike_health_alert_danger_content_description">Expected service interval reached</string>
 
