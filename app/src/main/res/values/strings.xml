@@ -333,6 +333,7 @@
     <string name="component_done">Done</string>
     <string name="component_install">Install</string>
     <string name="component_uninstall">Uninstall</string>
+    <string name="component_move_to_garage">Move to Garage</string>
     <string name="component_retire">Retire</string>
     <string name="component_retired">Retired</string>
     <string name="component_retire_confirm_title">Retire component?</string>
@@ -344,9 +345,9 @@
     <string name="component_install_duplicate_bike">%1$s already has this part type</string>
     <string name="component_install_no_bikes">No other bikes available</string>
     <string name="component_delete_confirm_title">Delete component</string>
-    <string name="component_delete_confirm_message">Delete %1$s? This cannot be undone.</string>
-    <string name="component_edit">Edit component</string>
-    <string name="component_delete">Delete component</string>
+    <string name="component_delete_confirm_message">Are you sure you want to permanently delete %1$s? This cannot be undone.</string>
+    <string name="component_edit">Edit</string>
+    <string name="component_delete">Delete</string>
     <string name="component_remove_dialog_title">How do you want to remove this?</string>
     <string name="component_remove_forever">Forever / Delete</string>
     <string name="component_remove_move_to_garage">Move to garage / Uninstall from bike</string>

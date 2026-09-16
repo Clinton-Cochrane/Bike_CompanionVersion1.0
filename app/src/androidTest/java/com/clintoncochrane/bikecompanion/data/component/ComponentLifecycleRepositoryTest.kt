@@ -6,7 +6,6 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.clintoncochrane.bikecompanion.data.BikeCompanionDatabase
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
-import com.clintoncochrane.bikecompanion.data.image.ImageRepository
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -36,7 +35,6 @@ class ComponentLifecycleRepositoryTest {
             database.serviceIntervalDao(),
             database.componentSwapDao(),
             database.bikeDao(),
-            ImageRepository(context.cacheDir.resolve("component-lifecycle-images")) { null },
             ComponentLifecycleTransaction(database),
         )
         bikeAId = database.bikeDao().insert(BikeEntity(name = "Bike A", createdAt = 1L))
@@ -64,6 +62,16 @@ class ComponentLifecycleRepositoryTest {
 
     @Test
     fun removeToGarage_thenReinstallOnAnotherBike_preservesUsageAndCreatesOneActiveSwap() = runBlocking {
+        val intervalId = database.serviceIntervalDao().insert(
+            ServiceIntervalEntity(
+                componentId = componentId,
+                name = "Inspect chain",
+                intervalKm = 500.0,
+                trackedKm = 125.0,
+                type = SERVICE_INTERVAL_TYPE_INSPECTION,
+            ),
+        )
+
         repository.removeToGarage(requireComponent())
 
         val inGarage = requireComponent()
@@ -72,6 +80,7 @@ class ComponentLifecycleRepositoryTest {
         assertEquals(125.0, inGarage.distanceUsedKm, 0.0)
         assertEquals(3_600L, inGarage.totalTimeSeconds)
         assertNotNull(database.componentSwapDao().getSwapsByComponentIdOnce(componentId).single().uninstalledAt)
+        assertEquals(intervalId, database.serviceIntervalDao().getIntervalsByComponentIdOnce(componentId).single().id)
 
         repository.installComponent(inGarage, bikeBId)
 
@@ -84,6 +93,29 @@ class ComponentLifecycleRepositoryTest {
         assertEquals(2, swaps.size)
         assertEquals(1, swaps.count { it.uninstalledAt == null })
         assertEquals(bikeBId, swaps.single { it.uninstalledAt == null }.bikeId)
+    }
+
+    @Test
+    fun deleteComponent_permanentlyRemovesComponentAndOwnedHistory() = runBlocking {
+        database.serviceIntervalDao().insert(
+            ServiceIntervalEntity(
+                componentId = componentId,
+                name = "Inspect chain",
+                intervalKm = 500.0,
+                trackedKm = 125.0,
+                type = SERVICE_INTERVAL_TYPE_INSPECTION,
+            ),
+        )
+        database.componentContextDao().insert(
+            ComponentContextEntity(componentId = componentId, notes = "Replacement history"),
+        )
+
+        repository.deleteComponent(requireComponent())
+
+        assertNull(database.componentDao().getComponentById(componentId))
+        assertTrue(database.componentSwapDao().getSwapsByComponentIdOnce(componentId).isEmpty())
+        assertTrue(database.serviceIntervalDao().getIntervalsByComponentIdOnce(componentId).isEmpty())
+        assertNull(database.componentContextDao().getByComponentId(componentId))
     }
 
     @Test

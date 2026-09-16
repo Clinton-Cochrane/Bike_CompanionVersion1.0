@@ -71,7 +71,11 @@ class ComponentRepository @Inject constructor(
 
     suspend fun updateComponent(component: ComponentEntity) = componentDao.update(component)
 
-    suspend fun deleteComponent(component: ComponentEntity) = componentDao.deleteById(component.id)
+    suspend fun deleteComponent(component: ComponentEntity) {
+        lifecycleTransaction.run {
+            componentDao.deleteById(component.id)
+        }
+    }
 
     suspend fun getAllComponents(): List<ComponentEntity> = componentDao.getAllComponents()
 
