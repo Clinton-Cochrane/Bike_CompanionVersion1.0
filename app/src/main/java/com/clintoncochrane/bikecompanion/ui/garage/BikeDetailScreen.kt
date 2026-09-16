@@ -571,7 +571,7 @@ fun BikeDetailScreen(
                                         viewModel.snoozeComponent(component.copy(alertsEnabled = alertsEnabled), 500.0)
                                     },
                                     onInstall = { componentIdForInstallPicker = component },
-                                    onUninstall = viewModel::uninstallComponent,
+                                    onUninstall = { viewModel.uninstallComponent(component) },
                                     onViewDetails = { navController.navigate(Screen.ComponentDetail.withId(component.id)) },
                                     onDelete = { componentForRemoveDialog = component },
                                     contextMenuExpanded = componentAlertMenuState?.componentId == component.id,
