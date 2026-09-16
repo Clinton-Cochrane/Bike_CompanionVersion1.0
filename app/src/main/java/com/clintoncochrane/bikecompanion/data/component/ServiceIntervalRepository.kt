@@ -21,7 +21,7 @@ class ServiceIntervalRepository @Inject constructor(
 
     fun getIntervalsByComponentIds(componentIds: List<Long>): Flow<List<ServiceIntervalEntity>> =
         if (componentIds.isEmpty()) flowOf(emptyList())
-        else serviceIntervalDao.getIntervalsByComponentIds(componentIds)
+        else serviceIntervalDao.observeIntervalsByComponentIds(componentIds)
 
     suspend fun insertInterval(interval: ServiceIntervalEntity): Long =
         serviceIntervalDao.insert(interval)
