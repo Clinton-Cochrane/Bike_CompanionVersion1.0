@@ -368,17 +368,15 @@ fun BikeDetailScreen(
                                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
                             )
                         }
-                        Row(
+                        BikeStatsGrid(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            BikeStatChip(label = stringResource(R.string.bike_stat_odometer), value = stringResource(R.string.bike_stat_km, bike.totalDistanceKm))
-                            BikeStatChip(label = stringResource(R.string.bike_stat_moving_time), value = DurationFormatHelper.formatDurationBreakdownSeconds(bike.totalTimeSeconds))
-                            BikeStatChip(label = stringResource(R.string.bike_stat_avg_speed), value = stringResource(R.string.bike_stat_kmh, bike.avgSpeedKmh))
-                            BikeStatChip(label = stringResource(R.string.bike_stat_max_speed), value = stringResource(R.string.bike_stat_kmh, bike.maxSpeedKmh))
-                        }
+                            odometerValue = stringResource(R.string.bike_stat_km, bike.totalDistanceKm),
+                            movingTimeValue = DurationFormatHelper.formatDurationBreakdownSeconds(bike.totalTimeSeconds),
+                            averageSpeedValue = stringResource(R.string.bike_stat_kmh, bike.avgSpeedKmh),
+                            maxSpeedValue = stringResource(R.string.bike_stat_kmh, bike.maxSpeedKmh),
+                        )
                         Text(
                             text = stringResource(
                                 R.string.bike_distance_breakdown,
@@ -675,8 +673,57 @@ private fun ComponentCategorySection(
 }
 
 @Composable
-private fun BikeStatChip(label: String, value: String) {
-    Column {
+internal fun BikeStatsGrid(
+    odometerValue: String,
+    movingTimeValue: String,
+    averageSpeedValue: String,
+    maxSpeedValue: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            BikeStatChip(
+                label = stringResource(R.string.bike_stat_odometer),
+                value = odometerValue,
+                modifier = Modifier.weight(1f),
+            )
+            BikeStatChip(
+                label = stringResource(R.string.bike_stat_moving_time),
+                value = movingTimeValue,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            BikeStatChip(
+                label = stringResource(R.string.bike_stat_avg_speed),
+                value = averageSpeedValue,
+                modifier = Modifier.weight(1f),
+            )
+            BikeStatChip(
+                label = stringResource(R.string.bike_stat_max_speed),
+                value = maxSpeedValue,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun BikeStatChip(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.labelLarge)
     }
