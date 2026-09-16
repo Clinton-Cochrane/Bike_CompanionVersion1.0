@@ -89,7 +89,6 @@ class BikeDetailViewModel @Inject constructor(
                             )
                         }
                     }
-                }
             }
             viewModelScope.launch {
                 combine(
