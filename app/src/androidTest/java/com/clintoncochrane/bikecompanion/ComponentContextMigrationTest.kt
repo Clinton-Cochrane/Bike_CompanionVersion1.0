@@ -8,6 +8,8 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.clintoncochrane.bikecompanion.data.BikeCompanionDatabase
 import com.clintoncochrane.bikecompanion.data.BikeCompanionMigrations
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -39,6 +41,39 @@ class ComponentContextMigrationTest {
     fun tearDown() {
         if (::db.isInitialized) db.close()
         if (::dbFile.isInitialized && dbFile.exists()) dbFile.delete()
+    }
+
+    @Test
+    fun migration1ToLatest_preservesRepresentativeUserData(): Unit = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        dbFile.delete()
+        createDatabaseAtVersion1(context)
+        val sqlite = SQLiteDatabase.openDatabase(dbFile.path, null, SQLiteDatabase.OPEN_READWRITE)
+        sqlite.execSQL("INSERT INTO bikes (id, name, totalDistanceKm, createdAt) VALUES (1, 'Original bike', 42.5, 1000)")
+        sqlite.execSQL(
+            "INSERT INTO rides (id, bikeId, distanceKm, durationMs, startedAt, endedAt) " +
+                "VALUES (1, 1, 12.5, 3600000, 1000, 3601000)",
+        )
+        sqlite.execSQL(
+            "INSERT INTO components (id, bikeId, type, name, lifespanKm, distanceUsedKm, installedAt) " +
+                "VALUES (1, 1, 'chain', 'Original chain', 3000, 12.5, 1000)",
+        )
+        sqlite.close()
+
+        db = Room.databaseBuilder(context, BikeCompanionDatabase::class.java, MIGRATION_TEST_DB_NAME)
+            .addMigrations(*BikeCompanionMigrations.ALL)
+            .allowMainThreadQueries()
+            .build()
+
+        assertEquals("Original bike", db.bikeDao().getAllBikes().first().single().name)
+        assertEquals(12.5, db.rideDao().getRideById(1L)?.distanceKm ?: -1.0, 0.0)
+        val component = db.componentDao().getComponentById(1L)
+        assertEquals("Original chain", component?.name)
+        assertEquals(12.5, component?.distanceUsedKm ?: -1.0, 0.0)
+        val activeSwaps = db.componentSwapDao().getSwapsByComponentIdOnce(1L)
+            .filter { it.uninstalledAt == null }
+        assertEquals(1, activeSwaps.size)
+        assertEquals(1L, activeSwaps.single().bikeId)
     }
 
     @Test
@@ -115,6 +150,53 @@ class ComponentContextMigrationTest {
             }
 
             override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+        }
+        helper.writableDatabase.close()
+    }
+
+    private fun createDatabaseAtVersion1(context: Context) {
+        val helper = object : SQLiteOpenHelper(context, MIGRATION_TEST_DB_NAME, null, 1) {
+            override fun onCreate(db: SQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE bikes (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        name TEXT NOT NULL,
+                        make TEXT NOT NULL DEFAULT '',
+                        model TEXT NOT NULL DEFAULT '',
+                        year TEXT NOT NULL DEFAULT '',
+                        totalDistanceKm REAL NOT NULL DEFAULT 0,
+                        lastRideAt INTEGER,
+                        description TEXT NOT NULL DEFAULT '',
+                        createdAt INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                createRidesTable(db)
+                db.execSQL(
+                    """
+                    CREATE TABLE components (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        bikeId INTEGER NOT NULL,
+                        type TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        makeModel TEXT NOT NULL DEFAULT '',
+                        lifespanKm REAL NOT NULL,
+                        distanceUsedKm REAL NOT NULL DEFAULT 0,
+                        alertThresholdPercent INTEGER NOT NULL DEFAULT 10,
+                        alertSnoozeUntilKm REAL,
+                        alertSnoozeUntilTime INTEGER,
+                        alertsEnabled INTEGER NOT NULL DEFAULT 1,
+                        installedAt INTEGER NOT NULL,
+                        notes TEXT NOT NULL DEFAULT '',
+                        FOREIGN KEY(bikeId) REFERENCES bikes(id) ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX index_components_bikeId ON components(bikeId)")
+            }
+
+            override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
         }
         helper.writableDatabase.close()
     }

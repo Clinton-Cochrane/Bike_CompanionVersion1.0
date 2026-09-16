@@ -6,7 +6,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class BikeRepository @Inject constructor(private val bikeDao: BikeDao) {
+class BikeRepository @Inject constructor(
+    private val bikeDao: BikeDao,
+) {
     fun getAllBikes(): Flow<List<BikeEntity>> = bikeDao.getAllBikes()
 
     /** True when at least one bike exists; used to choose start destination (Garage vs Trip). */
@@ -19,8 +21,6 @@ class BikeRepository @Inject constructor(private val bikeDao: BikeDao) {
     suspend fun insertBike(bike: BikeEntity): Long = bikeDao.insert(bike)
 
     suspend fun updateBike(bike: BikeEntity) = bikeDao.update(bike)
-
-    suspend fun deleteBike(bike: BikeEntity) = bikeDao.deleteById(bike.id)
 
     /** Resets chain replacement count after cassette/freewheel/chainrings inspection or replacement. */
     suspend fun resetChainReplacementCount(bikeId: Long) {

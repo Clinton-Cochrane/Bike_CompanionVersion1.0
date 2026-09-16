@@ -44,6 +44,27 @@ class DatabaseSchemaFixtureTest {
         }
     }
 
+    @Test
+    fun everyCommittedSchemaFixture_opensAndMigratesToLatest() {
+        (12..21).forEach { version ->
+            val databaseName = "schema_fixture_v$version.db"
+            migrationTestHelper.createDatabase(databaseName, version).close()
+
+            val database = Room.databaseBuilder(
+                ApplicationProvider.getApplicationContext(),
+                BikeCompanionDatabase::class.java,
+                databaseName,
+            ).addMigrations(*BikeCompanionMigrations.ALL)
+                .build()
+            try {
+                database.openHelper.writableDatabase
+            } finally {
+                database.close()
+                ApplicationProvider.getApplicationContext<Context>().deleteDatabase(databaseName)
+            }
+        }
+    }
+
     private companion object {
         const val TEST_DATABASE_NAME = "schema_fixture_test.db"
     }

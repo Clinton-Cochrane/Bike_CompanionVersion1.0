@@ -27,7 +27,7 @@ class HealthConnectRideImportRepositoryTest {
     private var intervalId = 0L
 
     @Before
-    fun setUp() = runBlocking {
+    fun setUp(): Unit = runBlocking {
         database = newDatabase()
         repository = newRepository(database)
         bikeId = database.bikeDao().insert(BikeEntity(name = "Import bike", createdAt = 0L))

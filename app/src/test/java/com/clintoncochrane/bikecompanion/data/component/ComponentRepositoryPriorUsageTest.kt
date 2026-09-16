@@ -12,18 +12,25 @@ class ComponentRepositoryPriorUsageTest {
 
     private lateinit var componentDao: ComponentDao
     private lateinit var serviceIntervalDao: ServiceIntervalDao
+    private lateinit var componentSwapDao: ComponentSwapDao
+    private lateinit var lifecycleTransaction: ComponentLifecycleTransaction
     private lateinit var repository: ComponentRepository
 
     @Before
     fun setUp() {
         componentDao = mockk()
         serviceIntervalDao = mockk()
+        componentSwapDao = mockk(relaxed = true)
+        lifecycleTransaction = mockk()
+        coEvery { lifecycleTransaction.run<Long>(any()) } coAnswers {
+            firstArg<suspend () -> Long>().invoke()
+        }
         repository = ComponentRepository(
             componentDao = componentDao,
             serviceIntervalDao = serviceIntervalDao,
-            componentSwapDao = mockk(),
+            componentSwapDao = componentSwapDao,
             bikeDao = mockk<BikeDao>(),
-            lifecycleTransaction = mockk(),
+            lifecycleTransaction = lifecycleTransaction,
             serviceHistoryDao = mockk(),
         )
     }
