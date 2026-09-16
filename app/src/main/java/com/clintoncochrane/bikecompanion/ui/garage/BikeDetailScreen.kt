@@ -761,7 +761,7 @@ private fun ComponentHealthCard(
                             onDismissRequest = onContextMenuClick,
                         ) {
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.bike_component_replaced)) },
+                                text = { Text(stringResource(R.string.bike_component_replace)) },
                                 onClick = {
                                     onMarkReplaced()
                                     onContextMenuClick()
