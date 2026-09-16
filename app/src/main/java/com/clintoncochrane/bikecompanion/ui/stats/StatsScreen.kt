@@ -115,13 +115,13 @@ private fun BikeStatsPager(
     val pagerState = rememberPagerState(pageCount = { bikesWithStats.size })
 
     LaunchedEffect(selectedBikeIndex) {
-        if (pagerState.currentPage != selectedBikeIndex) {
+        if (pagerState.settledPage != selectedBikeIndex) {
             pagerState.animateScrollToPage(selectedBikeIndex)
         }
     }
-    LaunchedEffect(pagerState.currentPage, pagerState.isScrollInProgress) {
-        if (!pagerState.isScrollInProgress && pagerState.currentPage != selectedBikeIndex) {
-            onBikeSelected(pagerState.currentPage)
+    LaunchedEffect(pagerState.settledPage, pagerState.isScrollInProgress) {
+        if (!pagerState.isScrollInProgress && pagerState.settledPage != selectedBikeIndex) {
+            onBikeSelected(pagerState.settledPage)
         }
     }
 
