@@ -111,15 +111,18 @@ class SimpleAddBikeViewModelTest {
     }
 
     @Test
-    fun saveBike_emptyName_doesNotCallRepository() = runTest(testDispatcher) {
+    fun saveBike_emptyDisplayName_savesBikeAndSeedsComponents() = runTest(testDispatcher) {
+        val bikeSlot = slot<com.clintoncochrane.bikecompanion.data.bike.BikeEntity>()
+        coEvery { bikeRepository.insertBike(capture(bikeSlot)) } returns 7L
+        coEvery { componentRepository.seedComponentsForBikeType(any(), any(), any(), any()) } returns Unit
         val viewModel = SimpleAddBikeViewModel(bikeRepository, componentRepository)
 
-        viewModel.saveBike("", "1x", "disc_hydraulic")
         viewModel.saveBike("   ", "1x", "disc_hydraulic")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify(exactly = 0) { bikeRepository.insertBike(any()) }
-        coVerify(exactly = 0) { componentRepository.seedComponentsForBikeType(any(), any(), any(), any()) }
+        assertEquals("", bikeSlot.captured.name)
+        coVerify(exactly = 1) { bikeRepository.insertBike(any()) }
+        coVerify(exactly = 1) { componentRepository.seedComponentsForBikeType(7L, "1x", "disc_hydraulic", 0.0) }
     }
 
     @Test
