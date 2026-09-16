@@ -24,6 +24,7 @@ class ComponentRepositoryPriorUsageTest {
             componentSwapDao = mockk(),
             bikeDao = mockk<BikeDao>(),
             lifecycleTransaction = mockk(),
+            serviceHistoryDao = mockk(),
         )
     }
 

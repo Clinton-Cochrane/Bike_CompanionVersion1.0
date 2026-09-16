@@ -184,6 +184,20 @@
     <string name="garage_status_service_due">Service due</string>
     <string name="garage_status_components">Affected: %1$s</string>
     <string name="garage_status_affected_components">%1$s. Affected: %2$s</string>
+    <string name="garage_service_sheet_title">Service due</string>
+    <string name="garage_service_complete_selected">Complete selected</string>
+    <string name="garage_service_confirmation_title">Complete these services?</string>
+    <string name="garage_service_normal_confirmation">Restart this service interval.</string>
+    <string name="garage_service_replacement_confirmation">Move the current component to Garage and install a replacement at 0 km.</string>
+    <string name="garage_service_confirm">Confirm</string>
+    <string name="garage_service_could_not_complete">Could not complete:</string>
+    <string name="garage_service_try_again">Try again</string>
+    <string name="garage_service_requirement_description">%1$s — %2$s</string>
+    <string name="garage_service_bullet_requirement">• %1$s — %2$s</string>
+    <plurals name="garage_service_completed_count">
+        <item quantity="one">%d service completed</item>
+        <item quantity="other">%d services completed</item>
+    </plurals>
     <string name="garage_recent_rides">Recent rides</string>
     <string name="garage_recent_rides_empty">No rides recorded for this bike yet.</string>
     <string name="garage_filter_all">All</string>

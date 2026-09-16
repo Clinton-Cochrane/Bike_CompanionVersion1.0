@@ -36,6 +36,7 @@ class ComponentLifecycleRepositoryTest {
             database.componentSwapDao(),
             database.bikeDao(),
             ComponentLifecycleTransaction(database),
+            database.serviceHistoryDao(),
         )
         bikeAId = database.bikeDao().insert(BikeEntity(name = "Bike A", createdAt = 1L))
         bikeBId = database.bikeDao().insert(BikeEntity(name = "Bike B", createdAt = 1L))

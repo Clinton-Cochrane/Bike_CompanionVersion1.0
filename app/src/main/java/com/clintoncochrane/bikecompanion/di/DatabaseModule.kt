@@ -9,6 +9,7 @@ import com.clintoncochrane.bikecompanion.data.component.ComponentContextDao
 import com.clintoncochrane.bikecompanion.data.component.ComponentDao
 import com.clintoncochrane.bikecompanion.data.component.ComponentSwapDao
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalDao
+import com.clintoncochrane.bikecompanion.data.component.ServiceHistoryDao
 import com.clintoncochrane.bikecompanion.data.ride.RideDao
 import dagger.Module
 import dagger.Provides
@@ -57,4 +58,8 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideServiceIntervalDao(db: BikeCompanionDatabase): ServiceIntervalDao = db.serviceIntervalDao()
+
+    @Provides
+    @Singleton
+    fun provideServiceHistoryDao(db: BikeCompanionDatabase): ServiceHistoryDao = db.serviceHistoryDao()
 }

@@ -17,7 +17,13 @@ class ServiceIntervalRepositoryTest {
     @Before
     fun setUp() {
         serviceIntervalDao = mockk()
-        repository = ServiceIntervalRepository(serviceIntervalDao)
+        repository = ServiceIntervalRepository(
+            serviceIntervalDao,
+            mockk(),
+            mockk(),
+            mockk(),
+            mockk(),
+        )
     }
 
     @Test

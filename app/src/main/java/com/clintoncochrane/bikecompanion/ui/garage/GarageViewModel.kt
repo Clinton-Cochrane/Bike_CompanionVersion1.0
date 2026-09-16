@@ -9,6 +9,7 @@ import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
 import com.clintoncochrane.bikecompanion.data.component.ComponentSwapEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentSwapRepository
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalRepository
+import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalEntity
 import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesRepository
 import com.clintoncochrane.bikecompanion.data.ride.RideEntity
 import com.clintoncochrane.bikecompanion.data.ride.RideRepository
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import java.util.UUID
 
 /** Tab selection for the garage view. */
 enum class GarageTab {
@@ -55,6 +57,8 @@ data class GarageUiState(
     val bikesOverview: GarageBikesUiState = GarageBikesUiState(),
     /** State for the complete active, unassigned, and retired Parts directory. */
     val partsDirectory: PartsDirectoryUiState = PartsDirectoryUiState(),
+    /** Single bottom-sheet workflow for due-service checklist, confirmation, and retry. */
+    val serviceSheet: GarageServiceSheetState = GarageServiceSheetState(),
 )
 
 @HiltViewModel
@@ -65,6 +69,7 @@ class GarageViewModel @Inject constructor(
     private val serviceIntervalRepository: ServiceIntervalRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
     private val rideRepository: RideRepository,
+    private val serviceCompletionCoordinator: ServiceCompletionCoordinator,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GarageUiState())
@@ -72,6 +77,7 @@ class GarageViewModel @Inject constructor(
     private var rides: List<RideEntity> = emptyList()
     private var allComponents: List<ComponentEntity> = emptyList()
     private var componentSwaps: List<ComponentSwapEntity> = emptyList()
+    private var serviceIntervals: List<ServiceIntervalEntity> = emptyList()
 
     init {
         viewModelScope.launch {
@@ -119,6 +125,12 @@ class GarageViewModel @Inject constructor(
                         bikeHasAlert = computeBikeAlerts(sorted, bikes, threshold),
                     ).withBikesOverview()
                 }
+            }
+        }
+        viewModelScope.launch {
+            serviceIntervalRepository.getAllIntervals().collect { intervals ->
+                serviceIntervals = intervals
+                _uiState.update { it.withBikesOverview() }
             }
         }
         viewModelScope.launch {
@@ -195,8 +207,91 @@ class GarageViewModel @Inject constructor(
     fun selectBike(index: Int) {
         _uiState.update { state ->
             val selectedBikeId = state.bikes.getOrNull(index)?.id ?: return@update state
-            state.withBikesOverview(selectedBikeId)
+            state.copy(serviceSheet = state.serviceSheet.copy(isVisible = false))
+                .withBikesOverview(selectedBikeId)
         }
+    }
+
+    fun openServiceSheet() {
+        _uiState.update { state ->
+            val requirements = state.bikesOverview.dueServiceRequirements
+            if (requirements.isEmpty()) state
+            else state.copy(serviceSheet = GarageServiceSheetState.open(requirements))
+        }
+    }
+
+    fun dismissServiceSheet() {
+        _uiState.update { state ->
+            if (state.serviceSheet.isSubmitting) state
+            else state.copy(serviceSheet = state.serviceSheet.copy(isVisible = false))
+        }
+    }
+
+    fun toggleServiceRequirement(intervalId: Long) {
+        _uiState.update { state -> state.copy(serviceSheet = state.serviceSheet.toggle(intervalId)) }
+    }
+
+    fun showServiceConfirmation() {
+        _uiState.update { state -> state.copy(serviceSheet = state.serviceSheet.showConfirmation()) }
+    }
+
+    fun showServiceChecklist() {
+        _uiState.update { state -> state.copy(serviceSheet = state.serviceSheet.showChecklist()) }
+    }
+
+    fun completeSelectedServiceRequirements() {
+        val sheet = _uiState.value.serviceSheet
+        if (!sheet.canCompleteSelected || sheet.isSubmitting) return
+        val requirements = sheet.selectedRequirements
+        if (requirements.isEmpty()) return
+        val sessionId = sheet.sessionId ?: UUID.randomUUID().toString()
+        _uiState.update { state ->
+            state.copy(
+                serviceSheet = state.serviceSheet.copy(
+                    isSubmitting = true,
+                    sessionId = sessionId,
+                ),
+            )
+        }
+        viewModelScope.launch {
+            val result = serviceCompletionCoordinator.complete(requirements, sessionId)
+            serviceIntervals = serviceIntervalRepository.getAllIntervalsOnce()
+            val refreshedComponents = componentRepository.getNonRetiredComponentsOnce()
+            _uiState.update { state ->
+                val intervalsByComponentId = if (state.componentSortOrder == ComponentSortOrder.NEXT_SERVICE) {
+                    serviceIntervals.groupBy { it.componentId }
+                } else {
+                    emptyMap()
+                }
+                val refreshed = state.copy(
+                    garageComponents = sortComponents(
+                        refreshedComponents,
+                        state.componentSortOrder,
+                        intervalsByComponentId,
+                    ),
+                ).withBikesOverview()
+                if (result.failedIntervalIds.isEmpty()) {
+                    refreshed.copy(
+                        serviceSheet = refreshed.serviceSheet.copy(
+                            isVisible = false,
+                            isSubmitting = false,
+                            selectedIntervalIds = emptySet(),
+                        ),
+                    )
+                } else {
+                    refreshed.copy(
+                        serviceSheet = refreshed.serviceSheet.showResult(
+                            successfulIntervalIds = result.successfulIntervalIds,
+                            failedIntervalIds = result.failedIntervalIds,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    fun retryFailedServiceRequirements() {
+        completeSelectedServiceRequirements()
     }
 
     fun setComponentTypeFilter(type: String?) {
@@ -223,6 +318,7 @@ class GarageViewModel @Inject constructor(
                 rides = rides,
                 closeToServiceThreshold = closeToServiceThreshold,
                 selectedBikeId = selectedBikeId,
+                serviceIntervals = serviceIntervals,
             ),
         )
 

@@ -7,6 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.clintoncochrane.bikecompanion.data.BikeCompanionDatabase
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
+import com.clintoncochrane.bikecompanion.data.component.ComponentLifecycleTransaction
 import com.clintoncochrane.bikecompanion.data.component.SERVICE_INTERVAL_TYPE_INSPECTION
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalEntity
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalRepository
@@ -43,7 +44,13 @@ class ServiceIntervalResetBoundaryTest {
             ComponentAlertNotifier(ApplicationProvider.getApplicationContext(), database.componentDao()),
             RidePersistenceTransaction(database),
         )
-        serviceIntervalRepository = ServiceIntervalRepository(database.serviceIntervalDao())
+        serviceIntervalRepository = ServiceIntervalRepository(
+            database.serviceIntervalDao(),
+            database.serviceHistoryDao(),
+            database.componentDao(),
+            database.bikeDao(),
+            ComponentLifecycleTransaction(database),
+        )
         bikeAId = database.bikeDao().insert(BikeEntity(name = "Bike A", createdAt = 1L))
         bikeBId = database.bikeDao().insert(BikeEntity(name = "Bike B", createdAt = 1L))
         componentAId = addComponent(bikeAId, "Chain A")

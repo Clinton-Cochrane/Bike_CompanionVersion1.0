@@ -25,7 +25,13 @@ class ServiceIntervalRepositoryPersistenceTest {
     fun setUp() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         database = Room.inMemoryDatabaseBuilder(context, BikeCompanionDatabase::class.java).build()
-        repository = ServiceIntervalRepository(database.serviceIntervalDao())
+        repository = ServiceIntervalRepository(
+            database.serviceIntervalDao(),
+            database.serviceHistoryDao(),
+            database.componentDao(),
+            database.bikeDao(),
+            ComponentLifecycleTransaction(database),
+        )
 
         val bikeId = database.bikeDao().insert(
             BikeEntity(
@@ -109,5 +115,47 @@ class ServiceIntervalRepositoryPersistenceTest {
         assertEquals(2_000L, selectedAfter.lastCompletedAt)
         assertEquals(grease.copy(id = greaseId), intervalsAfter[greaseId])
         assertEquals(replacement.copy(id = replacementId), intervalsAfter[replacementId])
+    }
+
+    @Test
+    fun completeServiceRequirement_writesSnapshotAndIsIdempotentWithinSession() = runBlocking {
+        val selectedId = database.serviceIntervalDao().insert(
+            ServiceIntervalEntity(
+                componentId = componentId,
+                name = "Inspect bearings",
+                intervalKm = 1_000.0,
+                trackedKm = 1_000.0,
+                type = SERVICE_INTERVAL_TYPE_INSPECTION,
+                intervalTimeSeconds = 100_000L,
+                trackedTimeSeconds = 100_000L,
+            ),
+        )
+        val siblingId = database.serviceIntervalDao().insert(
+            ServiceIntervalEntity(
+                componentId = componentId,
+                name = "Grease bearings",
+                intervalKm = 2_000.0,
+                trackedKm = 1_500.0,
+                type = SERVICE_INTERVAL_TYPE_GREASE,
+            ),
+        )
+        val componentBefore = requireNotNull(database.componentDao().getComponentById(componentId))
+
+        assertTrue(repository.completeServiceRequirement(selectedId, "session-1", 5_000L))
+        assertTrue(repository.completeServiceRequirement(selectedId, "session-1", 9_000L))
+
+        val selected = requireNotNull(database.serviceIntervalDao().getIntervalById(selectedId))
+        val sibling = requireNotNull(database.serviceIntervalDao().getIntervalById(siblingId))
+        val history = database.serviceHistoryDao().getBySessionId("session-1")
+        assertEquals(0.0, selected.trackedKm, 0.0)
+        assertEquals(0L, selected.trackedTimeSeconds)
+        assertEquals(5_000L, selected.lastCompletedAt)
+        assertEquals(1_500.0, sibling.trackedKm, 0.0)
+        assertEquals(componentBefore, database.componentDao().getComponentById(componentId))
+        assertEquals(1, history.size)
+        assertEquals(selectedId, history.single().serviceIntervalId)
+        assertEquals(componentId, history.single().componentId)
+        assertEquals(9_000.0, history.single().bikeOdometerKm, 0.0)
+        assertEquals(5_000L, history.single().completedAt)
     }
 }

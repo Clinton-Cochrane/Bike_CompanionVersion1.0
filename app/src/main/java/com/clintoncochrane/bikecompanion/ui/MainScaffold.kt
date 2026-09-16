@@ -18,14 +18,17 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -96,11 +99,20 @@ fun MainScaffold(
         Screen.Stats to (Icons.Filled.StackedBarChart to R.string.nav_stats),
     )
     val isCountdown = currentDestination?.route == Screen.TripStartSplash.route
+    var bottomNavigationLiftPx by remember { mutableFloatStateOf(0f) }
+    val liftController = remember {
+        BottomNavigationLiftController { liftPx -> bottomNavigationLiftPx = liftPx }
+    }
 
-    androidx.compose.material3.Scaffold(
-        modifier = modifier,
-        bottomBar = {
-            if (!isCountdown) NavigationBar {
+    CompositionLocalProvider(LocalBottomNavigationLiftController provides liftController) {
+        androidx.compose.material3.Scaffold(
+            modifier = modifier,
+            bottomBar = {
+                if (!isCountdown) NavigationBar(
+                    modifier = Modifier.graphicsLayer {
+                        translationY = bottomNavigationTranslationY(bottomNavigationLiftPx)
+                    },
+                ) {
                 bottomNavItems.forEach { (screen, pair) ->
                     val (icon, labelRes) = pair
                     val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
@@ -125,18 +137,19 @@ fun MainScaffold(
                         ),
                     )
                 }
-            }
-        },
-    ) { paddingValues ->
-        BikeCompanionNavGraph(
-            navController = navController,
-            startDestination = resolvedStartDestination,
-            paddingValues = paddingValues,
-            onStartRide = {
-                val bikeId = com.clintoncochrane.bikecompanion.ui.trip.InitialRideAssignmentPolicy
-                    .initialBikeId(rideableBikes)
-                navController.navigate(Screen.TripStartSplash.withId(bikeId))
+                }
             },
-        )
+        ) { paddingValues ->
+            BikeCompanionNavGraph(
+                navController = navController,
+                startDestination = resolvedStartDestination,
+                paddingValues = paddingValues,
+                onStartRide = {
+                    val bikeId = com.clintoncochrane.bikecompanion.ui.trip.InitialRideAssignmentPolicy
+                        .initialBikeId(rideableBikes)
+                    navController.navigate(Screen.TripStartSplash.withId(bikeId))
+                },
+            )
+        }
     }
 }
