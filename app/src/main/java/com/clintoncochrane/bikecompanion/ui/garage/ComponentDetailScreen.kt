@@ -59,6 +59,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,6 +100,7 @@ import kotlinx.coroutines.launch
 fun ComponentDetailScreen(
     navController: NavController,
     backStackEntry: NavBackStackEntry,
+    openEditorOnLaunch: Boolean = false,
 ) {
     val viewModel: ComponentDetailViewModel = androidx.hilt.navigation.compose.hiltViewModel(
         viewModelStoreOwner = backStackEntry,
@@ -108,7 +110,7 @@ fun ComponentDetailScreen(
 
     var showContextEdit by remember { mutableStateOf(false) }
     var contextValidationError by remember { mutableStateOf<String?>(null) }
-    var showComponentEdit by remember { mutableStateOf(false) }
+    var showComponentEdit by rememberSaveable { mutableStateOf(openEditorOnLaunch) }
     var componentEditValidationError by remember { mutableStateOf<String?>(null) }
     var showInstallPicker by remember { mutableStateOf(false) }
     var showAddIntervalDialog by remember { mutableStateOf(false) }

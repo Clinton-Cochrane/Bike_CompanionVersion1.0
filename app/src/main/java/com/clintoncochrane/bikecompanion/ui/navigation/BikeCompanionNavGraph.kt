@@ -50,6 +50,9 @@ sealed class Screen(val route: String) {
     data object ComponentDetail : Screen("component_detail/{componentId}") {
         fun withId(id: Long) = "component_detail/$id"
     }
+    data object EditComponent : Screen("edit_component/{componentId}") {
+        fun withId(id: Long) = "edit_component/$id"
+    }
     data object ServiceList : Screen("service_list")
     data object WallOfHonor : Screen("wall_of_honor")
     data object Settings : Screen("settings")
@@ -108,6 +111,13 @@ fun BikeCompanionNavGraph(
         }
         composable(Screen.ComponentDetail.route) { backStackEntry ->
             ComponentDetailScreen(navController = navController, backStackEntry = backStackEntry)
+        }
+        composable(Screen.EditComponent.route) { backStackEntry ->
+            ComponentDetailScreen(
+                navController = navController,
+                backStackEntry = backStackEntry,
+                openEditorOnLaunch = true,
+            )
         }
         composable(Screen.ServiceList.route) {
             ServiceListScreen(navController = navController)
