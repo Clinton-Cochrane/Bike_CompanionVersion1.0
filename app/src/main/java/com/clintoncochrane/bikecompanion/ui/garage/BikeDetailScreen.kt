@@ -42,6 +42,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -86,6 +87,7 @@ import com.clintoncochrane.bikecompanion.data.component.DefaultComponentTypes
 import com.clintoncochrane.bikecompanion.data.component.DefaultComponentType
 import com.clintoncochrane.bikecompanion.util.ComponentSortOrder
 import com.clintoncochrane.bikecompanion.util.componentHealthPercent
+import com.clintoncochrane.bikecompanion.util.isComponentAlertActionable
 import com.clintoncochrane.bikecompanion.util.minimumComponentHealthPercent
 import com.clintoncochrane.bikecompanion.ui.garage.ThumbnailAvatar
 import com.clintoncochrane.bikecompanion.data.ride.RideEntity
@@ -110,7 +112,7 @@ fun BikeDetailScreen(
     var componentIdForInstallPicker by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentForRemoveDialog by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentForDeleteConfirm by remember { mutableStateOf<ComponentEntity?>(null) }
-    var componentContextMenuExpanded by remember { mutableStateOf<Long?>(null) }
+    var componentAlertMenuState by remember { mutableStateOf<ComponentAlertMenuState?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val viewModel: BikeDetailViewModel = androidx.hilt.navigation.compose.hiltViewModel(
@@ -120,6 +122,28 @@ fun BikeDetailScreen(
     val context = LocalContext.current
     val backContentDesc = stringResource(R.string.common_back_content_description)
     val editContentDesc = stringResource(R.string.common_edit)
+
+    fun closeComponentContextMenu(persistAlerts: Boolean = true) {
+        val menuState = componentAlertMenuState ?: return
+        if (persistAlerts && menuState.shouldPersist) {
+            uiState.components.firstOrNull { it.id == menuState.componentId }?.let { component ->
+                viewModel.setAlertsEnabled(component, menuState.pendingAlertsEnabled)
+            }
+        }
+        componentAlertMenuState = null
+    }
+
+    fun toggleComponentContextMenu(component: ComponentEntity) {
+        if (componentAlertMenuState?.componentId == component.id) {
+            closeComponentContextMenu()
+        } else {
+            closeComponentContextMenu()
+            componentAlertMenuState = ComponentAlertMenuState(
+                componentId = component.id,
+                initialAlertsEnabled = component.alertsEnabled,
+            )
+        }
+    }
 
     if (showAddComponentDialog) {
         AlertDialog(
@@ -558,11 +582,21 @@ fun BikeDetailScreen(
                                     }
                                 },
                                 currentBikeId = bike.id,
-                                componentContextMenuExpanded = componentContextMenuExpanded,
-                                onContextMenuClick = { id -> componentContextMenuExpanded = if (componentContextMenuExpanded == id) null else id },
+                                componentAlertMenuState = componentAlertMenuState,
+                                onContextMenuClick = ::toggleComponentContextMenu,
+                                onContextMenuDismiss = ::closeComponentContextMenu,
+                                onAlertsEnabledChange = { enabled ->
+                                    componentAlertMenuState = componentAlertMenuState?.copy(
+                                        pendingAlertsEnabled = enabled,
+                                    )
+                                },
                                 onMarkReplaced = { componentToReplace = it },
-                                onSnooze = { viewModel.snoozeComponent(it, 500.0) },
-                                onAlertsOff = viewModel::turnOffAlerts,
+                                onSnooze = { component, alertsEnabled ->
+                                    viewModel.snoozeComponent(
+                                        component.copy(alertsEnabled = alertsEnabled),
+                                        500.0,
+                                    )
+                                },
                                 onInstall = { componentIdForInstallPicker = it },
                                 onUninstall = viewModel::uninstallComponent,
                                 onViewDetails = { navController.navigate(Screen.ComponentDetail.withId(it.id)) },
@@ -599,11 +633,12 @@ private fun ComponentCategorySection(
     isExpanded: Boolean,
     onToggleExpanded: () -> Unit,
     currentBikeId: Long,
-    componentContextMenuExpanded: Long?,
-    onContextMenuClick: (Long) -> Unit,
+    componentAlertMenuState: ComponentAlertMenuState?,
+    onContextMenuClick: (ComponentEntity) -> Unit,
+    onContextMenuDismiss: (Boolean) -> Unit,
+    onAlertsEnabledChange: (Boolean) -> Unit,
     onMarkReplaced: (ComponentEntity) -> Unit,
-    onSnooze: (ComponentEntity) -> Unit,
-    onAlertsOff: (ComponentEntity) -> Unit,
+    onSnooze: (ComponentEntity, Boolean) -> Unit,
     onInstall: (ComponentEntity) -> Unit,
     onUninstall: (ComponentEntity) -> Unit,
     onViewDetails: (ComponentEntity) -> Unit,
@@ -672,19 +707,22 @@ private fun ComponentCategorySection(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     components.forEach { component ->
-                        val showContextMenu = componentContextMenuExpanded == component.id
+                        val menuState = componentAlertMenuState
+                            ?.takeIf { it.componentId == component.id }
                         ComponentHealthCard(
                             component = component,
                             currentBikeId = currentBikeId,
                             onMarkReplaced = { onMarkReplaced(component) },
-                            onSnooze = { onSnooze(component) },
-                            onAlertsOff = { onAlertsOff(component) },
+                            onSnooze = { alertsEnabled -> onSnooze(component, alertsEnabled) },
                             onInstall = { onInstall(component) },
                             onUninstall = { onUninstall(component) },
                             onViewDetails = { onViewDetails(component) },
                             onDelete = { onDelete(component) },
-                            contextMenuExpanded = showContextMenu,
-                            onContextMenuClick = { onContextMenuClick(component.id) },
+                            contextMenuExpanded = menuState != null,
+                            pendingAlertsEnabled = menuState?.pendingAlertsEnabled ?: component.alertsEnabled,
+                            onAlertsEnabledChange = onAlertsEnabledChange,
+                            onContextMenuClick = { onContextMenuClick(component) },
+                            onContextMenuDismiss = onContextMenuDismiss,
                         )
                     }
                 }
@@ -706,14 +744,16 @@ private fun ComponentHealthCard(
     component: ComponentEntity,
     currentBikeId: Long,
     onMarkReplaced: () -> Unit,
-    onSnooze: () -> Unit,
-    onAlertsOff: () -> Unit,
+    onSnooze: (Boolean) -> Unit,
     onInstall: () -> Unit,
     onUninstall: () -> Unit,
     onViewDetails: () -> Unit,
     onDelete: () -> Unit,
     contextMenuExpanded: Boolean,
+    pendingAlertsEnabled: Boolean,
+    onAlertsEnabledChange: (Boolean) -> Unit,
     onContextMenuClick: () -> Unit,
+    onContextMenuDismiss: (Boolean) -> Unit,
 ) {
     val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
     val isInGarage = component.bikeId == null
@@ -758,41 +798,51 @@ private fun ComponentHealthCard(
                         }
                         DropdownMenu(
                             expanded = contextMenuExpanded,
-                            onDismissRequest = onContextMenuClick,
+                            onDismissRequest = { onContextMenuDismiss(true) },
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.bike_component_replace)) },
                                 onClick = {
                                     onMarkReplaced()
-                                    onContextMenuClick()
+                                    onContextMenuDismiss(true)
                                 },
                             )
+                            if (isComponentAlertActionable(
+                                    component = component,
+                                    nowMillis = System.currentTimeMillis(),
+                                    alertsEnabled = pendingAlertsEnabled,
+                                )
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.bike_component_snooze)) },
+                                    onClick = {
+                                        onSnooze(pendingAlertsEnabled)
+                                        onContextMenuDismiss(false)
+                                    },
+                                )
+                            }
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.bike_component_snooze)) },
-                                onClick = {
-                                    onSnooze()
-                                    onContextMenuClick()
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.bike_component_alerts_off)) },
-                                onClick = {
-                                    onAlertsOff()
-                                    onContextMenuClick()
+                                text = { Text(stringResource(R.string.bike_component_alerts)) },
+                                onClick = { onAlertsEnabledChange(!pendingAlertsEnabled) },
+                                trailingIcon = {
+                                    Switch(
+                                        checked = pendingAlertsEnabled,
+                                        onCheckedChange = onAlertsEnabledChange,
+                                    )
                                 },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.component_edit)) },
                                 onClick = {
                                     onViewDetails()
-                                    onContextMenuClick()
+                                    onContextMenuDismiss(true)
                                 },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.component_delete)) },
                                 onClick = {
                                     onDelete()
-                                    onContextMenuClick()
+                                    onContextMenuDismiss(true)
                                 },
                             )
                         }

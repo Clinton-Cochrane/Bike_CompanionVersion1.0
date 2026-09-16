@@ -12,7 +12,7 @@ import com.clintoncochrane.bikecompanion.R
 import com.clintoncochrane.bikecompanion.data.component.ComponentDao
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.util.DisplayFormatHelper
-import com.clintoncochrane.bikecompanion.util.componentHealthPercent
+import com.clintoncochrane.bikecompanion.util.isComponentAlertActionable
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -74,10 +74,5 @@ class ComponentAlertNotifier @Inject constructor(
 }
 
 internal fun shouldNotifyForComponent(component: ComponentEntity, nowMillis: Long): Boolean {
-    if (!component.alertsEnabled) return false
-    if (component.alertSnoozeUntilKm?.let { component.lifetimeDistanceKm < it } == true) return false
-    if (component.alertSnoozeUntilTime?.let { nowMillis < it } == true) return false
-    return componentHealthPercent(component)?.let { health ->
-        health <= component.alertThresholdPercent
-    } == true
+    return isComponentAlertActionable(component, nowMillis)
 }
