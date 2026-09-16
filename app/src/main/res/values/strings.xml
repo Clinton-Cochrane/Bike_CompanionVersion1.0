@@ -283,6 +283,7 @@
     <string name="component_health_unavailable_short">Prior usage unknown</string>
     <string name="bike_component_total_time">Total ride time: %1$s</string>
     <string name="bike_component_replaced">Mark replaced</string>
+    <string name="bike_component_replace">Replace</string>
     <string name="component_replace_title">Replace component</string>
     <string name="component_replace_name">Replacement name</string>
     <string name="component_replace_make_model">Replacement make/model</string>
