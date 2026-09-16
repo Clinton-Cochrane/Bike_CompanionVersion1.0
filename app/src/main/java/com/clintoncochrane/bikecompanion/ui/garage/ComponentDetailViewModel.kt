@@ -114,15 +114,6 @@ class ComponentDetailViewModel @Inject constructor(
         }
     }
 
-    fun retireComponent() {
-        val component = _uiState.value.component ?: return
-        viewModelScope.launch {
-            componentRepository.retireComponent(component)
-            val refreshed = componentRepository.getComponentById(component.id)
-            _uiState.update { it.copy(component = refreshed, swapBikeCanInstall = emptyMap()) }
-        }
-    }
-
     fun saveComponentContext(payload: ComponentContext, onResult: (ComponentContextValidation) -> Unit) {
         viewModelScope.launch {
             val result = componentContextRepository.upsertComponentContext(componentId, payload)
@@ -168,10 +159,12 @@ class ComponentDetailViewModel @Inject constructor(
         }
     }
 
-    fun deleteComponent() {
+    fun deleteComponent(onDeleted: () -> Unit = {}) {
         val component = _uiState.value.component ?: return
         viewModelScope.launch {
             componentRepository.deleteComponent(component)
+            _uiState.update { it.copy(component = null, loading = false) }
+            onDeleted()
         }
     }
 

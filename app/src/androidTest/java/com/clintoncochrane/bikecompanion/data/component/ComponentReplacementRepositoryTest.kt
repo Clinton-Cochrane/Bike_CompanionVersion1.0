@@ -6,7 +6,6 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.clintoncochrane.bikecompanion.data.BikeCompanionDatabase
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
-import com.clintoncochrane.bikecompanion.data.image.ImageRepository
 import com.clintoncochrane.bikecompanion.data.ride.RideEntity
 import com.clintoncochrane.bikecompanion.data.ride.RidePersistenceTransaction
 import com.clintoncochrane.bikecompanion.data.ride.RideRepository
@@ -32,7 +31,7 @@ class ComponentReplacementRepositoryTest {
             database.componentSwapDao().insert(ComponentSwapEntity(componentId = oldId, bikeId = bikeId, installedAt = 1L))
             val repository = ComponentRepository(
                 database.componentDao(), database.serviceIntervalDao(), database.componentSwapDao(), database.bikeDao(),
-                ImageRepository(context.cacheDir.resolve("replacement-images")) { null }, ComponentLifecycleTransaction(database),
+                ComponentLifecycleTransaction(database),
             )
 
             val replacementId = repository.replaceComponent(
@@ -115,7 +114,6 @@ class ComponentReplacementRepositoryTest {
             )
             val repository = ComponentRepository(
                 database.componentDao(), database.serviceIntervalDao(), database.componentSwapDao(), database.bikeDao(),
-                ImageRepository(context.cacheDir.resolve("replacement-rollback-images")) { null },
                 ComponentLifecycleTransaction(database),
             )
 

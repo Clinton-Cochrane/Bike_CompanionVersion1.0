@@ -195,12 +195,6 @@ class BikeDetailViewModel @Inject constructor(
         }
     }
 
-    fun retireComponent(component: ComponentEntity) {
-        viewModelScope.launch {
-            componentRepository.retireComponent(component)
-        }
-    }
-
     fun deleteComponent(component: ComponentEntity) {
         viewModelScope.launch {
             componentRepository.deleteComponent(component)

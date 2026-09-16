@@ -108,7 +108,6 @@ fun BikeDetailScreen(
     var showAddComponentDialog by remember { mutableStateOf(false) }
     var componentToReplace by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentIdForInstallPicker by remember { mutableStateOf<ComponentEntity?>(null) }
-    var componentForRemoveDialog by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentForDeleteConfirm by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentAlertMenuState by remember { mutableStateOf<ComponentAlertMenuState?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -215,52 +214,6 @@ fun BikeDetailScreen(
         )
     }
 
-    val componentToRemove = componentForRemoveDialog
-    if (componentToRemove != null) {
-        val bikeId = componentToRemove.bikeId ?: uiState.bike?.id ?: 0L
-        AlertDialog(
-            onDismissRequest = { componentForRemoveDialog = null },
-            title = { Text(stringResource(R.string.component_remove_dialog_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(DisplayFormatHelper.formatForDisplay(componentToRemove.name))
-                    TextButton(
-                        onClick = {
-                            viewModel.retireComponent(componentToRemove)
-                            componentForRemoveDialog = null
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(R.string.component_retire), color = MaterialTheme.colorScheme.error)
-                    }
-                    TextButton(
-                        onClick = {
-                            viewModel.uninstallComponent(componentToRemove)
-                            componentForRemoveDialog = null
-                            scope.launch {
-                                val result = snackbarHostState.showSnackbar(
-                                    message = context.getString(R.string.component_moved_to_garage),
-                                    actionLabel = context.getString(R.string.common_undo),
-                                )
-                                if (result == SnackbarResult.ActionPerformed && bikeId > 0) {
-                                    viewModel.installComponent(componentToRemove, bikeId)
-                                }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(R.string.component_remove_move_to_garage))
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { componentForRemoveDialog = null }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
-        )
-    }
-
     val componentToDeleteConfirm = componentForDeleteConfirm
     if (componentToDeleteConfirm != null) {
         AlertDialog(
@@ -281,7 +234,7 @@ fun BikeDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { componentForDeleteConfirm = null }) {
-                    Text(stringResource(android.R.string.cancel))
+                    Text(stringResource(R.string.common_cancel))
                 }
             },
         )
@@ -546,10 +499,10 @@ fun BikeDetailScreen(
                                         viewModel.snoozeComponent(component.copy(alertsEnabled = alertsEnabled), 500.0)
                                     },
                                     onInstall = { componentIdForInstallPicker = component },
-                                    onUninstall = { viewModel.uninstallComponent(component) },
+                                    onMoveToGarage = { viewModel.uninstallComponent(component) },
                                     onViewDetails = { navController.navigate(Screen.ComponentDetail.withId(component.id)) },
                                     onEdit = { navController.navigate(Screen.EditComponent.withId(component.id)) },
-                                    onDelete = { componentForRemoveDialog = component },
+                                    onDelete = { componentForDeleteConfirm = component },
                                     contextMenuExpanded = componentAlertMenuState?.componentId == component.id,
                                     pendingAlertsEnabled = componentAlertMenuState?.pendingAlertsEnabled ?: component.alertsEnabled,
                                     onAlertsEnabledChange = { enabled ->
@@ -584,10 +537,10 @@ fun BikeDetailScreen(
                                         viewModel.snoozeComponent(component.copy(alertsEnabled = alertsEnabled), 500.0)
                                     },
                                     onInstall = { componentIdForInstallPicker = it },
-                                    onUninstall = viewModel::uninstallComponent,
+                                    onMoveToGarage = viewModel::uninstallComponent,
                                     onViewDetails = { navController.navigate(Screen.ComponentDetail.withId(it.id)) },
                                     onEdit = { navController.navigate(Screen.EditComponent.withId(it.id)) },
-                                    onDelete = { componentForRemoveDialog = it },
+                                    onDelete = { componentForDeleteConfirm = it },
                                 )
                             }
                         }
@@ -628,7 +581,7 @@ private fun ComponentCategorySection(
     onMarkReplaced: (ComponentEntity) -> Unit,
     onSnooze: (ComponentEntity, Boolean) -> Unit,
     onInstall: (ComponentEntity) -> Unit,
-    onUninstall: (ComponentEntity) -> Unit,
+    onMoveToGarage: (ComponentEntity) -> Unit,
     onViewDetails: (ComponentEntity) -> Unit,
     onEdit: (ComponentEntity) -> Unit,
     onDelete: (ComponentEntity) -> Unit,
@@ -704,7 +657,7 @@ private fun ComponentCategorySection(
                             onMarkReplaced = { onMarkReplaced(component) },
                             onSnooze = { alertsEnabled -> onSnooze(component, alertsEnabled) },
                             onInstall = { onInstall(component) },
-                            onUninstall = { onUninstall(component) },
+                            onMoveToGarage = { onMoveToGarage(component) },
                             onViewDetails = { onViewDetails(component) },
                             onEdit = { onEdit(component) },
                             onDelete = { onDelete(component) },
@@ -736,7 +689,7 @@ private fun ComponentHealthCard(
     onMarkReplaced: () -> Unit,
     onSnooze: (Boolean) -> Unit,
     onInstall: () -> Unit,
-    onUninstall: () -> Unit,
+    onMoveToGarage: () -> Unit,
     onViewDetails: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -747,8 +700,6 @@ private fun ComponentHealthCard(
     onContextMenuDismiss: (Boolean) -> Unit,
 ) {
     val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-    val isInGarage = component.bikeId == null
-    val isOnCurrentBike = component.bikeId == currentBikeId
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -792,6 +743,20 @@ private fun ComponentHealthCard(
                             onDismissRequest = { onContextMenuDismiss(true) },
                         ) {
                             DropdownMenuItem(
+                                text = { Text(stringResource(R.string.component_edit)) },
+                                onClick = {
+                                    onEdit()
+                                    onContextMenuDismiss(true)
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.component_move_to_garage)) },
+                                onClick = {
+                                    onMoveToGarage()
+                                    onContextMenuDismiss(true)
+                                },
+                            )
+                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.bike_component_replace)) },
                                 onClick = {
                                     onMarkReplaced()
@@ -823,14 +788,12 @@ private fun ComponentHealthCard(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.component_edit)) },
-                                onClick = {
-                                    onEdit()
-                                    onContextMenuDismiss(true)
+                                text = {
+                                    Text(
+                                        stringResource(R.string.component_delete),
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
                                 },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.component_delete)) },
                                 onClick = {
                                     onDelete()
                                     onContextMenuDismiss(true)

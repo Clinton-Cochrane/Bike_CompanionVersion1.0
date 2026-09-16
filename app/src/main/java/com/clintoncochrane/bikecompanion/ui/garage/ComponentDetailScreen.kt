@@ -116,7 +116,7 @@ fun ComponentDetailScreen(
     var showAddIntervalDialog by remember { mutableStateOf(false) }
     var intervalMenuExpanded by remember { mutableStateOf<Long?>(null) }
     var showUninstallConfirm by remember { mutableStateOf(false) }
-    var showRetireConfirm by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     var showSwapPicker by remember { mutableStateOf(false) }
     var intervalToEdit by remember { mutableStateOf<ServiceIntervalEntity?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -225,24 +225,31 @@ fun ComponentDetailScreen(
         )
     }
 
-    val componentForRetirement = uiState.component
-    if (showRetireConfirm && componentForRetirement != null) {
+    val componentForDelete = uiState.component
+    if (showDeleteConfirm && componentForDelete != null) {
         androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showRetireConfirm = false },
-            title = { Text(stringResource(R.string.component_retire_confirm_title)) },
-            text = { Text(stringResource(R.string.component_retire_confirm_message)) },
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text(stringResource(R.string.component_delete_confirm_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.component_delete_confirm_message,
+                        DisplayFormatHelper.formatForDisplay(componentForDelete.name),
+                    ),
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.retireComponent()
-                        showRetireConfirm = false
+                        viewModel.deleteComponent { navController.navigateUp() }
+                        showDeleteConfirm = false
                     },
                 ) {
-                    Text(stringResource(R.string.component_retire), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showRetireConfirm = false }) {
+                TextButton(onClick = { showDeleteConfirm = false }) {
                     Text(stringResource(R.string.common_cancel))
                 }
             },
@@ -465,12 +472,15 @@ fun ComponentDetailScreen(
                                     stringResource(R.string.component_retired),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                OutlinedButton(onClick = { showDeleteConfirm = true }) {
+                                    Text(stringResource(R.string.component_delete), color = MaterialTheme.colorScheme.error)
+                                }
                             } else if (component.bikeId == null) {
                                 OutlinedButton(onClick = { showInstallPicker = true }) {
                                     Text(stringResource(R.string.component_install))
                                 }
-                                OutlinedButton(onClick = { showRetireConfirm = true }) {
-                                    Text(stringResource(R.string.component_retire))
+                                OutlinedButton(onClick = { showDeleteConfirm = true }) {
+                                    Text(stringResource(R.string.component_delete), color = MaterialTheme.colorScheme.error)
                                 }
                             } else {
                                 if (uiState.bikes.size > 1) {
@@ -479,10 +489,10 @@ fun ComponentDetailScreen(
                                     }
                                 }
                                 OutlinedButton(onClick = { showUninstallConfirm = true }) {
-                                    Text(stringResource(R.string.component_uninstall))
+                                    Text(stringResource(R.string.component_move_to_garage))
                                 }
-                                OutlinedButton(onClick = { showRetireConfirm = true }) {
-                                    Text(stringResource(R.string.component_retire))
+                                OutlinedButton(onClick = { showDeleteConfirm = true }) {
+                                    Text(stringResource(R.string.component_delete), color = MaterialTheme.colorScheme.error)
                                 }
                             }
                         }
