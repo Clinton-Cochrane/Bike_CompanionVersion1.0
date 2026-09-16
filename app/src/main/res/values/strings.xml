@@ -265,6 +265,7 @@
 
     <!-- Bike detail / edit -->
     <string name="bike_name">Name</string>
+    <string name="bike_display_name">Display name (optional)</string>
     <string name="bike_make">Make</string>
     <string name="bike_model">Model</string>
     <string name="bike_year">Year</string>
@@ -382,6 +383,8 @@
     <string name="component_edit_title_format">Edit %1$s</string>
     <string name="component_edit_display_name">Display name</string>
     <string name="component_edit_display_name_hint">e.g. Chain 1</string>
+    <string name="component_make">Make (optional)</string>
+    <string name="component_model">Model (optional)</string>
     <string name="component_edit_mileage">Bike Companion tracked mileage (km)</string>
     <string name="component_edit_mileage_hint">0</string>
     <string name="component_edit_time">Total ride time</string>

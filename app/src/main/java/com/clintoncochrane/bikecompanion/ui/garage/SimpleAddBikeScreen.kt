@@ -99,7 +99,7 @@ fun SimpleAddBikeScreen(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text(stringResource(R.string.bike_name)) },
+                label = { Text(stringResource(R.string.bike_display_name)) },
                 modifier = Modifier.fillMaxWidth(),
             )
             val startingOdometerKm = parseStartingOdometerKm(startingOdometerInput)
@@ -180,7 +180,7 @@ fun SimpleAddBikeScreen(
                     viewModel.saveBike(name, drivetrainType, brakeType, startingOdometerInput)
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = name.trim().isNotEmpty() && startingOdometerKm != null,
+                enabled = startingOdometerKm != null,
             ) {
                 Text(stringResource(R.string.bike_save))
             }

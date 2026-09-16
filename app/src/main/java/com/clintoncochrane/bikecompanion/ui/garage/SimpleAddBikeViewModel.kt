@@ -35,7 +35,7 @@ class SimpleAddBikeViewModel @Inject constructor(
     ) {
         val trimmedName = name.trim()
         val startingOdometerKm = parseStartingOdometerKm(startingOdometerInput)
-        if (trimmedName.isEmpty() || startingOdometerKm == null) return
+        if (startingOdometerKm == null) return
         viewModelScope.launch {
             val bike = BikeEntity(
                 name = trimmedName,

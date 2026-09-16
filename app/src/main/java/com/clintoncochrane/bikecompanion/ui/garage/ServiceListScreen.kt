@@ -144,7 +144,9 @@ fun ServiceListScreen(
                         val typeSummary = uiState.componentTypeFilter?.let { DisplayFormatHelper.formatComponentTypeForDisplay(it) }
                             ?: stringResource(R.string.service_list_filter_all)
                         val bikeSummary = uiState.bikeFilterId?.let { id ->
-                            uiState.bikes.find { it.id == id }?.name
+                            uiState.bikes.find { it.id == id }?.let {
+                                DisplayFormatHelper.bikeLabels(it.name, it.make, it.model).primary
+                            }
                         } ?: stringResource(R.string.garage_filter_bike_all)
                         val sortSummary = when (uiState.sortOrder) {
                             ComponentSortOrder.TYPE_AZ -> stringResource(R.string.component_sort_type_az)
@@ -217,7 +219,7 @@ fun ServiceListScreen(
                                 FilterChip(
                                     selected = uiState.bikeFilterId == bike.id,
                                     onClick = { viewModel.setBikeFilter(bike.id); filterMenuExpanded = false },
-                                    label = { Text(bike.name) },
+                                    label = { Text(DisplayFormatHelper.bikeLabels(bike.name, bike.make, bike.model).primary) },
                                 )
                             }
                         }
@@ -370,7 +372,9 @@ private fun ServiceListRow(
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = DisplayFormatHelper.formatForDisplay(item.component.name),
+                    text = DisplayFormatHelper.componentLabels(
+                        item.component.name, item.component.make, item.component.model, item.component.type,
+                    ).primary,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )

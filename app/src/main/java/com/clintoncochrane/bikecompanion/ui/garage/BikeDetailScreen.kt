@@ -200,7 +200,7 @@ fun BikeDetailScreen(
                                 onClick = { viewModel.installComponent(component, bike.id) },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                Text(bike.name)
+                                Text(DisplayFormatHelper.bikeLabels(bike.name, bike.make, bike.model).primary)
                             }
                         }
                     } else {
@@ -291,7 +291,7 @@ fun BikeDetailScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(uiState.bike?.name ?: stringResource(R.string.garage_title)) },
+                title = { Text(uiState.bike?.let { DisplayFormatHelper.bikeLabels(it.name, it.make, it.model).primary } ?: stringResource(R.string.garage_title)) },
                 navigationIcon = {
                     IconButton(
                         onClick = { navController.navigateUp() },
@@ -361,14 +361,14 @@ fun BikeDetailScreen(
                                 size = 48.dp,
                                 placeholder = {
                                     Text(
-                                        text = "${bike.name.firstOrNull()?.uppercaseChar() ?: "?"}",
+                                        text = "${DisplayFormatHelper.bikeLabels(bike.name, bike.make, bike.model).primary.firstOrNull()?.uppercaseChar() ?: "?"}",
                                         style = MaterialTheme.typography.titleLarge,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 },
                             )
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(bike.name, style = MaterialTheme.typography.titleLarge)
+                                Text(DisplayFormatHelper.bikeLabels(bike.name, bike.make, bike.model).primary, style = MaterialTheme.typography.titleLarge)
                                 if (bike.make.isNotEmpty() || bike.model.isNotEmpty() || bike.year.isNotEmpty()) {
                                     Text(
                                         listOf(bike.make, bike.model, bike.year).filter { it.isNotEmpty() }.joinToString(" "),
@@ -744,7 +744,7 @@ private fun ComponentHealthCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = DisplayFormatHelper.formatForDisplay(component.name),
+                        text = DisplayFormatHelper.componentLabels(component.name, component.make, component.model, component.type).primary,
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.weight(1f),
                     )
@@ -798,9 +798,10 @@ private fun ComponentHealthCard(
                         }
                     }
                 }
-                if (component.makeModel.isNotEmpty()) {
+                val labels = DisplayFormatHelper.componentLabels(component.name, component.make, component.model, component.type)
+                if (labels.secondary != null) {
                     Text(
-                        text = stringResource(R.string.bike_component_make_model, component.makeModel),
+                        text = labels.secondary,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -823,7 +824,8 @@ fun ReplacementComponentDialog(
     onReplace: (ComponentEntity) -> Unit,
 ) {
     var name by remember { mutableStateOf(component.name) }
-    var makeModel by remember { mutableStateOf(component.makeModel) }
+    var make by remember { mutableStateOf(component.make) }
+    var model by remember { mutableStateOf(component.model) }
     var lifespanKmText by remember { mutableStateOf(component.lifespanKm.toString()) }
     var certainty by remember { mutableStateOf(PriorUsageCertainty.UNKNOWN) }
     var baselineKmText by remember { mutableStateOf("0") }
@@ -842,9 +844,16 @@ fun ReplacementComponentDialog(
                     singleLine = true,
                 )
                 OutlinedTextField(
-                    value = makeModel,
-                    onValueChange = { makeModel = it },
-                    label = { Text(stringResource(R.string.component_replace_make_model)) },
+                    value = make,
+                    onValueChange = { make = it },
+                    label = { Text(stringResource(R.string.component_make)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = model,
+                    onValueChange = { model = it },
+                    label = { Text(stringResource(R.string.component_model)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
@@ -872,7 +881,7 @@ fun ReplacementComponentDialog(
             TextButton(onClick = {
                 val lifespanKm = lifespanKmText.toDoubleOrNull()
                 val baselineKm = if (certainty == PriorUsageCertainty.UNKNOWN) 0.0 else baselineKmText.toDoubleOrNull()
-                if (name.isBlank() || lifespanKm == null || !lifespanKm.isFinite() || lifespanKm < 0 ||
+                if (lifespanKm == null || !lifespanKm.isFinite() || lifespanKm < 0 ||
                     baselineKm == null || !baselineKm.isFinite() || baselineKm < 0
                 ) {
                     validationError = true
@@ -882,7 +891,8 @@ fun ReplacementComponentDialog(
                             bikeId = component.bikeId,
                             type = component.type,
                             name = name.trim(),
-                            makeModel = makeModel.trim(),
+                            make = make.trim(),
+                            model = model.trim(),
                             lifespanKm = lifespanKm,
                             position = component.position,
                             baselineKm = baselineKm,

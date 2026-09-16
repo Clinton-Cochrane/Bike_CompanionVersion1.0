@@ -4,6 +4,7 @@ import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.ride.RideEntity
 import com.clintoncochrane.bikecompanion.util.componentHealthPercent
+import com.clintoncochrane.bikecompanion.util.DisplayFormatHelper
 
 private const val RECENT_RIDES_LIMIT = 5
 
@@ -71,14 +72,18 @@ object GarageBikesPresenter {
         val knownHealth = components.mapNotNull { component ->
             componentHealthPercent(component)?.let { health -> component to health }
         }
-        val dueComponents = knownHealth.filter { (_, health) -> health == 0 }.map { (component, _) -> component.name }
+        val dueComponents = knownHealth.filter { (_, health) -> health == 0 }.map { (component, _) ->
+            DisplayFormatHelper.componentLabels(component.name, component.make, component.model, component.type).primary
+        }
         if (dueComponents.isNotEmpty()) {
             return GarageBikeStatusSummary(GarageBikeStatus.ServiceDue, dueComponents)
         }
 
         val inspectComponents = knownHealth
             .filter { (_, health) -> health <= closeToServiceThreshold }
-            .map { (component, _) -> component.name }
+            .map { (component, _) ->
+                DisplayFormatHelper.componentLabels(component.name, component.make, component.model, component.type).primary
+            }
         return if (inspectComponents.isNotEmpty()) {
             GarageBikeStatusSummary(GarageBikeStatus.InspectSoon, inspectComponents)
         } else {

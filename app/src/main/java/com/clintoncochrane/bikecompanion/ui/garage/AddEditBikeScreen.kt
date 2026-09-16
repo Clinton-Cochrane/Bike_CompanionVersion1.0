@@ -185,7 +185,7 @@ fun AddEditBikeScreen(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text(stringResource(R.string.bike_name)) },
+                label = { Text(stringResource(R.string.bike_display_name)) },
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
@@ -309,7 +309,7 @@ fun AddEditBikeScreen(
                     viewModel.saveBike(bike, startingOdometerInput)
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = name.trim().isNotEmpty() && startingOdometerKm != null,
+                enabled = startingOdometerKm != null,
             ) {
                 Text(stringResource(R.string.bike_save))
             }
