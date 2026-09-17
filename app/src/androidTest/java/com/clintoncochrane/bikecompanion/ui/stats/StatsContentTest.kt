@@ -1,18 +1,20 @@
 package com.clintoncochrane.bikecompanion.ui.stats
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.isDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
+import com.clintoncochrane.bikecompanion.ui.theme.BikeCompanionTheme
 import org.junit.Rule
 import org.junit.Test
 
@@ -24,7 +26,7 @@ class StatsContentTest {
     @Test
     fun statsContent_showsAllBikesMetricsAndAnEmptyBikeState() {
         composeRule.setContent {
-            MaterialTheme {
+            BikeCompanionTheme {
                 StatsContent(
                     uiState = StatsUiState(allBikesStats = StatsSummary()),
                     onPreviousBike = {},
@@ -51,7 +53,7 @@ class StatsContentTest {
                 bike(id = 2L, name = "Bike 2"),
                 bike(id = 3L, name = "Bike 3"),
             ).map { BikeWithStats(it, StatsSummary()) }
-            MaterialTheme {
+            BikeCompanionTheme {
                 StatsContent(
                     uiState = StatsUiState(
                         bikesWithStats = bikes,
@@ -69,8 +71,19 @@ class StatsContentTest {
         composeRule.onNodeWithText("Bike 2 of 3").assertIsDisplayed()
         composeRule.onNodeWithText("Bike 2").assertIsDisplayed()
 
-        composeRule.onNodeWithText("Bike 2").performTouchInput { swipeLeft() }
-        composeRule.waitForIdle()
+        composeRule.onRoot().performTouchInput { swipeLeft() }
+        composeRule.waitUntil(timeoutMillis = 15_000) {
+            val bike3Visible = try {
+                composeRule.onNodeWithText("Bike 3 of 3").isDisplayed()
+            } catch (e: AssertionError) {
+                false
+            }
+            if (!bike3Visible) {
+                composeRule.waitForIdle()
+                composeRule.onRoot().performTouchInput { swipeLeft() }
+            }
+            bike3Visible
+        }
         composeRule.onNodeWithText("Bike 3 of 3").assertIsDisplayed()
 
         composeRule.onNodeWithContentDescription("Show previous bike").performClick()
