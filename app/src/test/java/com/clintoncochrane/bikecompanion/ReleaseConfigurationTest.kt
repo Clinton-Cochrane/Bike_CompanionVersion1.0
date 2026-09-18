@@ -31,9 +31,15 @@ class ReleaseConfigurationTest {
 
         assertTrue(appBuild.contains("BIKE_COMPANION_VERSION_CODE"))
         assertTrue(appBuild.contains("BIKE_COMPANION_VERSION_NAME"))
-        assertTrue(gradleProperties.contains("BIKE_COMPANION_VERSION_CODE=1"))
-        assertTrue(gradleProperties.contains("BIKE_COMPANION_VERSION_NAME=2.0.0"))
-        assertFalse(appBuild.contains("versionName = \"2.0.0\""))
+        assertTrue(
+            Regex("""(?m)^BIKE_COMPANION_VERSION_CODE=[1-9]\d*$""")
+                .containsMatchIn(gradleProperties),
+        )
+        assertTrue(
+            Regex("""(?m)^BIKE_COMPANION_VERSION_NAME=\d+\.\d+\.\d+$""")
+                .containsMatchIn(gradleProperties),
+        )
+        assertFalse(appBuild.contains("versionName = \""))
     }
 
     @Test
