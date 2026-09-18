@@ -62,6 +62,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -94,6 +95,9 @@ fun GarageScreen(
     val viewModel = androidx.hilt.navigation.compose.hiltViewModel<GarageViewModel>()
     val uiState by viewModel.uiState.collectAsState()
     val bottomNavigationLiftController = LocalBottomNavigationLiftController.current
+    val navigationBarClearance = with(LocalDensity.current) {
+        bottomNavigationLiftController.navigationBarHeightPx.toDp()
+    }
     var showAddComponentDialog by remember { mutableStateOf(false) }
 
     val fabContentDesc = when (uiState.selectedTab) {
@@ -227,6 +231,7 @@ fun GarageScreen(
             onConfirm = viewModel::completeSelectedServiceRequirements,
             onRetry = viewModel::retryFailedServiceRequirements,
             onLiftChanged = bottomNavigationLiftController.onLiftChanged,
+            navigationBarClearance = navigationBarClearance,
         )
     }
 }

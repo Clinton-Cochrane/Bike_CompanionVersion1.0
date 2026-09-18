@@ -14,6 +14,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -91,6 +92,76 @@ class GarageServiceSheetTest {
     }
 
     @Test
+    fun sheetContent_startsBelowElevatedBottomNavigationForEveryStep() {
+        val requirement = DueServiceRequirement(1L, 10L, "Inspect", "inspection", "Chain")
+        val navigationBarClearance = 80.dp
+        var state by mutableStateOf(GarageServiceSheetState.open(listOf(requirement)))
+        composeRule.setContent {
+            MaterialTheme {
+                GarageServiceSheetHost(
+                    state = state,
+                    onDismiss = {},
+                    onToggle = {},
+                    onShowConfirmation = {},
+                    onShowChecklist = {},
+                    onConfirm = {},
+                    onRetry = {},
+                    onLiftChanged = {},
+                    navigationBarClearance = navigationBarClearance,
+                )
+            }
+        }
+
+        assertContentClearsNavigation("Service due", navigationBarClearance)
+
+        composeRule.runOnIdle {
+            state = state.copy(
+                step = GarageServiceSheetStep.CONFIRMATION,
+                selectedIntervalIds = setOf(requirement.intervalId),
+            )
+        }
+        assertContentClearsNavigation("Complete these services?", navigationBarClearance)
+
+        composeRule.runOnIdle {
+            state = state.showResult(
+                successfulIntervalIds = emptySet(),
+                failedIntervalIds = setOf(requirement.intervalId),
+            )
+        }
+        assertContentClearsNavigation("0 services completed", navigationBarClearance)
+    }
+
+    @Test
+    fun completeSelectedButton_isFullyVisibleWhenSheetFirstOpens() {
+        val requirement = DueServiceRequirement(1L, 10L, "Inspect", "inspection", "Chain")
+        val navigationBarClearance = 80.dp
+        composeRule.setContent {
+            MaterialTheme {
+                GarageServiceSheetHost(
+                    state = GarageServiceSheetState.open(listOf(requirement)),
+                    onDismiss = {},
+                    onToggle = {},
+                    onShowConfirmation = {},
+                    onShowChecklist = {},
+                    onConfirm = {},
+                    onRetry = {},
+                    onLiftChanged = {},
+                    navigationBarClearance = navigationBarClearance,
+                )
+            }
+        }
+
+        val sheetBounds = composeRule.onNodeWithTag(GARAGE_SERVICE_SHEET_TAG)
+            .getUnclippedBoundsInRoot()
+        val buttonBounds = composeRule.onNodeWithText("Complete selected")
+            .assertIsDisplayed()
+            .getUnclippedBoundsInRoot()
+
+        assertTrue(buttonBounds.top - sheetBounds.top >= navigationBarClearance)
+        assertTrue(buttonBounds.bottom <= sheetBounds.bottom)
+    }
+
+    @Test
     fun swipeDown_dismissesSheet() {
         val requirement = DueServiceRequirement(1L, 10L, "Inspect", "inspection", "Chain")
         var state by mutableStateOf(GarageServiceSheetState.open(listOf(requirement)))
@@ -112,5 +183,16 @@ class GarageServiceSheetTest {
         composeRule.onNodeWithTag(GARAGE_SERVICE_SHEET_TAG).performTouchInput { swipeDown() }
 
         composeRule.runOnIdle { assertFalse(state.isVisible) }
+    }
+
+    private fun assertContentClearsNavigation(text: String, navigationBarClearance: Dp) {
+        val sheetTop = composeRule.onNodeWithTag(GARAGE_SERVICE_SHEET_TAG)
+            .getUnclippedBoundsInRoot()
+            .top
+        val contentTop = composeRule.onNodeWithText(text)
+            .getUnclippedBoundsInRoot()
+            .top
+
+        assertTrue(contentTop - sheetTop >= navigationBarClearance)
     }
 }

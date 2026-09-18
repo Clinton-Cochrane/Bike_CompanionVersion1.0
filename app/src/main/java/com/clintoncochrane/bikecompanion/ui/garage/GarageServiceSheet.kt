@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import com.clintoncochrane.bikecompanion.R
@@ -68,6 +69,7 @@ internal fun GarageServiceSheetHost(
     onConfirm: () -> Unit,
     onRetry: () -> Unit,
     onLiftChanged: (Float) -> Unit,
+    navigationBarClearance: Dp = 0.dp,
 ) {
     var sheetHeightPx by remember { mutableIntStateOf(0) }
     val swipeDismissThresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
@@ -146,7 +148,12 @@ internal fun GarageServiceSheetHost(
                 Column(
                     modifier = Modifier
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 24.dp, vertical = 20.dp),
+                        .padding(
+                            start = 24.dp,
+                            top = navigationBarClearance + 20.dp,
+                            end = 24.dp,
+                            bottom = 20.dp,
+                        ),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     when (state.step) {
