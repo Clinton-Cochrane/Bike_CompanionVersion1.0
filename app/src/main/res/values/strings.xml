@@ -285,6 +285,7 @@
     <string name="bike_model">Model</string>
     <string name="bike_year">Year</string>
     <string name="bike_starting_odometer">Starting odometer (km)</string>
+    <string name="bike_starting_odometer_placeholder">0</string>
     <string name="bike_starting_odometer_help">Distance already on this bike before Bike Companion tracking.</string>
     <string name="bike_starting_odometer_invalid">Enter a number that is 0 or greater.</string>
     <string name="bike_description">Description</string>

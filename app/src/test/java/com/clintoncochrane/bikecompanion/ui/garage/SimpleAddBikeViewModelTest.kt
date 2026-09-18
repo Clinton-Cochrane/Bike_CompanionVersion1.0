@@ -87,6 +87,20 @@ class SimpleAddBikeViewModelTest {
     }
 
     @Test
+    fun saveBike_blankStartingOdometer_createsBikeAtZero() = runTest(testDispatcher) {
+        val bikeSlot = slot<com.clintoncochrane.bikecompanion.data.bike.BikeEntity>()
+        coEvery { bikeRepository.insertBike(capture(bikeSlot)) } returns 1L
+        coEvery { componentRepository.seedComponentsForBikeType(any(), any(), any(), any()) } returns Unit
+        val viewModel = SimpleAddBikeViewModel(bikeRepository, componentRepository)
+
+        viewModel.saveBike("New bike", "1x", "rim", "")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(0.0, bikeSlot.captured.baselineDistanceKm, 0.0)
+        assertEquals(0.0, bikeSlot.captured.totalDistanceKm, 0.0)
+    }
+
+    @Test
     fun saveBike_singleSpeed_callsSeedWithSingleSpeedAndRim() = runTest(testDispatcher) {
         coEvery { bikeRepository.insertBike(any()) } returns 1L
         coEvery { componentRepository.seedComponentsForBikeType(any(), any(), any(), any()) } returns Unit

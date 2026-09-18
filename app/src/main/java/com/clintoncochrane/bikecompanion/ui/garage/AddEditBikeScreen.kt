@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -44,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
@@ -135,7 +133,7 @@ fun AddEditBikeScreen(
     var notes by remember { mutableStateOf("") }
     var drivetrainType by remember { mutableStateOf("") }
     var brakeType by remember { mutableStateOf("") }
-    var startingOdometerInput by remember { mutableStateOf("0") }
+    var startingOdometerInput by remember { mutableStateOf(INITIAL_STARTING_ODOMETER_INPUT) }
     LaunchedEffect(uiState.bike) {
         uiState.bike?.let { b ->
             name = b.name
@@ -207,21 +205,9 @@ fun AddEditBikeScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             val startingOdometerKm = parseStartingOdometerKm(startingOdometerInput)
-            OutlinedTextField(
+            StartingOdometerField(
                 value = startingOdometerInput,
                 onValueChange = { startingOdometerInput = it },
-                label = { Text(stringResource(R.string.bike_starting_odometer)) },
-                supportingText = {
-                    Text(
-                        stringResource(
-                            if (startingOdometerKm == null) R.string.bike_starting_odometer_invalid
-                            else R.string.bike_starting_odometer_help,
-                        ),
-                    )
-                },
-                isError = startingOdometerKm == null,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
