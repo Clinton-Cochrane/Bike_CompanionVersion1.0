@@ -129,20 +129,6 @@ object GarageBikesPresenter {
                 .minOfOrNull(ServiceIntervalHelper::healthPercent)
             listOfNotNull(componentHealth, intervalHealth).minOrNull()?.let { health -> component to health }
         }
-        val dueComponents = knownHealth
-            .filter { (_, health) -> health == 0 }
-            .map { (component, _) ->
-                DisplayFormatHelper.componentLabels(
-                    component.name,
-                    component.make,
-                    component.model,
-                    component.type,
-                ).primary
-            }
-        if (dueComponents.isNotEmpty()) {
-            return GarageBikeStatusSummary(GarageBikeStatus.ServiceDue, dueComponents)
-        }
-
         val inspectComponents = knownHealth
             .filter { (_, health) -> health <= closeToServiceThreshold }
             .map { (component, _) ->
