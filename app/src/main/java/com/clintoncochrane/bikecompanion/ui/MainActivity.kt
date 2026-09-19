@@ -1,4 +1,4 @@
-package com.clintoncochrane.bikecompanion.ui
+codpackage com.clintoncochrane.bikecompanion.ui
 
 import android.content.Intent
 import android.os.Bundle
