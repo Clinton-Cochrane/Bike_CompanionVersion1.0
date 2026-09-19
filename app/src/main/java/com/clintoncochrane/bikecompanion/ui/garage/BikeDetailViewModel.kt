@@ -4,7 +4,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
+import com.clintoncochrane.bikecompanion.data.bike.BikeMileageCorrectionRepository
 import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
+import com.clintoncochrane.bikecompanion.data.bike.MileageCorrectionResult
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalRepository
@@ -38,6 +40,8 @@ data class BikeDetailUiState(
     val hasNextServiceItems: Boolean = false,
     val loading: Boolean = true,
     val installOutcome: BikeDetailViewModel.InstallOutcome? = null,
+    val mileageCorrectionInProgress: Boolean = false,
+    val mileageCorrectionResult: MileageCorrectionResult? = null,
     /** Ride IDs whose review flags have been dismissed. */
     val dismissedRideFlagIds: Set<Long> = emptySet(),
 )
@@ -50,6 +54,7 @@ class BikeDetailViewModel @Inject constructor(
     private val componentRepository: ComponentRepository,
     private val serviceIntervalRepository: ServiceIntervalRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
+    private val mileageCorrectionRepository: BikeMileageCorrectionRepository,
 ) : ViewModel() {
 
     private val bikeId: Long = savedStateHandle.get<String>("bikeId")?.toLongOrNull() ?: 0L
@@ -131,6 +136,39 @@ class BikeDetailViewModel @Inject constructor(
                 request.toEntity(bikeId = bikeId, installedAt = System.currentTimeMillis()),
             )
         }
+    }
+
+    fun correctMileage(correctedMileageKm: Double, selectedComponentIds: Set<Long>) {
+        if (bikeId <= 0 || _uiState.value.mileageCorrectionInProgress) return
+        _uiState.update {
+            it.copy(
+                mileageCorrectionInProgress = true,
+                mileageCorrectionResult = null,
+            )
+        }
+        viewModelScope.launch {
+            val result = mileageCorrectionRepository.correctMileage(
+                bikeId = bikeId,
+                correctedMileageKm = correctedMileageKm,
+                selectedComponentIds = selectedComponentIds,
+            )
+            val correctedBike = if (result == MileageCorrectionResult.APPLIED) {
+                bikeRepository.getBikeById(bikeId)
+            } else {
+                null
+            }
+            _uiState.update { state ->
+                state.copy(
+                    bike = correctedBike ?: state.bike,
+                    mileageCorrectionInProgress = false,
+                    mileageCorrectionResult = result,
+                )
+            }
+        }
+    }
+
+    fun clearMileageCorrectionResult() {
+        _uiState.update { it.copy(mileageCorrectionResult = null) }
     }
 
     fun replaceComponent(component: ComponentEntity, replacement: ComponentEntity) {

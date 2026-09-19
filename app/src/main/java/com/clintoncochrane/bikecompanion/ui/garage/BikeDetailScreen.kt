@@ -74,6 +74,7 @@ import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import com.clintoncochrane.bikecompanion.R
 import com.clintoncochrane.bikecompanion.data.bike.recordedDistanceKm
+import com.clintoncochrane.bikecompanion.data.bike.MileageCorrectionResult
 import com.clintoncochrane.bikecompanion.ui.navigation.Screen
 import com.clintoncochrane.bikecompanion.ui.trip.RideReviewDialog
 import com.clintoncochrane.bikecompanion.data.component.ComponentCategory
@@ -106,6 +107,7 @@ fun BikeDetailScreen(
     backStackEntry: NavBackStackEntry,
 ) {
     var showAddComponentDialog by remember { mutableStateOf(false) }
+    var showCorrectMileageSheet by remember { mutableStateOf(false) }
     var componentToReplace by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentIdForInstallPicker by remember { mutableStateOf<ComponentEntity?>(null) }
     var componentForDeleteConfirm by remember { mutableStateOf<ComponentEntity?>(null) }
@@ -119,6 +121,21 @@ fun BikeDetailScreen(
     val context = LocalContext.current
     val backContentDesc = stringResource(R.string.common_back_content_description)
     val editContentDesc = stringResource(R.string.common_edit)
+
+    LaunchedEffect(uiState.mileageCorrectionResult) {
+        when (uiState.mileageCorrectionResult) {
+            MileageCorrectionResult.APPLIED -> {
+                showCorrectMileageSheet = false
+                snackbarHostState.showSnackbar(context.getString(R.string.bike_correct_mileage_applied))
+                viewModel.clearMileageCorrectionResult()
+            }
+            null -> Unit
+            else -> {
+                snackbarHostState.showSnackbar(context.getString(R.string.bike_correct_mileage_failed))
+                viewModel.clearMileageCorrectionResult()
+            }
+        }
+    }
 
     fun closeComponentContextMenu(persistAlerts: Boolean = true) {
         val menuState = componentAlertMenuState ?: return
@@ -150,6 +167,22 @@ fun BikeDetailScreen(
                 showAddComponentDialog = false
             },
         )
+    }
+
+    if (showCorrectMileageSheet) {
+        uiState.bike?.let { bike ->
+            CorrectMileageSheet(
+                bike = bike,
+                components = uiState.components,
+                saving = uiState.mileageCorrectionInProgress,
+                onDismiss = {
+                    if (!uiState.mileageCorrectionInProgress) {
+                        showCorrectMileageSheet = false
+                    }
+                },
+                onApply = viewModel::correctMileage,
+            )
+        }
     }
 
     componentToReplace?.let { component ->
@@ -461,9 +494,10 @@ fun BikeDetailScreen(
                             stringResource(R.string.garage_components),
                             style = MaterialTheme.typography.titleMedium,
                         )
-                        TextButton(onClick = { showAddComponentDialog = true }) {
-                            Text(stringResource(R.string.bike_add_component))
-                        }
+                        BikeActionsMenu(
+                            onAddComponent = { showAddComponentDialog = true },
+                            onCorrectMileage = { showCorrectMileageSheet = true },
+                        )
                     }
                     LazyRow(
                         modifier = Modifier.fillMaxWidth(),

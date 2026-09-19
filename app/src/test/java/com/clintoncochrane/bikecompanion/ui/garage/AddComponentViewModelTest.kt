@@ -2,6 +2,7 @@ package com.clintoncochrane.bikecompanion.ui.garage
 
 import androidx.lifecycle.SavedStateHandle
 import com.clintoncochrane.bikecompanion.data.bike.BikeEntity
+import com.clintoncochrane.bikecompanion.data.bike.BikeMileageCorrectionRepository
 import com.clintoncochrane.bikecompanion.data.bike.BikeRepository
 import com.clintoncochrane.bikecompanion.data.component.ComponentRepository
 import com.clintoncochrane.bikecompanion.data.component.ComponentSwapRepository
@@ -28,6 +29,7 @@ class AddComponentViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val bikeRepository = mockk<BikeRepository>()
+    private val correctionRepository = mockk<BikeMileageCorrectionRepository>()
     private val componentRepository = mockk<ComponentRepository>()
     private val componentSwapRepository = mockk<ComponentSwapRepository>()
     private val serviceIntervalRepository = mockk<ServiceIntervalRepository>()
@@ -51,6 +53,7 @@ class AddComponentViewModelTest {
             componentRepository,
             serviceIntervalRepository,
             appPreferencesRepository,
+            correctionRepository,
         )
         advanceUntilIdle()
 
