@@ -1,6 +1,7 @@
 package com.clintoncochrane.bikecompanion.util
 
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
+import com.clintoncochrane.bikecompanion.data.component.ComponentLifecycleStatus
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -95,6 +96,70 @@ class NextServiceInboxTest {
         assertTrue(nextServiceInbox(listOf(component), intervals, thresholdPercent = 25).isNotEmpty())
         assertTrue(nextServiceInbox(listOf(component), intervals, thresholdPercent = 20).isEmpty())
         assertFalse(nextServiceInbox(emptyList(), emptyMap(), thresholdPercent = 20).isNotEmpty())
+    }
+
+    @Test
+    fun nextServiceInbox_dueInstalledComponent_isIncluded() {
+        val installed = component(id = 1, type = "Chain", name = "Chain")
+
+        val inbox = nextServiceInbox(
+            components = listOf(installed),
+            intervalsByComponentId = mapOf(installed.id to listOf(interval(installed.id, trackedKm = 90.0))),
+            thresholdPercent = 20,
+        )
+
+        assertEquals(listOf(installed.id), inbox.map(ComponentEntity::id))
+    }
+
+    @Test
+    fun nextServiceInbox_dueGarageComponent_isExcluded() {
+        val inGarage = component(id = 1, type = "Chain", name = "Spare chain").copy(
+            bikeId = null,
+            lifecycleStatus = ComponentLifecycleStatus.IN_GARAGE,
+        )
+
+        val inbox = nextServiceInbox(
+            components = listOf(inGarage),
+            intervalsByComponentId = mapOf(inGarage.id to listOf(interval(inGarage.id, trackedKm = 90.0))),
+            thresholdPercent = 20,
+        )
+
+        assertTrue(inbox.isEmpty())
+    }
+
+    @Test
+    fun nextServiceInbox_dueRetiredComponent_isExcluded() {
+        val retired = component(id = 1, type = "Chain", name = "Retired chain").copy(
+            lifecycleStatus = ComponentLifecycleStatus.RETIRED,
+        )
+
+        val inbox = nextServiceInbox(
+            components = listOf(retired),
+            intervalsByComponentId = mapOf(retired.id to listOf(interval(retired.id, trackedKm = 90.0))),
+            thresholdPercent = 20,
+        )
+
+        assertTrue(inbox.isEmpty())
+    }
+
+    @Test
+    fun nextServiceInbox_assignmentChanges_updateMembership() {
+        val installed = component(id = 1, type = "Chain", name = "Chain")
+        val intervals = mapOf(installed.id to listOf(interval(installed.id, trackedKm = 90.0)))
+        val inGarage = installed.copy(
+            bikeId = null,
+            lifecycleStatus = ComponentLifecycleStatus.IN_GARAGE,
+        )
+        val reinstalled = inGarage.copy(
+            bikeId = 2L,
+            lifecycleStatus = ComponentLifecycleStatus.INSTALLED,
+        )
+
+        assertTrue(nextServiceInbox(listOf(inGarage), intervals, thresholdPercent = 20).isEmpty())
+        assertEquals(
+            listOf(reinstalled.id),
+            nextServiceInbox(listOf(reinstalled), intervals, thresholdPercent = 20).map(ComponentEntity::id),
+        )
     }
 
     @Test

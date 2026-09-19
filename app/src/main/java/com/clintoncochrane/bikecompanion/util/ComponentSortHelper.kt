@@ -1,6 +1,7 @@
 package com.clintoncochrane.bikecompanion.util
 
 import com.clintoncochrane.bikecompanion.data.component.ComponentEntity
+import com.clintoncochrane.bikecompanion.data.component.ComponentLifecycleStatus
 import com.clintoncochrane.bikecompanion.data.component.PriorUsageCertainty
 import com.clintoncochrane.bikecompanion.data.component.ServiceIntervalEntity
 
@@ -42,7 +43,8 @@ fun sortComponents(
 }
 
 /**
- * Returns the maintenance inbox: components with a configured interval at or below [thresholdPercent].
+ * Returns the Service List maintenance inbox: installed, non-retired components with a configured
+ * interval at or below [thresholdPercent]. Garage-only components are not actionable maintenance.
  * Results are ordered by urgency, then type and name so equal-urgency rows remain stable.
  */
 fun nextServiceInbox(
@@ -52,7 +54,10 @@ fun nextServiceInbox(
 ): List<ComponentEntity> = components
     .filter { component ->
         val intervals = intervalsByComponentId[component.id].orEmpty()
-        intervals.isNotEmpty() && ServiceIntervalHelper.minHealthForSort(intervals) <= thresholdPercent
+        component.bikeId != null &&
+            component.lifecycleStatus != ComponentLifecycleStatus.RETIRED &&
+            intervals.isNotEmpty() &&
+            ServiceIntervalHelper.minHealthForSort(intervals) <= thresholdPercent
     }
     .sortedWith(
         compareBy<ComponentEntity> { component ->

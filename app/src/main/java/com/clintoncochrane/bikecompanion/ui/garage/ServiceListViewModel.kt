@@ -14,11 +14,12 @@ import com.clintoncochrane.bikecompanion.data.preferences.AppPreferencesReposito
 import com.clintoncochrane.bikecompanion.util.ComponentSortOrder
 import com.clintoncochrane.bikecompanion.util.ServiceIntervalHelper
 import com.clintoncochrane.bikecompanion.util.componentHealthPercent
-import com.clintoncochrane.bikecompanion.util.sortComponents
+import com.clintoncochrane.bikecompanion.util.nextServiceInbox
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -59,25 +60,32 @@ class ServiceListViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            appPreferencesRepository.closeToServiceHealthThreshold.collect { threshold ->
-                _uiState.update { it.copy(closeToServiceThreshold = threshold) }
-            }
-        }
-        viewModelScope.launch {
-            bikeRepository.getAllBikes().collect { bikes ->
-                _uiState.update { it.copy(bikes = bikes) }
-            }
-        }
-        viewModelScope.launch {
-            componentRepository.getNonRetiredComponents().collect { components ->
-                val ids = components.map { it.id }
-                val intervals = if (ids.isEmpty()) emptyList()
-                else serviceIntervalRepository.getIntervalsByComponentIdsOnce(ids)
+            combine(
+                bikeRepository.getAllBikes(),
+                componentRepository.getNonRetiredComponents(),
+                serviceIntervalRepository.getAllIntervals(),
+                appPreferencesRepository.closeToServiceHealthThreshold,
+            ) { bikes, components, intervals, threshold ->
                 val intervalsByComponent = intervals.groupBy { it.componentId }
-                val due = computeDueItems(components, intervalsByComponent)
-                val state = _uiState.value.copy(allDueItems = due)
-                val filtered = applyFiltersAndSort(due, state)
-                _uiState.update { it.copy(allDueItems = due, dueItems = filtered) }
+                val due = computeDueItems(
+                    components = components,
+                    intervalsByComponentId = intervalsByComponent,
+                    bikes = bikes,
+                    threshold = threshold,
+                )
+                ServiceListData(bikes, threshold, due)
+            }.collect { data ->
+                _uiState.update { current ->
+                    val next = current.copy(
+                        bikes = data.bikes,
+                        allDueItems = data.dueItems,
+                        closeToServiceThreshold = data.threshold,
+                        selectedIds = current.selectedIds.intersect(
+                            data.dueItems.mapTo(mutableSetOf()) { it.component.id },
+                        ),
+                    )
+                    next.copy(dueItems = applyFiltersAndSort(next.allDueItems, next))
+                }
             }
         }
     }
@@ -85,23 +93,12 @@ class ServiceListViewModel @Inject constructor(
     private fun computeDueItems(
         components: List<ComponentEntity>,
         intervalsByComponentId: Map<Long, List<ServiceIntervalEntity>>,
+        bikes: List<BikeEntity>,
+        threshold: Int,
     ): List<DueServiceItem> {
-        val bikes = _uiState.value.bikes
-        val threshold = _uiState.value.closeToServiceThreshold
-        return components
-            .filter { component ->
-                val intervalHealth = intervalsByComponentId[component.id]
-                    ?.minOfOrNull { ServiceIntervalHelper.healthPercent(it) }
-                    ?: 100
-                val dueHealth = componentHealthPercent(component)?.let { componentHealth ->
-                    minOf(componentHealth, intervalHealth)
-                } ?: intervalHealth
-                dueHealth <= threshold
-            }
+        return nextServiceInbox(components, intervalsByComponentId, threshold)
             .map { component ->
-                val bikeName = component.bikeId?.let { bid ->
-                    bikes.find { it.id == bid }?.name ?: ""
-                } ?: ""
+                val bikeName = bikes.find { it.id == component.bikeId }?.name ?: ""
                 val componentHealth = componentHealthPercent(component)
                 val intervals = intervalsByComponentId[component.id] ?: emptyList()
                 val intervalHealth = intervals.minOfOrNull { ServiceIntervalHelper.healthPercent(it) } ?: 100
@@ -120,6 +117,12 @@ class ServiceListViewModel @Inject constructor(
                 )
             }
     }
+
+    private data class ServiceListData(
+        val bikes: List<BikeEntity>,
+        val threshold: Int,
+        val dueItems: List<DueServiceItem>,
+    )
 
     private fun applyFiltersAndSort(
         allDue: List<DueServiceItem>,

@@ -48,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -325,8 +326,12 @@ fun ServiceListScreen(
     }
 }
 
+internal const val SERVICE_LIST_IDENTITY_TAG = "service_list_identity"
+internal const val SERVICE_LIST_CHECKBOX_TAG = "service_list_checkbox"
+internal const val SERVICE_LIST_ICON_TAG = "service_list_icon"
+
 @Composable
-private fun ServiceListRow(
+internal fun ServiceListRow(
     item: DueServiceItem,
     isSelected: Boolean,
     onToggleSelect: () -> Unit,
@@ -340,73 +345,90 @@ private fun ServiceListRow(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Checkbox(
-                checked = isSelected,
-                onCheckedChange = { onToggleSelect() },
-            )
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                contentAlignment = Alignment.Center,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    imageVector = componentTypeIcon(item.component.type),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onToggleSelect() },
+                    modifier = Modifier.testTag(SERVICE_LIST_CHECKBOX_TAG),
                 )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = DisplayFormatHelper.componentLabels(
-                        item.component.name, item.component.make, item.component.model, item.component.type,
-                    ).primary,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = DisplayFormatHelper.formatComponentTypeForDisplay(item.component.type),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = item.bikeName.ifEmpty { "-" },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                item.nextDueDescription?.let { description ->
-                    Text(
-                        text = serviceIntervalDescriptionText(description),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .testTag(SERVICE_LIST_ICON_TAG)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = componentTypeIcon(item.component.type),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.primary,
                     )
                 }
-                if (item.healthPercent == null) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag(SERVICE_LIST_IDENTITY_TAG),
+                ) {
                     Text(
-                        text = stringResource(R.string.component_health_unavailable),
+                        text = DisplayFormatHelper.componentLabels(
+                            item.component.name, item.component.make, item.component.model, item.component.type,
+                        ).primary,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = DisplayFormatHelper.formatComponentTypeForDisplay(item.component.type),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = item.bikeName.ifEmpty { "-" },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    item.nextDueDescription?.let { description ->
+                        Text(
+                            text = serviceIntervalDescriptionText(description),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    if (item.healthPercent == null) {
+                        Text(
+                            text = stringResource(R.string.component_health_unavailable),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
-            Column(horizontalAlignment = Alignment.End) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.End,
+            ) {
                 Text(
                     text = item.healthPercent?.let { stringResource(R.string.bike_component_health, it) }
                         ?: stringResource(R.string.component_tracked_distance, item.component.distanceUsedKm),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Row(
-                    modifier = Modifier.padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     OutlinedButton(
                         onClick = onReplace,
