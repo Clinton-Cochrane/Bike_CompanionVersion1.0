@@ -43,7 +43,7 @@ class GarageBikesPresenterTest {
     }
 
     @Test
-    fun build_mapsReadyInspectAndServiceStatusesFromComponentHealth() {
+    fun build_mapsComponentHealthToReadyOrInspectStatus() {
         val bikes = listOf(bike(1), bike(2), bike(3))
         val components = listOf(
             component(id = 11, bikeId = 1, name = "Chain", distanceUsedKm = 50.0),
@@ -53,13 +53,13 @@ class GarageBikesPresenterTest {
 
         val ready = GarageBikesPresenter.build(bikes, components, emptyList(), 20, 1).status
         val inspect = GarageBikesPresenter.build(bikes, components, emptyList(), 20, 2).status
-        val due = GarageBikesPresenter.build(bikes, components, emptyList(), 20, 3).status
+        val worn = GarageBikesPresenter.build(bikes, components, emptyList(), 20, 3).status
 
         assertEquals(GarageBikeStatus.ReadyToRide, ready.level)
         assertEquals(GarageBikeStatus.InspectSoon, inspect.level)
         assertEquals(listOf("Brake pads"), inspect.affectedComponentNames)
-        assertEquals(GarageBikeStatus.ServiceDue, due.level)
-        assertEquals(listOf("Cassette"), due.affectedComponentNames)
+        assertEquals(GarageBikeStatus.InspectSoon, worn.level)
+        assertEquals(listOf("Cassette"), worn.affectedComponentNames)
     }
 
     @Test
@@ -135,6 +135,40 @@ class GarageBikesPresenterTest {
 
         assertEquals(GarageBikeStatus.ReadyToRide, state.status.level)
         assertEquals(emptyList<DueServiceRequirement>(), state.dueServiceRequirements)
+    }
+
+    @Test
+    fun build_afterCompletingAllDueRequirements_wornComponentIsInspectSoon() {
+        val chain = component(id = 11, bikeId = 1, name = "Chain", distanceUsedKm = 50_000.0)
+        val dueInterval = interval(101, 11, "Clean", SERVICE_INTERVAL_TYPE_INSPECTION)
+
+        val beforeCompletion = GarageBikesPresenter.build(
+            bikes = listOf(bike(1)),
+            components = listOf(chain),
+            rides = emptyList(),
+            closeToServiceThreshold = 20,
+            selectedBikeId = 1,
+            serviceIntervals = listOf(dueInterval),
+        )
+        val afterCompletion = GarageBikesPresenter.build(
+            bikes = listOf(bike(1)),
+            components = listOf(chain),
+            rides = emptyList(),
+            closeToServiceThreshold = 20,
+            selectedBikeId = 1,
+            serviceIntervals = listOf(
+                dueInterval.copy(
+                    trackedKm = 0.0,
+                    lastCompletedAt = 5_000L,
+                ),
+            ),
+        )
+
+        assertEquals(GarageBikeStatus.ServiceDue, beforeCompletion.status.level)
+        assertEquals(listOf(101L), beforeCompletion.dueServiceRequirements.map { it.intervalId })
+        assertEquals(GarageBikeStatus.InspectSoon, afterCompletion.status.level)
+        assertEquals(listOf("Chain"), afterCompletion.status.affectedComponentNames)
+        assertEquals(emptyList<DueServiceRequirement>(), afterCompletion.dueServiceRequirements)
     }
 
     private fun bike(id: Long) = BikeEntity(id = id, name = "Bike $id", createdAt = 0L)
