@@ -174,6 +174,7 @@
 
     <!-- Garage screen -->
     <string name="garage_title">Bike garage</string>
+    <string name="garage_service_due_indicator_content_description">Service due. Open service list</string>
     <string name="garage_tab_bikes">Bikes</string>
     <string name="garage_tab_components">Parts</string>
     <string name="garage_previous_bike">Previous bike</string>

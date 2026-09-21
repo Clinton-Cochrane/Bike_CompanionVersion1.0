@@ -122,50 +122,11 @@ fun GarageScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
         topBar = {
-            var garageMenuExpanded by remember { mutableStateOf(false) }
-            val garageMenuContentDesc = stringResource(R.string.settings_content_description)
-            TopAppBar(
-                title = { Text(stringResource(R.string.garage_title)) },
-                actions = {
-                    com.clintoncochrane.bikecompanion.ui.StartRideAction(onStartRide)
-                    Box {
-                        IconButton(
-                            onClick = { garageMenuExpanded = true },
-                            modifier = Modifier.semantics { contentDescription = garageMenuContentDesc },
-                        ) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = null)
-                        }
-                        DropdownMenu(
-                            expanded = garageMenuExpanded,
-                            onDismissRequest = { garageMenuExpanded = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.service_list)) },
-                                onClick = {
-                                    garageMenuExpanded = false
-                                    navController.navigate(Screen.ServiceList.route)
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Filled.Build, contentDescription = null)
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.garage_settings)) },
-                                onClick = {
-                                    garageMenuExpanded = false
-                                    navController.navigate(Screen.Settings.route)
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Filled.Settings, contentDescription = null)
-                                },
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
+            GarageTopBar(
+                hasDueServiceItems = uiState.hasDueServiceItems,
+                onStartRide = onStartRide,
+                onServiceListClick = { navController.navigate(Screen.ServiceList.route) },
+                onSettingsClick = { navController.navigate(Screen.Settings.route) },
             )
         },
         floatingActionButton = {
@@ -234,6 +195,75 @@ fun GarageScreen(
             navigationBarClearance = navigationBarClearance,
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun GarageTopBar(
+    hasDueServiceItems: Boolean,
+    onStartRide: () -> Unit,
+    onServiceListClick: () -> Unit,
+    onSettingsClick: () -> Unit,
+) {
+    var garageMenuExpanded by remember { mutableStateOf(false) }
+    val garageMenuContentDesc = stringResource(R.string.settings_content_description)
+
+    TopAppBar(
+        title = { Text(stringResource(R.string.garage_title)) },
+        actions = {
+            if (hasDueServiceItems) {
+                IconButton(
+                    onClick = onServiceListClick,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Warning,
+                        contentDescription = stringResource(
+                            R.string.garage_service_due_indicator_content_description,
+                        ),
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+            com.clintoncochrane.bikecompanion.ui.StartRideAction(onStartRide)
+            Box {
+                IconButton(
+                    onClick = { garageMenuExpanded = true },
+                    modifier = Modifier.semantics { contentDescription = garageMenuContentDesc },
+                ) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = null)
+                }
+                DropdownMenu(
+                    expanded = garageMenuExpanded,
+                    onDismissRequest = { garageMenuExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.service_list)) },
+                        onClick = {
+                            garageMenuExpanded = false
+                            onServiceListClick()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Filled.Build, contentDescription = null)
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.garage_settings)) },
+                        onClick = {
+                            garageMenuExpanded = false
+                            onSettingsClick()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Filled.Settings, contentDescription = null)
+                        },
+                    )
+                }
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
+    )
 }
 
 @Composable
