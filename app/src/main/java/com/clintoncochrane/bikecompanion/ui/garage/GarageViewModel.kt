@@ -17,6 +17,7 @@ import com.clintoncochrane.bikecompanion.util.ComponentSortOrder
 import com.clintoncochrane.bikecompanion.util.GarageSpecHelper
 import com.clintoncochrane.bikecompanion.util.componentHealthPercent
 import com.clintoncochrane.bikecompanion.util.minimumComponentHealthPercent
+import com.clintoncochrane.bikecompanion.util.nextServiceInbox
 import com.clintoncochrane.bikecompanion.util.sortComponents
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,6 +58,8 @@ data class GarageUiState(
     val bikesOverview: GarageBikesUiState = GarageBikesUiState(),
     /** State for the complete active, unassigned, and retired Parts directory. */
     val partsDirectory: PartsDirectoryUiState = PartsDirectoryUiState(),
+    /** Whether the global Service list contains maintenance for an installed component. */
+    val hasDueServiceItems: Boolean = false,
     /** Single bottom-sheet workflow for due-service checklist, confirmation, and retry. */
     val serviceSheet: GarageServiceSheetState = GarageServiceSheetState(),
 )
@@ -310,8 +313,16 @@ class GarageViewModel @Inject constructor(
         }
     }
 
-    private fun GarageUiState.withBikesOverview(selectedBikeId: Long? = bikesOverview.selectedBikeId): GarageUiState =
-        copy(
+    private fun GarageUiState.withBikesOverview(
+        selectedBikeId: Long? = bikesOverview.selectedBikeId,
+    ): GarageUiState {
+        val intervalsByComponentId = serviceIntervals.groupBy(ServiceIntervalEntity::componentId)
+        return copy(
+            hasDueServiceItems = nextServiceInbox(
+                components = garageComponents,
+                intervalsByComponentId = intervalsByComponentId,
+                thresholdPercent = closeToServiceThreshold,
+            ).isNotEmpty(),
             bikesOverview = GarageBikesPresenter.build(
                 bikes = bikes,
                 components = garageComponents,
@@ -321,6 +332,7 @@ class GarageViewModel @Inject constructor(
                 serviceIntervals = serviceIntervals,
             ),
         )
+    }
 
     private fun GarageUiState.withPartsDirectory(): GarageUiState = copy(
         partsDirectory = partsDirectory.copy(
