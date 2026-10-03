@@ -1,0 +1,131 @@
+name: GitHub Release APK
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: github-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-release-apk:
+    name: Build signed release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK 36
+        uses: android-actions/setup-android@v4
+        with:
+          packages: "platform-tools platforms;android-36"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Validate tag matches app version
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          APP_VERSION="$(grep '^BIKE_COMPANION_VERSION_NAME=' gradle.properties | cut -d= -f2-)"
+          if [[ "$TAG_VERSION" != "$APP_VERSION" ]]; then
+            echo "Tag version ($TAG_VERSION) does not match BIKE_COMPANION_VERSION_NAME ($APP_VERSION)."
+            exit 1
+          fi
+
+      - name: Restore release signing key
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.BIKE_COMPANION_RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$KEYSTORE_BASE64" ]]; then
+            echo "Missing BIKE_COMPANION_RELEASE_KEYSTORE_BASE64 repository secret."
+            exit 1
+          fi
+          KEYSTORE_PATH="$RUNNER_TEMP/bike-companion-release.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          chmod 600 "$KEYSTORE_PATH"
+          echo "BIKE_COMPANION_UPLOAD_STORE_FILE=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+
+      - name: Build and test release candidate
+        env:
+          BIKE_COMPANION_UPLOAD_STORE_PASSWORD: ${{ secrets.BIKE_COMPANION_UPLOAD_STORE_PASSWORD }}
+          BIKE_COMPANION_UPLOAD_KEY_ALIAS: ${{ secrets.BIKE_COMPANION_UPLOAD_KEY_ALIAS }}
+          BIKE_COMPANION_UPLOAD_KEY_PASSWORD: ${{ secrets.BIKE_COMPANION_UPLOAD_KEY_PASSWORD }}
+        run: |
+          ./gradlew clean testDebugUnitTest lintDebug assembleRelease --no-daemon --stacktrace
+
+      - name: Verify and package APK
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_APK="app/build/outputs/apk/release/app-release.apk"
+          if [[ ! -f "$SOURCE_APK" ]]; then
+            echo "Release APK not found at $SOURCE_APK"
+            exit 1
+          fi
+
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            RELEASE_NAME="Bike-Companion-${GITHUB_REF_NAME}.apk"
+          else
+            RELEASE_NAME="Bike-Companion-manual-${GITHUB_SHA:0:7}.apk"
+          fi
+
+          mkdir -p release
+          cp "$SOURCE_APK" "release/$RELEASE_NAME"
+
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          if [[ -z "$APKSIGNER" ]]; then
+            echo "apksigner was not found."
+            exit 1
+          fi
+          "$APKSIGNER" verify --verbose --print-certs "release/$RELEASE_NAME"
+
+          (
+            cd release
+            sha256sum "$RELEASE_NAME" > "$RELEASE_NAME.sha256"
+          )
+
+          echo "apk_name=$RELEASE_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload manual-build artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bike-companion-release-apk
+          path: |
+            release/*.apk
+            release/*.sha256
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APK_NAME: ${{ steps.package.outputs.apk_name }}
+        run: |
+          gh release create "$GITHUB_REF_NAME"             "release/$APK_NAME"             "release/$APK_NAME.sha256"             --verify-tag             --generate-notes             --title "Bike Companion $GITHUB_REF_NAME"
+
+      - name: Remove restored signing key
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/bike-companion-release.jks"
