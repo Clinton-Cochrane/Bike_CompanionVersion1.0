@@ -1,100 +1,138 @@
-# Production release bundles
+# GitHub release distribution
 
-Bike Companion uses Google Play App Signing. Google holds the production app-signing key;
-maintainers keep a separate upload key and use it to sign each Android App Bundle (`.aab`).
-The package uploaded to Play is `com.clintoncochrane.bikecompanion`.
+Bike Companion is distributed directly through GitHub Releases as a signed Android APK.
 
-## One-time owner setup
+The package is `com.clintoncochrane.bikecompanion`. Users download the APK from the repository's
+latest GitHub Release and install it through Android's normal sideload flow.
 
-1. Create a dedicated upload key in Android Studio (**Build > Generate Signed Bundle/APK**) or
-   with `keytool`. Do not use the debug key. Back up the keystore and its passwords in secure,
-   access-controlled storage outside this repository.
-2. During the first Play Console release, enroll the app in Play App Signing and let Google
-   generate and protect the app-signing key. The locally held key becomes the upload key.
-3. Store the four inputs below in the local shell/secret manager or CI secret store. Never put
-   passwords or private key material in repository `gradle.properties`, workflow YAML, command
-   arguments, logs, or artifacts.
+## Signing key
 
-Google documents the separation between the upload key and Play-managed app-signing key in
-[Sign your app](https://developer.android.com/studio/publish/app-signing).
+Direct APK updates must always be signed with the same key.
 
-## Required signing inputs
+The existing Bike Companion release keystore is therefore the app's long-term signing identity.
+Back it up securely outside GitHub. If this key is lost, Android will not accept future APKs as
+updates to an installed copy. Because Bike Companion intentionally disables Android backup,
+requiring users to uninstall/reinstall could also cause loss of their local Bike Companion data.
+
+Never commit the keystore, passwords, aliases, or other private key material.
+
+The Gradle build currently expects these signing inputs:
 
 | Environment variable | Value |
 | --- | --- |
-| `BIKE_COMPANION_UPLOAD_STORE_FILE` | Absolute path to the upload keystore (`.jks` or `.keystore`) |
-| `BIKE_COMPANION_UPLOAD_STORE_PASSWORD` | Upload keystore password |
-| `BIKE_COMPANION_UPLOAD_KEY_ALIAS` | Upload key alias |
-| `BIKE_COMPANION_UPLOAD_KEY_PASSWORD` | Upload key password |
+| `BIKE_COMPANION_UPLOAD_STORE_FILE` | Absolute path to the release keystore |
+| `BIKE_COMPANION_UPLOAD_STORE_PASSWORD` | Keystore password |
+| `BIKE_COMPANION_UPLOAD_KEY_ALIAS` | Key alias |
+| `BIKE_COMPANION_UPLOAD_KEY_PASSWORD` | Key password |
 
-The same names may instead be placed in the maintainer's user-level
-`~/.gradle/gradle.properties`. Environment variables take precedence. Do not place secrets in
-the repository's checked-in `gradle.properties`. CI should materialize a base64-encoded keystore
-secret into a temporary file, set `BIKE_COMPANION_UPLOAD_STORE_FILE` to that file, mask the
-password values, and delete the temporary file after the job.
+The variable names retain the historical `UPLOAD` wording, but for GitHub Releases this key signs
+the actual APK delivered to users.
+
+## One-time GitHub setup
+
+In **Repository > Settings > Secrets and variables > Actions**, add these repository secrets:
+
+- `BIKE_COMPANION_RELEASE_KEYSTORE_BASE64`
+- `BIKE_COMPANION_UPLOAD_STORE_PASSWORD`
+- `BIKE_COMPANION_UPLOAD_KEY_ALIAS`
+- `BIKE_COMPANION_UPLOAD_KEY_PASSWORD`
+
+Create the base64 value locally without modifying the keystore:
+
+```bash
+base64 -w 0 /absolute/path/to/bike-companion-release.jks
+```
+
+Copy the resulting single line into the
+`BIKE_COMPANION_RELEASE_KEYSTORE_BASE64` GitHub Actions secret. Keep the original keystore backed
+up separately; GitHub Secrets are not a backup strategy.
 
 ## Version workflow
 
-The checked-in public defaults are `BIKE_COMPANION_VERSION_CODE=1` and
-`BIKE_COMPANION_VERSION_NAME=2.0.0` in `gradle.properties`.
+The checked-in defaults live in `gradle.properties`:
 
-Before every Play upload:
-
-1. Increase `BIKE_COMPANION_VERSION_CODE`; Play requires every uploaded code to be unique and
-   higher than the previous release.
-2. Set `BIKE_COMPANION_VERSION_NAME` to the intended user-visible release name.
-3. Commit both changes with the release work. CI can temporarily override them with environment
-   variables of the same names, but the committed values remain the release record.
-
-## Build the candidate
-
-With JDK 17, Android SDK 36, and all signing inputs set, run the required checks followed by a
-clean release bundle build:
-
-```bash
-./gradlew clean testDebugUnitTest lintDebug --no-daemon --stacktrace
-./gradlew bundleRelease --no-daemon --stacktrace
+```properties
+BIKE_COMPANION_VERSION_CODE=1
+BIKE_COMPANION_VERSION_NAME=1.0.0
 ```
 
-`bundleRelease` fails if any signing input is absent or the keystore path is not a file. The
-candidate is written to `app/build/outputs/bundle/release/app-release.aab`.
+Before each public release:
 
-## Verify and test
+1. Increase `BIKE_COMPANION_VERSION_CODE`.
+2. Set `BIKE_COMPANION_VERSION_NAME` to the release version.
+3. Commit and merge those changes to `main`.
+4. Tag that exact `main` commit with `v<versionName>`, for example `v1.0.0`.
+5. Push the tag.
 
-Download the standalone `bundletool-all` JAR from the official
-[bundletool releases](https://github.com/google/bundletool/releases). Verify the upload signature,
-validate the bundle structure, and inspect the package/version embedded in its manifest:
+The release workflow rejects a tag whose version does not match
+`BIKE_COMPANION_VERSION_NAME`.
 
-```bash
-jarsigner -verify -verbose -certs app/build/outputs/bundle/release/app-release.aab
-java -jar bundletool-all.jar validate \
-  --bundle=app/build/outputs/bundle/release/app-release.aab
-java -jar bundletool-all.jar dump manifest \
-  --bundle=app/build/outputs/bundle/release/app-release.aab \
-  --xpath=/manifest/@package
-java -jar bundletool-all.jar dump manifest \
-  --bundle=app/build/outputs/bundle/release/app-release.aab \
-  --xpath=/manifest/@android:versionCode
-java -jar bundletool-all.jar dump manifest \
-  --bundle=app/build/outputs/bundle/release/app-release.aab \
-  --xpath=/manifest/@android:versionName
-```
+## Test the pipeline without publishing
 
-For a device smoke test, use the official `bundletool` to generate APKs from the exact candidate
-and install them on a connected device:
+The release workflow supports manual runs.
+
+Open **Actions > GitHub Release APK > Run workflow**. A manual run performs the tests, builds the
+signed release APK, verifies its signature, creates a SHA-256 checksum, and stores both as a
+short-lived GitHub Actions artifact. It does not create a public GitHub Release.
+
+Use this once after configuring the secrets to verify the signing pipeline.
+
+## Publish a release
+
+After the manual build succeeds:
 
 ```bash
-java -jar bundletool-all.jar build-apks \
-  --bundle=app/build/outputs/bundle/release/app-release.aab \
-  --output=/tmp/bike-companion-release.apks \
-  --overwrite \
-  --connected-device
-java -jar bundletool-all.jar install-apks \
-  --apks=/tmp/bike-companion-release.apks
+git switch main
+git pull --ff-only
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
-Unless signing flags are supplied, `build-apks` signs its generated test APKs with a debug key;
-this does not change or re-sign the candidate AAB. If no device is connected, the validation,
-signature, and manifest checks above provide a repeatable artifact inspection path. The Play
-Console's internal testing track remains the authoritative pre-production test of
-Play-generated, app-signing-key APKs.
+A pushed `v*` tag triggers `.github/workflows/release.yml`. The workflow:
+
+1. checks that the tag matches the committed app version;
+2. restores the signing keystore from GitHub Secrets;
+3. runs unit tests and Android lint;
+4. builds `assembleRelease`;
+5. verifies the resulting APK signature;
+6. generates a SHA-256 checksum; and
+7. creates a GitHub Release containing the APK and checksum.
+
+The public APK name is formatted like:
+
+```text
+Bike-Companion-v1.0.0.apk
+```
+
+GitHub generates the release notes from commits and pull requests associated with the tag.
+
+## Local release build
+
+A signed local release can still be built with the four Gradle signing inputs configured:
+
+```bash
+./gradlew clean testDebugUnitTest lintDebug assembleRelease --no-daemon --stacktrace
+```
+
+The output is:
+
+```text
+app/build/outputs/apk/release/app-release.apk
+```
+
+That local APK and the GitHub-generated APK must be signed by the same release key if they are
+intended to update one another on a user's device.
+
+## User installation and updates
+
+Users download the APK from GitHub Releases. On first install, Android will require permission to
+install unknown apps for the browser or file manager used to open the APK.
+
+For an update, the user downloads the newer APK and installs it over the existing app. Android
+preserves the app's local data as long as:
+
+- the package name stays `com.clintoncochrane.bikecompanion`; and
+- the APK is signed with the same release key.
+
+There is no automatic updater in Bike Companion v1. Users check the GitHub Releases page for a
+new version and install it manually.
